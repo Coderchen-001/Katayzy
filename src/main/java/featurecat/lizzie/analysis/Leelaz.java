@@ -159,6 +159,9 @@ public class Leelaz {
   private BufferedReader inputStream;
   private BufferedOutputStream outputStream;
   private BufferedReader errorStream;
+  private final AtomicLong processIncarnationIds = new AtomicLong();
+  private volatile ReaderStreamBinding readerStreamBinding;
+  private boolean readerTerminalCleanupInProgress;
   private final ArrayDeque<String> recentStdoutLines = new ArrayDeque<String>();
   private final ArrayDeque<String> recentStderrLines = new ArrayDeque<String>();
 
@@ -585,9 +588,8 @@ public class Leelaz {
       }
       if (loginStatus) {
         this.javaSSHClosed = false;
-        this.inputStream = new BufferedReader(new InputStreamReader(this.javaSSH.getStdout()));
-        this.outputStream = createCommandOutputStream(this.javaSSH.getStdin());
-        this.errorStream = new BufferedReader(new InputStreamReader(this.javaSSH.getSterr()));
+        initializeStreams(
+            this.javaSSH.getStdout(), this.javaSSH.getStdin(), this.javaSSH.getSterr());
       } else {
         isDownWithError = true;
         return;
@@ -776,12 +778,13 @@ public class Leelaz {
     // start a thread to continuously read Leelaz output
     // new Thread(this::read).start();
     // can stop engine for switching weights
+    ReaderStreamBinding startedReaderStreamBinding = currentReaderStreamBinding();
+    started = true;
     executor = Executors.newSingleThreadScheduledExecutor();
     isNormalEnd = false;
-    executor.execute(this::read);
+    executor.execute(() -> read(startedReaderStreamBinding));
     executorErr = Executors.newSingleThreadScheduledExecutor();
-    executorErr.execute(this::readError);
-    started = true;
+    executorErr.execute(() -> readError(startedReaderStreamBinding));
 
     if (Lizzie.leelaz2 != null && this == Lizzie.leelaz2) {
       if (index > 19) LizzieFrame.menu.changeEngineIcon2(20, 1);
@@ -1094,9 +1097,115 @@ public class Leelaz {
   }
 
   private void initializeStreams(InputStream stdout, OutputStream stdin, InputStream stderr) {
-    inputStream = new BufferedReader(new InputStreamReader(stdout));
-    outputStream = createCommandOutputStream(stdin);
-    errorStream = new BufferedReader(new InputStreamReader(stderr));
+    BufferedReader nextInputStream = new BufferedReader(new InputStreamReader(stdout));
+    BufferedOutputStream nextOutputStream = createCommandOutputStream(stdin);
+    BufferedReader nextErrorStream = new BufferedReader(new InputStreamReader(stderr));
+    boolean interrupted = false;
+    synchronized (engineArbitrationLock()) {
+      while (readerTerminalCleanupInProgress
+          || (readerStreamBinding != null && readerStreamBinding.linesInProgress > 0)) {
+        try {
+          engineArbitrationLock().wait();
+        } catch (InterruptedException waitInterrupted) {
+          interrupted = true;
+        }
+      }
+      inputStream = nextInputStream;
+      outputStream = nextOutputStream;
+      errorStream = nextErrorStream;
+      readerStreamBinding =
+          new ReaderStreamBinding(
+              nextInputStream,
+              nextErrorStream,
+              process,
+              useRemoteCompute ? remoteTransport : null,
+              useJavaSSH ? javaSSH : null,
+              processIncarnationIds.incrementAndGet());
+    }
+    if (interrupted) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  private ReaderStreamBinding currentReaderStreamBinding() {
+    ReaderStreamBinding binding = readerStreamBinding;
+    if (binding != null) {
+      return binding;
+    }
+    synchronized (engineArbitrationLock()) {
+      if (readerStreamBinding == null) {
+        readerStreamBinding =
+            new ReaderStreamBinding(
+                inputStream,
+                errorStream,
+                process,
+                useRemoteCompute ? remoteTransport : null,
+                useJavaSSH ? javaSSH : null,
+                processIncarnationIds.incrementAndGet());
+      }
+      return readerStreamBinding;
+    }
+  }
+
+  private boolean isCurrentReaderStreamBinding(ReaderStreamBinding binding) {
+    ReaderStreamBinding current = readerStreamBinding;
+    return current == binding && !binding.terminated;
+  }
+
+  private boolean beginReaderLine(ReaderStreamBinding binding) {
+    synchronized (engineArbitrationLock()) {
+      if (!isCurrentReaderStreamBinding(binding)) {
+        return false;
+      }
+      binding.linesInProgress++;
+      return true;
+    }
+  }
+
+  private void endReaderLine(ReaderStreamBinding binding) {
+    boolean finishTerminalCleanup = false;
+    synchronized (engineArbitrationLock()) {
+      binding.linesInProgress--;
+      if (binding.linesInProgress == 0
+          && binding.terminated
+          && !binding.terminalCleanupStarted) {
+        binding.terminalCleanupStarted = true;
+        readerTerminalCleanupInProgress = true;
+        finishTerminalCleanup = true;
+      }
+      engineArbitrationLock().notifyAll();
+    }
+    if (finishTerminalCleanup) {
+      finishReaderTerminalCleanup(binding);
+    }
+  }
+
+  private static final class ReaderStreamBinding {
+    private final BufferedReader stdout;
+    private final BufferedReader stderr;
+    private final Process process;
+    private final EngineTransport remoteTransport;
+    private final SSHController javaSSH;
+    private final long incarnation;
+    private int linesInProgress;
+    private Throwable terminalFailure;
+    private boolean terminalCleanupStarted;
+    private volatile boolean terminated;
+
+    private ReaderStreamBinding(
+        BufferedReader stdout,
+        BufferedReader stderr,
+        Process process,
+        EngineTransport remoteTransport,
+        SSHController javaSSH,
+        long incarnation) {
+      this.stdout = stdout;
+      this.stderr = stderr;
+      this.process = process;
+      this.remoteTransport = remoteTransport;
+      this.javaSSH = javaSSH;
+      this.incarnation = incarnation;
+    }
   }
 
   public List<MoveData> parseInfoSai(String line) {
@@ -1282,7 +1391,7 @@ public class Leelaz {
    * @param line output line
    * @throws IOException
    */
-  private void parseLineForGenmovePk(String line) throws IOException {
+  private void parseLineForGenmovePk(String line, BufferedReader reader) throws IOException {
     // Lizzie.gtpConsole.addLineforce(line);
 
     if (line.startsWith("info")) {
@@ -1473,7 +1582,7 @@ public class Leelaz {
           //	try {
           Optional<int[]> coords;
           if (isPassingLose) {
-            coords = Board.asCoordinates(inputStream.readLine());
+            coords = Board.asCoordinates(reader.readLine());
           } else coords = Board.asCoordinates(params[1]);
           if (!coords.isPresent()) {
             return;
@@ -2778,26 +2887,41 @@ public class Leelaz {
   }
 
   private void readError() {
+    readError(currentReaderStreamBinding());
+  }
+
+  private void readError(ReaderStreamBinding binding) {
     String line = "";
     try {
-      while ((line = errorStream.readLine()) != null) {
-        if (TrialDiag.ENABLED && line != null && !line.isEmpty()) {
-          System.out.println("[katago-stderr] " + line);
+      while ((line = binding.stderr.readLine()) != null) {
+        if (!beginReaderLine(binding)) {
+          return;
         }
-        rememberRecentLine(recentStderrLines, line);
         try {
-          parseLineForError(line);
-        } catch (Exception e) {
-          e.printStackTrace();
+          if (TrialDiag.ENABLED && line != null && !line.isEmpty()) {
+            System.out.println("[katago-stderr] " + line);
+          }
+          rememberRecentLine(recentStderrLines, line);
+          try {
+            parseLineForError(line, binding);
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
+          if (binding.terminated) {
+            return;
+          }
+        } finally {
+          endReaderLine(binding);
         }
       }
-    } catch (IOException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+    } catch (IOException | RuntimeException failure) {
+      if (isCurrentReaderStreamBinding(binding)) {
+        failure.printStackTrace();
+      }
     }
   }
 
-  private void parseLineForError(String line) {
+  private void parseLineForError(String line, ReaderStreamBinding binding) {
     // TODO Auto-generated method stub
     if (!this.isLoaded) {
       if (line.toLowerCase().contains("cl_platform_not_found"))
@@ -2845,7 +2969,8 @@ public class Leelaz {
                     Lizzie.frame);
               }
             });
-        shutdown();
+        terminateReaderIncarnation(binding, null);
+        return;
       }
       if (EngineManager.isEngineGame && EngineManager.engineGameInfo.isGenmove) {
         if (line.contains("->")) {
@@ -3187,11 +3312,23 @@ public class Leelaz {
 
   /** Continually reads and processes output from leelaz */
   private void read() {
+    read(currentReaderStreamBinding());
+  }
+
+  private void read(ReaderStreamBinding binding) {
+    boolean lineInProgress = false;
+    Throwable failure = null;
     try {
       String line = "";
-      while ((line = inputStream.readLine()) != null) {
+      while ((line = binding.stdout.readLine()) != null) {
+        if (!beginReaderLine(binding)) {
+          return;
+        }
+        lineInProgress = true;
         rememberRecentLine(recentStdoutLines, line);
         if (dispatchExclusiveGtpLine(line)) {
+          lineInProgress = false;
+          endReaderLine(binding);
           continue;
         }
         if (getRcentLine) {
@@ -3219,7 +3356,9 @@ public class Leelaz {
         }
         if (EngineManager.isEngineGame && EngineManager.engineGameInfo.isGenmove && isLoaded) {
           try {
-            parseLineForGenmovePk(line);
+            parseLineForGenmovePk(line, binding.stdout);
+          } catch (IOException readFailure) {
+            throw readFailure;
           } catch (Exception e) {
             e.printStackTrace();
           }
@@ -3270,6 +3409,8 @@ public class Leelaz {
           processCommandResponseLine(line);
         }
         isCommandLine = false;
+        lineInProgress = false;
+        endReaderLine(binding);
         // line = new StringBuilder();
         //					if(isInfoLine)
         //					{
@@ -3285,21 +3426,60 @@ public class Leelaz {
         //					isCommandLine = true;
         //				}
       }
-      // this line will be reached when engine shuts down
-      System.out.println("engine process ended.");
-      // process.destroy();
-      shutdown();
-      if (useJavaSSH) javaSSHClosed = true;
-      if (useRemoteCompute && remoteTransport != null) remoteTransport.close();
-      // Do no exit for switching weights
-      // System.exit(-1);
-    } catch (IOException | RuntimeException e) {
-      e.printStackTrace();
-      //	System.out.println("读出错");
-      // System.exit(-1);
-      // read();
+    } catch (IOException | RuntimeException readFailure) {
+      failure = readFailure;
+    } finally {
+      if (lineInProgress) {
+        endReaderLine(binding);
+      }
     }
-    started = false;
+    terminateReaderIncarnation(binding, failure);
+  }
+
+  private void terminateReaderIncarnation(ReaderStreamBinding binding, Throwable failure) {
+    boolean finishTerminalCleanup = false;
+    synchronized (engineArbitrationLock()) {
+      if (readerStreamBinding != binding || binding.terminated) {
+        return;
+      }
+      binding.terminated = true;
+      binding.terminalFailure = failure;
+      if (binding.linesInProgress == 0) {
+        binding.terminalCleanupStarted = true;
+        readerTerminalCleanupInProgress = true;
+        finishTerminalCleanup = true;
+      }
+    }
+    if (finishTerminalCleanup) {
+      finishReaderTerminalCleanup(binding);
+    }
+  }
+
+  private void finishReaderTerminalCleanup(ReaderStreamBinding binding) {
+    try {
+      if (binding.terminalFailure != null) {
+        binding.terminalFailure.printStackTrace();
+      }
+      System.out.println("engine process ended.");
+      try {
+        shutdownReaderTransport(binding);
+      } catch (RuntimeException shutdownFailure) {
+        shutdownFailure.printStackTrace();
+      }
+      if (binding.javaSSH != null) {
+        javaSSHClosed = true;
+      }
+      started = false;
+      finishTerminatedReaderIncarnation(binding);
+    } finally {
+      synchronized (engineArbitrationLock()) {
+        readerTerminalCleanupInProgress = false;
+        engineArbitrationLock().notifyAll();
+      }
+    }
+  }
+
+  private void finishTerminatedReaderIncarnation(ReaderStreamBinding binding) {
     ExclusiveGtpSession interruptedForegroundWork;
     synchronized (engineArbitrationLock()) {
       interruptedForegroundWork =
@@ -3311,7 +3491,7 @@ public class Leelaz {
     abortExclusiveGtpSession();
     completeForegroundRestore(interruptedForegroundWork);
     failReadBoardGmaEngineRestore("engine transport closed");
-    if (!isNormalEnd && !tryRecoverBundledOpenClNativeExit()) {
+    if (!isNormalEnd && !tryRecoverBundledOpenClNativeExit(binding.process)) {
       isDownWithError = true;
       // isLoaded=false;
       tryToDignostic(
@@ -3322,8 +3502,24 @@ public class Leelaz {
     }
   }
 
+  private void shutdownReaderTransport(ReaderStreamBinding binding) {
+    cancelPositionEstimateRequest();
+    leela0110StopPonder();
+    if (binding.javaSSH != null) {
+      binding.javaSSH.close();
+    } else if (binding.remoteTransport != null) {
+      binding.remoteTransport.close();
+    } else if (binding.process != null) {
+      binding.process.destroy();
+    }
+  }
+
   private boolean tryRecoverBundledOpenClNativeExit() {
-    if (process == null
+    return tryRecoverBundledOpenClNativeExit(process);
+  }
+
+  private boolean tryRecoverBundledOpenClNativeExit(Process expectedProcess) {
+    if (expectedProcess == null
         || useRemoteCompute
         || useJavaSSH
         || openClCompatibilityRecoveryAttempted.get()) {
@@ -3331,7 +3527,7 @@ public class Leelaz {
     }
     int exitCode;
     try {
-      exitCode = process.exitValue();
+      exitCode = expectedProcess.exitValue();
     } catch (IllegalThreadStateException e) {
       return false;
     }

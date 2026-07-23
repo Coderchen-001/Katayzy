@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class LeelazOpenClRecoveryTest {
@@ -73,6 +74,65 @@ class LeelazOpenClRecoveryTest {
     }
   }
 
+  @Test
+  void staleOpenClNativeEofDoesNotStartRecoveryOrDestroyReboundProcess() throws Exception {
+    Config previousConfig = Lizzie.config;
+    String previousOsName = System.getProperty("os.name");
+    String previousDriver = System.getProperty("lizzie.opencl.nvidiaDriverVersion");
+    Path tempRoot = Files.createTempDirectory("leelaz-stale-opencl-recovery");
+    try {
+      System.setProperty("os.name", "Windows 11");
+      System.setProperty("lizzie.opencl.nvidiaDriverVersion", "566.36");
+      Lizzie.config = ConfigTestHelper.createForTests(tempRoot.resolve("runtime-root"));
+      Path enginePath = createOpenClEngine(tempRoot);
+      Path modelPath = touch(tempRoot.resolve("weights/current.bin.gz"));
+      RecordingRecoveryLeelaz engine = new RecordingRecoveryLeelaz();
+      BlockingEofInputStream oldStdout = new BlockingEofInputStream();
+      ExitedProcess oldProcess = new ExitedProcess((int) 0xC0000409L, oldStdout);
+      setField(engine, "process", oldProcess);
+      initializeStreams(engine, oldProcess);
+      setField(
+          engine,
+          "commands",
+          List.of(enginePath.toString(), "gtp", "-model", modelPath.toString()));
+      engine.started = true;
+      engine.isLoaded = true;
+
+      AtomicReference<Throwable> readerFailure = new AtomicReference<>();
+      Thread oldReader =
+          new Thread(
+              () -> {
+                try {
+                  invokeRead(engine);
+                } catch (Throwable failure) {
+                  readerFailure.set(failure);
+                }
+              },
+              "stale-opencl-reader");
+      oldReader.setDaemon(true);
+      oldReader.start();
+      assertTrue(oldStdout.awaitRead());
+
+      ExitedProcess newProcess = new ExitedProcess(0);
+      setField(engine, "process", newProcess);
+      initializeStreams(engine, newProcess);
+      oldStdout.release();
+      oldReader.join(1000L);
+
+      assertFalse(oldReader.isAlive());
+      assertEquals(null, readerFailure.get());
+      assertEquals(0, oldProcess.destroyCount);
+      assertEquals(0, newProcess.destroyCount);
+      assertEquals(0, engine.restartCount);
+      assertTrue(engine.isStarted());
+      assertTrue(engine.isLoaded());
+    } finally {
+      restoreProperty("os.name", previousOsName);
+      restoreProperty("lizzie.opencl.nvidiaDriverVersion", previousDriver);
+      Lizzie.config = previousConfig;
+    }
+  }
+
   private static Path createOpenClEngine(Path tempRoot) throws IOException {
     Path engineDirectory = Files.createDirectories(tempRoot.resolve("engines/katago/windows-x64"));
     Files.writeString(engineDirectory.resolve("lizzieyzy-next-engine-backend.txt"), "opencl");
@@ -94,6 +154,15 @@ class LeelazOpenClRecoveryTest {
     Method method = Leelaz.class.getDeclaredMethod("tryRecoverBundledOpenClNativeExit");
     method.setAccessible(true);
     return (Boolean) method.invoke(engine);
+  }
+
+  private static void initializeStreams(Leelaz engine, Process process) throws Exception {
+    Method method =
+        Leelaz.class.getDeclaredMethod(
+            "initializeStreams", InputStream.class, OutputStream.class, InputStream.class);
+    method.setAccessible(true);
+    method.invoke(
+        engine, process.getInputStream(), process.getOutputStream(), process.getErrorStream());
   }
 
   private static void setField(Leelaz engine, String name, Object value) throws Exception {
@@ -128,10 +197,16 @@ class LeelazOpenClRecoveryTest {
 
   private static final class ExitedProcess extends Process {
     private final int exitCode;
+    private final InputStream stdout;
     private int destroyCount;
 
     private ExitedProcess(int exitCode) {
+      this(exitCode, new ByteArrayInputStream(new byte[0]));
+    }
+
+    private ExitedProcess(int exitCode, InputStream stdout) {
       this.exitCode = exitCode;
+      this.stdout = stdout;
     }
 
     @Override
@@ -141,7 +216,7 @@ class LeelazOpenClRecoveryTest {
 
     @Override
     public InputStream getInputStream() {
-      return new ByteArrayInputStream(new byte[0]);
+      return stdout;
     }
 
     @Override
@@ -162,6 +237,33 @@ class LeelazOpenClRecoveryTest {
     @Override
     public void destroy() {
       destroyCount++;
+    }
+  }
+
+  private static final class BlockingEofInputStream extends InputStream {
+    private final CountDownLatch reading = new CountDownLatch(1);
+    private final CountDownLatch released = new CountDownLatch(1);
+
+    @Override
+    public int read() throws IOException {
+      reading.countDown();
+      try {
+        if (!released.await(2, TimeUnit.SECONDS)) {
+          throw new IOException("timed out waiting to release stale EOF");
+        }
+      } catch (InterruptedException interrupted) {
+        Thread.currentThread().interrupt();
+        throw new IOException(interrupted);
+      }
+      return -1;
+    }
+
+    private boolean awaitRead() throws InterruptedException {
+      return reading.await(1, TimeUnit.SECONDS);
+    }
+
+    private void release() {
+      released.countDown();
     }
   }
 }
