@@ -198,6 +198,45 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
   }
 
   @Test
+  void managerReplacementDuringReservationAcquisitionAbandonsRestore() throws Exception {
+    try (BenchmarkEnvironment environment = new BenchmarkEnvironment(1)) {
+      RecordingBenchmarkLeelaz pausedEngine = environment.engine(0);
+      pausedEngine.reservationGate = new CountDownLatch(1);
+      assertTrue(environment.pause(0).accepted());
+      AtomicReference<Throwable> workerFailure = new AtomicReference<>();
+      Thread restoreWorker =
+          new Thread(
+              () -> {
+                try {
+                  KataGoRuntimeHelper.restoreAnalysisAfterBenchmark(false);
+                } catch (Throwable failure) {
+                  workerFailure.set(failure);
+                }
+              },
+              "benchmark-restore-identity-revalidation-test");
+      try {
+        restoreWorker.start();
+        assertTrue(pausedEngine.reservationEntered.await(1, TimeUnit.SECONDS));
+        assertTrue(KataGoRuntimeHelper.isBenchmarkEngineSyncSuppressed());
+        Lizzie.engineManager = engineManager(new ArrayList<>(List.of(pausedEngine)));
+
+        pausedEngine.reservationGate.countDown();
+        restoreWorker.join(1000L);
+
+        assertFalse(restoreWorker.isAlive());
+        assertNull(workerFailure.get());
+        assertFalse(KataGoRuntimeHelper.isBenchmarkEngineSyncSuppressed());
+        assertEquals(1, pausedEngine.reservationAttempts);
+        assertEquals(0, pausedEngine.restartCount);
+        assertFalse(pausedEngine.hasExclusiveGtpWorkInProgress());
+      } finally {
+        pausedEngine.reservationGate.countDown();
+        restoreWorker.join(1000L);
+      }
+    }
+  }
+
+  @Test
   void synchronousRestartFailureReleasesReservationWithoutDelayedWork() throws Exception {
     try (BenchmarkEnvironment environment = new BenchmarkEnvironment(1)) {
       RecordingBenchmarkLeelaz pausedEngine = environment.engine(0);

@@ -1572,6 +1572,18 @@ public final class KataGoRuntimeHelper {
     }
   }
 
+  private static boolean benchmarkPausedEngineIdentityMatchesLocked(
+      Leelaz pausedEngine, int pausedEngineIndex) {
+    return pausedEngine != null
+        && Lizzie.engineManager == benchmarkPausedEngineManager
+        && benchmarkPausedEngineManager != null
+        && benchmarkPausedEngineManager.engineList == benchmarkPausedEngineList
+        && benchmarkPausedEngineList != null
+        && pausedEngineIndex >= 0
+        && pausedEngineIndex < benchmarkPausedEngineList.size()
+        && benchmarkPausedEngineList.get(pausedEngineIndex) == pausedEngine;
+  }
+
   public static void restoreAnalysisAfterBenchmark(boolean analysisWasPondering) {
     Leelaz pausedEngine;
     int pausedEngineIndex;
@@ -1586,15 +1598,13 @@ public final class KataGoRuntimeHelper {
       pausedEngineIndex = benchmarkPausedEngineIndex;
       pausedEngineByShutdown = benchmarkPausedEngineByShutdown;
       if (pausedEngineByShutdown
-          && pausedEngine != null
-          && Lizzie.engineManager == benchmarkPausedEngineManager
-          && benchmarkPausedEngineManager != null
-          && benchmarkPausedEngineManager.engineList == benchmarkPausedEngineList
-          && benchmarkPausedEngineList != null
-          && pausedEngineIndex >= 0
-          && pausedEngineIndex < benchmarkPausedEngineList.size()
-          && benchmarkPausedEngineList.get(pausedEngineIndex) == pausedEngine) {
+          && benchmarkPausedEngineIdentityMatchesLocked(pausedEngine, pausedEngineIndex)) {
         reservation = pausedEngine.beginExclusiveGtpLifecycleReservation();
+        if (reservation != null
+            && !benchmarkPausedEngineIdentityMatchesLocked(pausedEngine, pausedEngineIndex)) {
+          reservation.close();
+          reservation = null;
+        }
       }
       benchmarkPausedEngine = null;
       benchmarkPausedEngineManager = null;
