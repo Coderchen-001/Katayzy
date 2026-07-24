@@ -51,6 +51,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
@@ -199,6 +200,9 @@ public final class KataGoRuntimeHelper {
   private static final Object BENCHMARK_ANALYSIS_PAUSE_LOCK = new Object();
   private static final String BENCHMARK_NOTICE_PROGRESS_KEY = "lizzie.benchmark.notice.progress";
   private static Boolean benchmarkPreviousShowPonderTips = null;
+  private static Leelaz benchmarkPausedEngine = null;
+  private static EngineManager benchmarkPausedEngineManager = null;
+  private static List<Leelaz> benchmarkPausedEngineList = null;
   private static int benchmarkPausedEngineIndex = -1;
   private static boolean benchmarkPausedEngineByShutdown = false;
   private static volatile boolean benchmarkEngineSyncSuppressed = false;
@@ -1495,6 +1499,9 @@ public final class KataGoRuntimeHelper {
         benchmarkPreviousShowPonderTips = Lizzie.config.showPonderLimitedTips;
         Lizzie.config.showPonderLimitedTips = false;
       }
+      benchmarkPausedEngine = currentEngine;
+      benchmarkPausedEngineManager = null;
+      benchmarkPausedEngineList = null;
       benchmarkPausedEngineIndex = -1;
       benchmarkPausedEngineByShutdown = false;
       benchmarkEngineSyncSuppressed = true;
@@ -1509,9 +1516,27 @@ public final class KataGoRuntimeHelper {
         && !EngineManager.isEmpty
         && !EngineManager.isEngineGame) {
       try {
+        boolean pauseByShutdown;
         synchronized (BENCHMARK_ANALYSIS_PAUSE_LOCK) {
-          benchmarkPausedEngineIndex = EngineManager.currentEngineNo;
-          benchmarkPausedEngineByShutdown = benchmarkPausedEngineIndex >= 0;
+          EngineManager manager = Lizzie.engineManager;
+          List<Leelaz> engines = manager == null ? null : manager.engineList;
+          int engineIndex = EngineManager.currentEngineNo;
+          pauseByShutdown =
+              engines != null
+                  && engineIndex >= 0
+                  && engineIndex < engines.size()
+                  && engines.get(engineIndex) == currentEngine;
+          benchmarkPausedEngine = currentEngine;
+          benchmarkPausedEngineManager = pauseByShutdown ? manager : null;
+          benchmarkPausedEngineList = pauseByShutdown ? engines : null;
+          benchmarkPausedEngineIndex = pauseByShutdown ? engineIndex : -1;
+          benchmarkPausedEngineByShutdown = pauseByShutdown;
+        }
+        if (!pauseByShutdown) {
+          if (analysisWasPondering) {
+            currentEngine.togglePonder();
+          }
+          return new BenchmarkPauseResult(true, analysisWasPondering);
         }
         if (analysisWasPondering) {
           currentEngine.Pondering();
@@ -1525,6 +1550,8 @@ public final class KataGoRuntimeHelper {
           return new BenchmarkPauseResult(true, analysisWasPondering);
       } catch (Exception e) {
         synchronized (BENCHMARK_ANALYSIS_PAUSE_LOCK) {
+          benchmarkPausedEngineManager = null;
+          benchmarkPausedEngineList = null;
           benchmarkPausedEngineIndex = -1;
           benchmarkPausedEngineByShutdown = false;
         }
@@ -1546,39 +1573,69 @@ public final class KataGoRuntimeHelper {
   }
 
   public static void restoreAnalysisAfterBenchmark(boolean analysisWasPondering) {
+    Leelaz pausedEngine;
     int pausedEngineIndex;
     boolean pausedEngineByShutdown;
+    Leelaz.ExclusiveGtpLifecycleReservation reservation = null;
     synchronized (BENCHMARK_ANALYSIS_PAUSE_LOCK) {
       if (benchmarkPreviousShowPonderTips != null && Lizzie.config != null) {
         Lizzie.config.showPonderLimitedTips = benchmarkPreviousShowPonderTips.booleanValue();
       }
       benchmarkPreviousShowPonderTips = null;
+      pausedEngine = benchmarkPausedEngine;
       pausedEngineIndex = benchmarkPausedEngineIndex;
       pausedEngineByShutdown = benchmarkPausedEngineByShutdown;
+      if (pausedEngineByShutdown
+          && pausedEngine != null
+          && Lizzie.engineManager == benchmarkPausedEngineManager
+          && benchmarkPausedEngineManager != null
+          && benchmarkPausedEngineManager.engineList == benchmarkPausedEngineList
+          && benchmarkPausedEngineList != null
+          && pausedEngineIndex >= 0
+          && pausedEngineIndex < benchmarkPausedEngineList.size()
+          && benchmarkPausedEngineList.get(pausedEngineIndex) == pausedEngine) {
+        reservation = pausedEngine.beginExclusiveGtpLifecycleReservation();
+      }
+      benchmarkPausedEngine = null;
+      benchmarkPausedEngineManager = null;
+      benchmarkPausedEngineList = null;
       benchmarkPausedEngineIndex = -1;
       benchmarkPausedEngineByShutdown = false;
       benchmarkEngineSyncSuppressed = false;
     }
-    if (pausedEngineByShutdown && pausedEngineIndex >= 0 && Lizzie.leelaz != null) {
+    if (pausedEngineByShutdown) {
+      if (reservation == null) {
+        return;
+      }
+      AtomicBoolean reservationClosed = new AtomicBoolean(false);
+      Leelaz.ExclusiveGtpLifecycleReservation acquiredReservation = reservation;
+      Runnable closeReservation =
+          () -> {
+            if (reservationClosed.compareAndSet(false, true)) {
+              acquiredReservation.close();
+            }
+          };
       try {
         if (analysisWasPondering) {
-          Lizzie.leelaz.Pondering();
+          pausedEngine.Pondering();
         } else {
-          Lizzie.leelaz.notPondering();
+          pausedEngine.notPondering();
         }
-        Lizzie.leelaz.restartClosedEngine(pausedEngineIndex);
+        pausedEngine.restartClosedEngine(pausedEngineIndex, closeReservation);
         return;
       } catch (Exception e) {
+        closeReservation.run();
+        return;
       }
     }
     if (!analysisWasPondering) {
       return;
     }
-    if (Lizzie.leelaz == null || !Lizzie.leelaz.isLoaded() || Lizzie.leelaz.isPondering()) {
+    if (pausedEngine == null || !pausedEngine.isLoaded() || pausedEngine.isPondering()) {
       return;
     }
     try {
-      Lizzie.leelaz.togglePonder();
+      pausedEngine.togglePonder();
     } catch (Exception ignored) {
     }
   }

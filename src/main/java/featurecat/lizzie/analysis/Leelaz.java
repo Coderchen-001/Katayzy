@@ -847,7 +847,7 @@ public class Leelaz {
     restartClosedEngine(index, null);
   }
 
-  void restartClosedEngine(int index, Runnable afterBoardRestore) throws IOException {
+  public void restartClosedEngine(int index, Runnable afterBoardRestore) throws IOException {
     boolean restoreScheduled = false;
     try {
       boolean isPondering = this.isPondering;

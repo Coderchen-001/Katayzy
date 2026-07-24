@@ -188,7 +188,7 @@ class LeelazOpenClRecoveryTest {
     }
 
     @Override
-    void restartClosedEngine(int index, Runnable afterBoardRestore) {
+    public void restartClosedEngine(int index, Runnable afterBoardRestore) {
       restartCount++;
       afterBoardRestore.run();
       recoveryStarted.countDown();

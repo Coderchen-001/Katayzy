@@ -937,7 +937,7 @@ class EngineManagerLifecycleReservationTest {
     }
 
     @Override
-    void restartClosedEngine(int index, Runnable afterBoardRestore) {
+    public void restartClosedEngine(int index, Runnable afterBoardRestore) {
       restartClosedEngine(index);
       if (afterBoardRestore != null) {
         afterBoardRestore.run();
