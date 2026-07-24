@@ -94,6 +94,17 @@ public class Leelaz {
     RESTORE_FAILED
   }
 
+  public enum TrackingStreamLeaseFailure {
+    INITIAL_STOP_SEND_FAILED,
+    INITIAL_STOP_ERROR_RESPONSE,
+    INITIAL_STOP_TIMEOUT,
+    ACTIVE_COMMAND_SEND_FAILED,
+    FINAL_STOP_SEND_FAILED,
+    FINAL_STOP_ERROR_RESPONSE,
+    FINAL_STOP_TIMEOUT,
+    TRANSPORT_CLOSED
+  }
+
   private static final List<String> FLASH_ANALYSIS_GTP_COMMANDS =
       List.of(
           "stop",
@@ -116,6 +127,24 @@ public class Leelaz {
     INITIAL_STOP,
     ACTIVE_COMMAND,
     RELEASE_STOP
+  }
+
+  private enum ExclusiveGtpWriteResult {
+    NOT_CLAIMED,
+    SENT,
+    SEND_FAILED
+  }
+
+  private enum TrackingWriteState {
+    UNSENT,
+    WRITING,
+    SENT,
+    FAILED
+  }
+
+  private enum ExclusiveGtpReleasePolicy {
+    FOREGROUND_RESTORE,
+    STREAM_ONLY
   }
 
   // private static final long MINUTE = 60 * 1000; // number of milliseconds in a minute
@@ -162,6 +191,7 @@ public class Leelaz {
   private final AtomicLong processIncarnationIds = new AtomicLong();
   private volatile ReaderStreamBinding readerStreamBinding;
   private boolean readerTerminalCleanupInProgress;
+  private volatile boolean readerStreamRebindInProgress;
   private final ArrayDeque<String> recentStdoutLines = new ArrayDeque<String>();
   private final ArrayDeque<String> recentStderrLines = new ArrayDeque<String>();
 
@@ -1100,31 +1130,154 @@ public class Leelaz {
     BufferedReader nextInputStream = new BufferedReader(new InputStreamReader(stdout));
     BufferedOutputStream nextOutputStream = createCommandOutputStream(stdin);
     BufferedReader nextErrorStream = new BufferedReader(new InputStreamReader(stderr));
+    ExclusiveGtpSession retiredTrackingSession = null;
+    GtpCommandStateReset rebindCommandStateReset = null;
     boolean interrupted = false;
+    boolean ownsRebindGateAfterTrackingCleanup = false;
+    boolean rebindCommandStateCutover = false;
     synchronized (engineArbitrationLock()) {
-      while (readerTerminalCleanupInProgress
-          || (readerStreamBinding != null && readerStreamBinding.linesInProgress > 0)) {
+      while ((!ownsRebindGateAfterTrackingCleanup && readerStreamRebindInProgress)
+          || readerTerminalCleanupInProgress
+          || (readerStreamBinding != null && readerStreamBinding.linesInProgress > 0)
+          || isFailedTrackingStreamCleanupInProgress()) {
+        if (!ownsRebindGateAfterTrackingCleanup
+            && isFailedTrackingStreamCleanupInProgress()) {
+          synchronized (commandQueue()) {
+            readerStreamRebindInProgress = true;
+            ownsRebindGateAfterTrackingCleanup = true;
+          }
+        }
         try {
           engineArbitrationLock().wait();
         } catch (InterruptedException waitInterrupted) {
           interrupted = true;
         }
       }
-      inputStream = nextInputStream;
-      outputStream = nextOutputStream;
-      errorStream = nextErrorStream;
-      readerStreamBinding =
-          new ReaderStreamBinding(
-              nextInputStream,
-              nextErrorStream,
-              process,
-              useRemoteCompute ? remoteTransport : null,
-              useJavaSSH ? javaSSH : null,
-              processIncarnationIds.incrementAndGet());
+      if (readerStreamBinding != null) {
+        synchronized (commandQueue()) {
+          readerStreamRebindInProgress = true;
+          while (normalCommandSendInProgress) {
+            try {
+              commandQueue().wait();
+            } catch (InterruptedException waitInterrupted) {
+              interrupted = true;
+            }
+          }
+          readerStreamBinding.terminated = true;
+          if (exclusiveGtpSession != null
+              && exclusiveGtpSession.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY) {
+            if (exclusiveGtpSession.closing) {
+              retiredTrackingSession = exclusiveGtpSession;
+              rebindCommandStateReset =
+                  resetGtpCommandStateForReaderRebindLocked(
+                      "tracking stream retired after successful close boundary");
+            } else {
+              TrackingStreamCleanup cleanup =
+                  claimTrackingStreamCleanup(
+                      exclusiveGtpSession,
+                      TrackingStreamLeaseFailure.TRANSPORT_CLOSED,
+                      "tracking stream retired before reader rebind",
+                      true,
+                      false);
+              if (cleanup != null) {
+                retiredTrackingSession = cleanup.session;
+                rebindCommandStateReset = cleanup.commandStateReset;
+              } else {
+                retiredTrackingSession = exclusiveGtpSession;
+                recordTrackingStreamLeaseFailure(
+                    retiredTrackingSession, TrackingStreamLeaseFailure.TRANSPORT_CLOSED);
+                retiredTrackingSession.releaseStopFailed = true;
+                retiredTrackingSession.closing = true;
+                rebindCommandStateReset =
+                    resetGtpCommandStateForReaderRebindLocked(
+                        "stale tracking stream retired before reader rebind");
+              }
+            }
+          } else {
+            rebindCommandStateReset =
+                resetGtpCommandStateForReaderRebindLocked(
+                    "command state retired before reader rebind");
+          }
+          rebindCommandStateCutover = rebindCommandStateReset != null;
+        }
+      }
+      if (!rebindCommandStateCutover) {
+        inputStream = nextInputStream;
+        outputStream = nextOutputStream;
+        errorStream = nextErrorStream;
+        readerStreamBinding =
+            new ReaderStreamBinding(
+                nextInputStream,
+                nextErrorStream,
+                process,
+                useRemoteCompute ? remoteTransport : null,
+                useJavaSSH ? javaSSH : null,
+                processIncarnationIds.incrementAndGet());
+        if (ownsRebindGateAfterTrackingCleanup) {
+          readerStreamRebindInProgress = false;
+          engineArbitrationLock().notifyAll();
+        }
+      }
+    }
+    if (rebindCommandStateCutover) {
+      if (retiredTrackingSession != null) {
+        cancelExclusiveGtpInitialStopTimeout(retiredTrackingSession);
+        cancelExclusiveGtpReleaseStopTimeout(retiredTrackingSession);
+      }
+      try {
+        notifyGtpCommandStateReset(rebindCommandStateReset);
+      } finally {
+        Runnable onClosed = null;
+        synchronized (engineArbitrationLock()) {
+          if (retiredTrackingSession != null) {
+            if (exclusiveGtpSession == retiredTrackingSession) {
+              exclusiveGtpSession = null;
+            }
+            if (!retiredTrackingSession.closedCallbackRun) {
+              retiredTrackingSession.closedCallbackRun = true;
+              onClosed = retiredTrackingSession.onClosed;
+            }
+          }
+          inputStream = nextInputStream;
+          outputStream = nextOutputStream;
+          errorStream = nextErrorStream;
+          readerStreamBinding =
+              new ReaderStreamBinding(
+                  nextInputStream,
+                  nextErrorStream,
+                  process,
+                  useRemoteCompute ? remoteTransport : null,
+                  useJavaSSH ? javaSSH : null,
+                  processIncarnationIds.incrementAndGet());
+          readerStreamRebindInProgress = false;
+          engineArbitrationLock().notifyAll();
+        }
+        try {
+          trySendCommandFromQueue();
+        } catch (RuntimeException ex) {
+          ex.printStackTrace();
+        }
+        if (onClosed != null) {
+          onClosed.run();
+        }
+      }
+    } else if (ownsRebindGateAfterTrackingCleanup) {
+      try {
+        trySendCommandFromQueue();
+      } catch (RuntimeException ex) {
+        ex.printStackTrace();
+      }
     }
     if (interrupted) {
       Thread.currentThread().interrupt();
     }
+  }
+
+  private boolean isFailedTrackingStreamCleanupInProgress() {
+    return exclusiveGtpSession != null
+        && exclusiveGtpSession.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY
+        && exclusiveGtpSession.closing
+        && exclusiveGtpSession.releaseStopFailed;
   }
 
   private ReaderStreamBinding currentReaderStreamBinding() {
@@ -3326,7 +3479,7 @@ public class Leelaz {
         }
         lineInProgress = true;
         rememberRecentLine(recentStdoutLines, line);
-        if (dispatchExclusiveGtpLine(line)) {
+        if (dispatchExclusiveGtpLine(binding, line)) {
           lineInProgress = false;
           endReaderLine(binding);
           continue;
@@ -3485,11 +3638,37 @@ public class Leelaz {
       interruptedForegroundWork =
           exclusiveGtpSession != null ? exclusiveGtpSession : foregroundRestoreSession;
     }
-    recordForegroundAnalysisLeaseFailure(
-        interruptedForegroundWork, ForegroundAnalysisLeaseFailure.TRANSPORT_CLOSED);
-    markForegroundRestoreFailed(interruptedForegroundWork, "engine transport closed");
-    abortExclusiveGtpSession();
-    completeForegroundRestore(interruptedForegroundWork);
+    if (interruptedForegroundWork != null
+        && interruptedForegroundWork.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY) {
+      TrackingStreamCleanup cleanup =
+          claimTrackingStreamCleanup(
+              interruptedForegroundWork,
+              TrackingStreamLeaseFailure.TRANSPORT_CLOSED,
+              "tracking stream transport closed",
+              false,
+              true);
+      if (cleanup != null) {
+        cancelExclusiveGtpInitialStopTimeout(interruptedForegroundWork);
+        cancelExclusiveGtpReleaseStopTimeout(interruptedForegroundWork);
+        try {
+          notifyGtpCommandStateReset(cleanup.commandStateReset);
+        } finally {
+          closeStreamOnlyExclusiveGtpSession(interruptedForegroundWork, false, true);
+        }
+      } else {
+        closeStreamOnlyExclusiveGtpSession(interruptedForegroundWork, false, true);
+      }
+    } else {
+      recordForegroundAnalysisLeaseFailure(
+          interruptedForegroundWork, ForegroundAnalysisLeaseFailure.TRANSPORT_CLOSED);
+      markForegroundRestoreFailed(interruptedForegroundWork, "engine transport closed");
+      abortExclusiveGtpSession();
+    }
+    if (interruptedForegroundWork == null
+        || interruptedForegroundWork.releasePolicy
+            == ExclusiveGtpReleasePolicy.FOREGROUND_RESTORE) {
+      completeForegroundRestore(interruptedForegroundWork);
+    }
     failReadBoardGmaEngineRestore("engine transport closed");
     if (!isNormalEnd && !tryRecoverBundledOpenClNativeExit(binding.process)) {
       isDownWithError = true;
@@ -4032,7 +4211,9 @@ public class Leelaz {
     // but it is kept for future change of our mind.
     QueuedCommand queuedCommand;
     synchronized (commandQueue()) {
-      if (exclusiveGtpSession != null || normalCommandSendInProgress) {
+      if (exclusiveGtpSession != null
+          || readerStreamRebindInProgress
+          || normalCommandSendInProgress) {
         return;
       }
       ArrayDeque<QueuedCommand> targetQueue =
@@ -4073,6 +4254,7 @@ public class Leelaz {
           normalCommandBeingSent = null;
         }
         normalCommandSendInProgress = false;
+        commandQueue().notifyAll();
       }
     }
     if (sendFailure != null) {
@@ -4616,13 +4798,31 @@ public class Leelaz {
 
   private ExclusiveGtpSession reserveExclusiveGtpSession(
       Object owner, Consumer<String> lineConsumer, Runnable onReady, Runnable onClosed) {
+    return reserveExclusiveGtpSession(
+        owner,
+        lineConsumer,
+        onReady,
+        onClosed,
+        ExclusiveGtpReleasePolicy.FOREGROUND_RESTORE,
+        null);
+  }
+
+  private ExclusiveGtpSession reserveExclusiveGtpSession(
+      Object owner,
+      Consumer<String> lineConsumer,
+      Runnable onReady,
+      Runnable onClosed,
+      ExclusiveGtpReleasePolicy releasePolicy,
+      ReaderStreamBinding readerBinding) {
     ExclusiveGtpSession session =
         new ExclusiveGtpSession(
             owner,
             lineConsumer,
             onReady,
             onClosed,
-            exclusiveGtpResponseCommandIds.getAndIncrement());
+            exclusiveGtpResponseCommandIds.getAndIncrement(),
+            releasePolicy,
+            readerBinding);
     session.wasPondering = isPondering();
     exclusiveGtpSession = session;
     return session;
@@ -4631,7 +4831,25 @@ public class Leelaz {
   private ExclusiveGtpLeaseAvailability startReservedExclusiveGtpSession(
       ExclusiveGtpSession session) {
     notPondering();
-    scheduleForegroundInitialStopTimeout(session);
+    if (session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY) {
+      synchronized (engineArbitrationLock()) {
+        if (exclusiveGtpSession != session
+            || session.trackingInitialWriteState != TrackingWriteState.UNSENT) {
+          return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
+        }
+        session.trackingInitialWriteState = TrackingWriteState.WRITING;
+      }
+    }
+    scheduleExclusiveGtpInitialStopTimeout(session);
+    if (session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY) {
+      ExclusiveGtpWriteResult writeResult =
+          writeExclusiveGtpCommandResult(
+              session,
+              ExclusiveGtpWritePhase.INITIAL_STOP,
+              session.stopCommandId,
+              session.stopCommandId + " stop");
+      return publishTrackingInitialWriteResult(session, writeResult);
+    }
     if (!writeExclusiveGtpCommand(
         session,
         ExclusiveGtpWritePhase.INITIAL_STOP,
@@ -4647,6 +4865,57 @@ public class Leelaz {
       return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
     }
     return ExclusiveGtpLeaseAvailability.AVAILABLE;
+  }
+
+  private ExclusiveGtpLeaseAvailability publishTrackingInitialWriteResult(
+      ExclusiveGtpSession session, ExclusiveGtpWriteResult writeResult) {
+    boolean closeStaleSession = false;
+    boolean failCurrentSession = false;
+    boolean completeEarlyBoundary = false;
+    String earlyErrorResponse = null;
+    synchronized (engineArbitrationLock()) {
+      if (exclusiveGtpSession == session
+          && session.trackingInitialWriteState == TrackingWriteState.WRITING) {
+        if (readerStreamBinding != session.readerBinding || session.readerBinding.terminated) {
+          closeStaleSession = true;
+        } else if (writeResult == ExclusiveGtpWriteResult.SENT) {
+          session.trackingInitialWriteState = TrackingWriteState.SENT;
+          earlyErrorResponse = session.initialStopErrorResponse;
+          completeEarlyBoundary =
+              session.initialStopAcknowledged && session.initialStopTerminated;
+        } else {
+          session.trackingInitialWriteState = TrackingWriteState.FAILED;
+          failCurrentSession = true;
+        }
+      }
+    }
+    if (closeStaleSession) {
+      closeStaleTrackingStreamLease(session, false);
+      return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
+    }
+    if (failCurrentSession) {
+      failTrackingStreamLease(
+          session,
+          TrackingStreamLeaseFailure.INITIAL_STOP_SEND_FAILED,
+          "failed to send initial stop command",
+          true);
+      return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
+    }
+    if (earlyErrorResponse != null) {
+      failTrackingStreamLease(
+          session,
+          TrackingStreamLeaseFailure.INITIAL_STOP_ERROR_RESPONSE,
+          "initial stop command failed: " + earlyErrorResponse,
+          true);
+      return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
+    }
+    if (completeEarlyBoundary) {
+      completeExclusiveGtpInitialStopBoundary(session);
+    }
+    return writeResult == ExclusiveGtpWriteResult.SENT
+            && session.trackingInitialWriteState == TrackingWriteState.SENT
+        ? ExclusiveGtpLeaseAvailability.AVAILABLE
+        : ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
   }
 
   public ExclusiveGtpLeaseAvailability beginForegroundAnalysisLease(
@@ -4701,10 +4970,107 @@ public class Leelaz {
         lease);
   }
 
+  public TrackingStreamLeaseAcquisition acquireTrackingStreamLease(
+      Consumer<String> lineConsumer,
+      Consumer<TrackingStreamLease> onReady,
+      Consumer<TrackingStreamLease> onClosed) {
+    ExclusiveGtpSession session;
+    TrackingStreamLease lease;
+    synchronized (engineArbitrationLock()) {
+      synchronized (commandQueue()) {
+        ExclusiveGtpLeaseAvailability availability = trackingStreamLeaseAvailability();
+        if (availability != ExclusiveGtpLeaseAvailability.AVAILABLE
+            || normalCommandSendInProgress
+            || !commandQueue().isEmpty()
+            || !foregroundRestoreCommandQueue().isEmpty()
+            || lineConsumer == null) {
+          return new TrackingStreamLeaseAcquisition(
+              availability == ExclusiveGtpLeaseAvailability.AVAILABLE
+                  ? ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY
+                  : availability,
+              null,
+              null,
+              null);
+        }
+        ReaderStreamBinding binding = currentReaderStreamBinding();
+        TrackingStreamLeaseReceipt receipt =
+            new TrackingStreamLeaseReceipt(this, binding.incarnation, isPondering());
+        TrackingStreamLease reservedLease = new TrackingStreamLease(this, receipt);
+        lease = reservedLease;
+        session =
+            reserveExclusiveGtpSession(
+                reservedLease,
+                lineConsumer,
+                () -> {
+                  if (onReady != null) {
+                    onReady.accept(reservedLease);
+                  }
+                },
+                () -> {
+                  if (onClosed != null) {
+                    onClosed.accept(reservedLease);
+                  }
+                },
+                ExclusiveGtpReleasePolicy.STREAM_ONLY,
+                binding);
+      }
+    }
+    ExclusiveGtpLeaseAvailability availability = startReservedExclusiveGtpSession(session);
+    return new TrackingStreamLeaseAcquisition(
+        availability,
+        availability == ExclusiveGtpLeaseAvailability.AVAILABLE ? lease : null,
+        availability == ExclusiveGtpLeaseAvailability.AVAILABLE ? lease.receipt() : null,
+        lease);
+  }
+
+  private ExclusiveGtpLeaseAvailability trackingStreamLeaseAvailability() {
+    if (Lizzie.leelaz == null) {
+      return ExclusiveGtpLeaseAvailability.NO_FOREGROUND_ENGINE;
+    }
+    if (Lizzie.leelaz != this) {
+      return ExclusiveGtpLeaseAvailability.NOT_CURRENT_FOREGROUND_ENGINE;
+    }
+    if (useRemoteCompute || useJavaSSH || isSSH) {
+      return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
+    }
+    if (Lizzie.config != null && Lizzie.config.isDoubleEngineMode()) {
+      return ExclusiveGtpLeaseAvailability.APPLICATION_EXCLUSIVE_MODE;
+    }
+    if (engineStateUnrestored) {
+      return ExclusiveGtpLeaseAvailability.ENGINE_STATE_UNRESTORED;
+    }
+    if (readBoardGmaReservation != null) {
+      return ExclusiveGtpLeaseAvailability.READBOARD_GMA;
+    }
+    if (exclusiveGtpLifecycleTransition) {
+      return ExclusiveGtpLeaseAvailability.ENGINE_LIFECYCLE;
+    }
+    if (!isLoaded() || !isStarted() || outputStream == null || !endGetCommandList) {
+      return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
+    }
+    if (!isKatago) {
+      return ExclusiveGtpLeaseAvailability.NOT_KATAGO;
+    }
+    if (!commandLists.contains("stop") || !commandLists.contains("kata-analyze")) {
+      return ExclusiveGtpLeaseAvailability.MISSING_CAPABILITY;
+    }
+    if (exclusiveGtpSession != null) {
+      return ExclusiveGtpLeaseAvailability.EXISTING_LEASE;
+    }
+    return foregroundEngineUseAvailability();
+  }
+
   private void recordForegroundAnalysisLeaseFailure(
       ExclusiveGtpSession session, ForegroundAnalysisLeaseFailure failure) {
     if (session != null && session.owner instanceof ForegroundAnalysisLease) {
       ((ForegroundAnalysisLease) session.owner).recordFailure(failure);
+    }
+  }
+
+  private void recordTrackingStreamLeaseFailure(
+      ExclusiveGtpSession session, TrackingStreamLeaseFailure failure) {
+    if (session != null && session.owner instanceof TrackingStreamLease) {
+      ((TrackingStreamLease) session.owner).recordFailure(failure);
     }
   }
 
@@ -4720,36 +5086,40 @@ public class Leelaz {
       if (intrinsic != ExclusiveGtpLeaseAvailability.AVAILABLE) {
         return intrinsic;
       }
-      if (Lizzie.frame != null
-          && Lizzie.frame.readBoard != null
-          && Lizzie.frame.readBoard.isReadBoardGmaEngineBusy()) {
-        return ExclusiveGtpLeaseAvailability.READBOARD_GMA;
-      }
-      if (EngineManager.isEngineGame()) {
-        return ExclusiveGtpLeaseAvailability.ENGINE_GAME;
-      }
-      if (isThinking || isInputCommand) {
-        return ExclusiveGtpLeaseAvailability.GENMOVE;
-      }
-      if (isCheckingName || isCheckingVersion || isTuning) {
-        return ExclusiveGtpLeaseAvailability.ENGINE_LIFECYCLE;
-      }
-      if (KataGoRuntimeHelper.isBenchmarkEngineSyncSuppressed()) {
-        return ExclusiveGtpLeaseAvailability.ENGINE_LIFECYCLE;
-      }
-      if (Lizzie.frame != null) {
-        if (Lizzie.frame.isPlayingAgainstLeelaz || Lizzie.frame.isAnaPlayingAgainstLeelaz) {
-          return ExclusiveGtpLeaseAvailability.PLAY_MODE;
-        }
-        if (Lizzie.frame.humanSlGame != null && !Lizzie.frame.humanSlGame.isFinished()) {
-          return ExclusiveGtpLeaseAvailability.HUMAN_SL_GAME;
-        }
-        if (Lizzie.frame.isContributing) {
-          return ExclusiveGtpLeaseAvailability.APPLICATION_EXCLUSIVE_MODE;
-        }
-      }
-      return ExclusiveGtpLeaseAvailability.AVAILABLE;
+      return foregroundEngineUseAvailability();
     }
+  }
+
+  private ExclusiveGtpLeaseAvailability foregroundEngineUseAvailability() {
+    if (Lizzie.frame != null
+        && Lizzie.frame.readBoard != null
+        && Lizzie.frame.readBoard.isReadBoardGmaEngineBusy()) {
+      return ExclusiveGtpLeaseAvailability.READBOARD_GMA;
+    }
+    if (EngineManager.isEngineGame()) {
+      return ExclusiveGtpLeaseAvailability.ENGINE_GAME;
+    }
+    if (isThinking || isInputCommand) {
+      return ExclusiveGtpLeaseAvailability.GENMOVE;
+    }
+    if (isCheckingName || isCheckingVersion || isTuning) {
+      return ExclusiveGtpLeaseAvailability.ENGINE_LIFECYCLE;
+    }
+    if (KataGoRuntimeHelper.isBenchmarkEngineSyncSuppressed()) {
+      return ExclusiveGtpLeaseAvailability.ENGINE_LIFECYCLE;
+    }
+    if (Lizzie.frame != null) {
+      if (Lizzie.frame.isPlayingAgainstLeelaz || Lizzie.frame.isAnaPlayingAgainstLeelaz) {
+        return ExclusiveGtpLeaseAvailability.PLAY_MODE;
+      }
+      if (Lizzie.frame.humanSlGame != null && !Lizzie.frame.humanSlGame.isFinished()) {
+        return ExclusiveGtpLeaseAvailability.HUMAN_SL_GAME;
+      }
+      if (Lizzie.frame.isContributing) {
+        return ExclusiveGtpLeaseAvailability.APPLICATION_EXCLUSIVE_MODE;
+      }
+    }
+    return ExclusiveGtpLeaseAvailability.AVAILABLE;
   }
 
   private ExclusiveGtpLeaseAvailability intrinsicExclusiveGtpLeaseAvailability() {
@@ -4801,6 +5171,127 @@ public class Leelaz {
         session, ExclusiveGtpWritePhase.ACTIVE_COMMAND, 0, command);
   }
 
+  private boolean sendTrackingStreamCommand(TrackingStreamLease owner, String command) {
+    ExclusiveGtpSession session;
+    int commandId;
+    synchronized (engineArbitrationLock()) {
+      session = exclusiveGtpSession;
+      if (session == null
+          || session.owner != owner
+          || session.releasePolicy != ExclusiveGtpReleasePolicy.STREAM_ONLY
+          || !session.active
+          || session.releaseRequested
+          || session.trackingActiveWriteState != TrackingWriteState.UNSENT
+          || command == null
+          || command.trim().isEmpty()) {
+        return false;
+      }
+      session.trackingActiveWriteState = TrackingWriteState.WRITING;
+      commandId = exclusiveGtpResponseCommandIds.getAndIncrement();
+    }
+    ExclusiveGtpWriteResult writeResult =
+        writeExclusiveGtpCommandResult(
+            session, ExclusiveGtpWritePhase.ACTIVE_COMMAND, 0, commandId + " " + command.trim());
+    int releaseStopCommandId = 0;
+    boolean failCurrentSession = false;
+    boolean closeStaleSession = false;
+    boolean sentForCurrentSession = false;
+    synchronized (engineArbitrationLock()) {
+      if (exclusiveGtpSession == session
+          && session.trackingActiveWriteState == TrackingWriteState.WRITING) {
+        if (readerStreamBinding != session.readerBinding || session.readerBinding.terminated) {
+          closeStaleSession = true;
+        } else if (writeResult == ExclusiveGtpWriteResult.SENT) {
+          session.trackingActiveWriteState = TrackingWriteState.SENT;
+          sentForCurrentSession = true;
+          if (session.releaseRequested) {
+            releaseStopCommandId = claimTrackingReleaseStopLocked(session);
+          }
+        } else {
+          session.trackingActiveWriteState = TrackingWriteState.FAILED;
+          failCurrentSession = true;
+        }
+      }
+    }
+    if (closeStaleSession) {
+      closeStaleTrackingStreamLease(session, true);
+    } else if (failCurrentSession) {
+      failTrackingStreamLease(
+          session,
+          TrackingStreamLeaseFailure.ACTIVE_COMMAND_SEND_FAILED,
+          "failed to send active tracking command",
+          true);
+    } else if (writeResult != ExclusiveGtpWriteResult.SENT) {
+      if (!isCurrentTrackingStreamIncarnation(session)) {
+        closeStaleTrackingStreamLease(session, true);
+      }
+    } else if (releaseStopCommandId != 0) {
+      sendTrackingReleaseStop(session, releaseStopCommandId);
+    }
+    return sentForCurrentSession;
+  }
+
+  private int claimTrackingReleaseStopLocked(ExclusiveGtpSession session) {
+    if (!session.active
+        || session.releaseStopCommandId != 0
+        || session.trackingActiveWriteState == TrackingWriteState.WRITING
+        || session.trackingActiveWriteState == TrackingWriteState.FAILED) {
+      return 0;
+    }
+    int commandId = exclusiveGtpResponseCommandIds.getAndIncrement();
+    session.releaseStopCommandId = commandId;
+    session.trackingFinalWriteState = TrackingWriteState.WRITING;
+    return commandId;
+  }
+
+  private void sendTrackingReleaseStop(
+      ExclusiveGtpSession session, int releaseStopCommandId) {
+    scheduleExclusiveGtpReleaseStopTimeout(session);
+    ExclusiveGtpWriteResult writeResult =
+        writeExclusiveGtpCommandResult(
+            session,
+            ExclusiveGtpWritePhase.RELEASE_STOP,
+            releaseStopCommandId,
+            releaseStopCommandId + " stop");
+    boolean closeStaleSession = false;
+    boolean failCurrentSession = false;
+    boolean completeEarlyBoundary = false;
+    String earlyErrorResponse = null;
+    synchronized (engineArbitrationLock()) {
+      if (exclusiveGtpSession == session
+          && session.trackingFinalWriteState == TrackingWriteState.WRITING) {
+        if (readerStreamBinding != session.readerBinding || session.readerBinding.terminated) {
+          closeStaleSession = true;
+        } else if (writeResult == ExclusiveGtpWriteResult.SENT) {
+          session.trackingFinalWriteState = TrackingWriteState.SENT;
+          earlyErrorResponse = session.releaseStopErrorResponse;
+          completeEarlyBoundary =
+              session.releaseStopAcknowledged && session.releaseStopTerminated;
+        } else {
+          session.trackingFinalWriteState = TrackingWriteState.FAILED;
+          failCurrentSession = true;
+        }
+      }
+    }
+    if (closeStaleSession) {
+      closeStaleTrackingStreamLease(session, true);
+    } else if (failCurrentSession) {
+      failTrackingStreamLease(
+          session,
+          TrackingStreamLeaseFailure.FINAL_STOP_SEND_FAILED,
+          "failed to send final stop command",
+          true);
+    } else if (earlyErrorResponse != null) {
+      failTrackingStreamLease(
+          session,
+          TrackingStreamLeaseFailure.FINAL_STOP_ERROR_RESPONSE,
+          "final stop command failed: " + earlyErrorResponse,
+          true);
+    } else if (completeEarlyBoundary) {
+      completeTrackingReleaseBoundary(session);
+    }
+  }
+
   public void endExclusiveGtpSession() {
     ExclusiveGtpSession session;
     synchronized (engineArbitrationLock()) {
@@ -4810,16 +5301,24 @@ public class Leelaz {
   }
 
   private boolean closeExclusiveGtpSession(ExclusiveGtpSession expected) {
+    return closeExclusiveGtpSession(expected, true);
+  }
+
+  private boolean closeExclusiveGtpSession(
+      ExclusiveGtpSession expected, boolean advanceOrdinaryQueue) {
     synchronized (engineArbitrationLock()) {
       if (expected == null || exclusiveGtpSession != expected) {
         return false;
       }
       exclusiveGtpSession = null;
+      engineArbitrationLock().notifyAll();
     }
-    try {
-      trySendCommandFromQueue();
-    } catch (RuntimeException ex) {
-      ex.printStackTrace();
+    if (advanceOrdinaryQueue) {
+      try {
+        trySendCommandFromQueue();
+      } catch (RuntimeException ex) {
+        ex.printStackTrace();
+      }
     }
     return true;
   }
@@ -4998,7 +5497,7 @@ public class Leelaz {
     if (releaseStopCommandId == 0) {
       return true;
     }
-    scheduleForegroundReleaseStopTimeout(session);
+    scheduleExclusiveGtpReleaseStopTimeout(session);
     if (!writeExclusiveGtpCommand(
         session,
         ExclusiveGtpWritePhase.RELEASE_STOP,
@@ -5009,6 +5508,30 @@ public class Leelaz {
           ForegroundAnalysisLeaseFailure.FINAL_STOP_SEND_FAILED,
           "failed to send final stop command");
     }
+    return true;
+  }
+
+  private boolean endTrackingStreamLease(TrackingStreamLease owner) {
+    ExclusiveGtpSession session;
+    int releaseStopCommandId = 0;
+    synchronized (engineArbitrationLock()) {
+      session = exclusiveGtpSession;
+      if (session == null
+          || session.owner != owner
+          || session.releasePolicy != ExclusiveGtpReleasePolicy.STREAM_ONLY
+          || session.closing
+          || session.releaseRequested) {
+        return false;
+      }
+      session.releaseRequested = true;
+      if (session.active) {
+        releaseStopCommandId = claimTrackingReleaseStopLocked(session);
+      }
+    }
+    if (releaseStopCommandId == 0) {
+      return true;
+    }
+    sendTrackingReleaseStop(session, releaseStopCommandId);
     return true;
   }
 
@@ -5024,15 +5547,20 @@ public class Leelaz {
     timeoutAction.run();
   }
 
+  void executeForegroundInitialStopTimeout(Runnable timeoutAction) {
+    timeoutAction.run();
+  }
+
   void beforeForegroundReleaseRestoreAfterBoundary() {}
 
-  private void scheduleForegroundInitialStopTimeout(ExclusiveGtpSession session) {
-    Timer timeout = new Timer("lizzie-foreground-engine-initial-stop-timeout", true);
+  private void scheduleExclusiveGtpInitialStopTimeout(ExclusiveGtpSession session) {
+    Timer timeout = new Timer("lizzie-exclusive-gtp-initial-stop-timeout", true);
     TimerTask timeoutTask =
         new TimerTask() {
           @Override
           public void run() {
-            failForegroundLeaseInitialStop(session, "initial stop response timeout");
+            executeForegroundInitialStopTimeout(
+                () -> failExclusiveGtpInitialStop(session, "initial stop response timeout"));
           }
         };
     long timeoutMillis = foregroundInitialStopTimeoutMillis();
@@ -5046,7 +5574,7 @@ public class Leelaz {
     }
   }
 
-  private void cancelForegroundInitialStopTimeout(ExclusiveGtpSession session) {
+  private void cancelExclusiveGtpInitialStopTimeout(ExclusiveGtpSession session) {
     Timer timeout;
     synchronized (engineArbitrationLock()) {
       timeout = session.initialStopTimeout;
@@ -5057,7 +5585,12 @@ public class Leelaz {
     }
   }
 
-  private void failForegroundLeaseInitialStop(ExclusiveGtpSession session, String detail) {
+  private void failExclusiveGtpInitialStop(ExclusiveGtpSession session, String detail) {
+    if (session != null && session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY) {
+      failTrackingStreamLease(
+          session, TrackingStreamLeaseFailure.INITIAL_STOP_TIMEOUT, detail, true);
+      return;
+    }
     if (!abortExclusiveGtpSession(
         session, true, ForegroundAnalysisLeaseFailure.INITIAL_STOP_TIMEOUT)) {
       return;
@@ -5067,18 +5600,27 @@ public class Leelaz {
     System.err.println(message);
   }
 
-  private void scheduleForegroundReleaseStopTimeout(ExclusiveGtpSession session) {
-    Timer timeout = new Timer("lizzie-foreground-engine-release-stop-timeout", true);
+  private void scheduleExclusiveGtpReleaseStopTimeout(ExclusiveGtpSession session) {
+    Timer timeout = new Timer("lizzie-exclusive-gtp-release-stop-timeout", true);
     TimerTask timeoutTask =
         new TimerTask() {
           @Override
           public void run() {
             executeForegroundReleaseStopTimeout(
-                () ->
+                () -> {
+                  if (session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY) {
+                    failTrackingStreamLease(
+                        session,
+                        TrackingStreamLeaseFailure.FINAL_STOP_TIMEOUT,
+                        "final stop response timeout",
+                        true);
+                  } else {
                     failForegroundLeaseRelease(
                         session,
                         ForegroundAnalysisLeaseFailure.FINAL_STOP_TIMEOUT,
-                        "final stop response timeout"));
+                        "final stop response timeout");
+                  }
+                });
           }
         };
     long timeoutMillis = foregroundReleaseStopTimeoutMillis();
@@ -5092,7 +5634,7 @@ public class Leelaz {
     }
   }
 
-  private void cancelForegroundReleaseStopTimeout(ExclusiveGtpSession session) {
+  private void cancelExclusiveGtpReleaseStopTimeout(ExclusiveGtpSession session) {
     Timer timeout;
     synchronized (engineArbitrationLock()) {
       timeout = session.releaseStopTimeout;
@@ -5107,7 +5649,7 @@ public class Leelaz {
       ExclusiveGtpSession session,
       ForegroundAnalysisLeaseFailure failureReason,
       String detail) {
-    cancelForegroundReleaseStopTimeout(session);
+    cancelExclusiveGtpReleaseStopTimeout(session);
     synchronized (engineArbitrationLock()) {
       if (session == null
           || exclusiveGtpSession != session
@@ -5128,9 +5670,90 @@ public class Leelaz {
     restoreAfterClosedForegroundLease(session);
   }
 
+  private void failTrackingStreamLease(
+      ExclusiveGtpSession session,
+      TrackingStreamLeaseFailure failure,
+      String detail,
+      boolean notifyClosed) {
+    TrackingStreamCleanup cleanup =
+        claimTrackingStreamCleanup(session, failure, detail, false, true);
+    if (cleanup == null) {
+      return;
+    }
+    cancelExclusiveGtpInitialStopTimeout(session);
+    cancelExclusiveGtpReleaseStopTimeout(session);
+    String message = "Tracking stream lease failed: " + detail;
+    rememberRecentLine(recentStderrLines, message);
+    System.err.println(message);
+    try {
+      notifyGtpCommandStateReset(cleanup.commandStateReset);
+    } finally {
+      if (notifyClosed && isCurrentTrackingStreamIncarnation(session)) {
+        terminateReaderIncarnation(session.readerBinding, null);
+      } else {
+        closeStreamOnlyExclusiveGtpSession(session, false, notifyClosed);
+      }
+    }
+  }
+
+  private TrackingStreamCleanup claimTrackingStreamCleanup(
+      ExclusiveGtpSession expectedSession,
+      TrackingStreamLeaseFailure failure,
+      String detail,
+      boolean retiringForRebind,
+      boolean invalidateTransport) {
+    synchronized (engineArbitrationLock()) {
+      synchronized (commandQueue()) {
+        if (expectedSession == null
+            || exclusiveGtpSession != expectedSession
+            || expectedSession.releasePolicy != ExclusiveGtpReleasePolicy.STREAM_ONLY
+            || readerStreamBinding != expectedSession.readerBinding
+            || expectedSession.closing) {
+          return null;
+        }
+        if (retiringForRebind) {
+          readerStreamRebindInProgress = true;
+          expectedSession.readerBinding.terminated = true;
+        }
+        recordTrackingStreamLeaseFailure(expectedSession, failure);
+        expectedSession.releaseStopFailed = true;
+        expectedSession.closing = true;
+        if (invalidateTransport) {
+          isLoaded = false;
+          outputStream = null;
+        }
+        GtpCommandStateReset commandStateReset =
+            retiringForRebind
+                ? resetGtpCommandStateForReaderRebindLocked(detail)
+                : resetGtpCommandStateLocked(detail);
+        return new TrackingStreamCleanup(expectedSession, commandStateReset);
+      }
+    }
+  }
+
+  private boolean isCurrentTrackingStreamIncarnation(ExclusiveGtpSession session) {
+    synchronized (engineArbitrationLock()) {
+      return session != null
+          && readerStreamBinding == session.readerBinding
+          && !session.readerBinding.terminated;
+    }
+  }
+
+  private void closeStaleTrackingStreamLease(
+      ExclusiveGtpSession session, boolean notifyClosed) {
+    synchronized (engineArbitrationLock()) {
+      if (session == null || exclusiveGtpSession != session || session.closedCallbackRun) {
+        return;
+      }
+      recordTrackingStreamLeaseFailure(session, TrackingStreamLeaseFailure.TRANSPORT_CLOSED);
+      session.closing = true;
+    }
+    closeStreamOnlyExclusiveGtpSession(session, false, notifyClosed);
+  }
+
   private void restoreAfterClosedForegroundLease(ExclusiveGtpSession session) {
-    cancelForegroundInitialStopTimeout(session);
-    cancelForegroundReleaseStopTimeout(session);
+    cancelExclusiveGtpInitialStopTimeout(session);
+    cancelExclusiveGtpReleaseStopTimeout(session);
     boolean canRestore;
     synchronized (engineArbitrationLock()) {
       if (session == null || exclusiveGtpSession != session || session.restoreStarted) {
@@ -5352,50 +5975,62 @@ public class Leelaz {
   }
 
   private void resetGtpCommandStateAfterRestoreFailure(String detail) {
+    GtpCommandStateReset reset;
+    synchronized (commandQueue()) {
+      reset = resetGtpCommandStateLocked(detail);
+    }
+    notifyGtpCommandStateReset(reset);
+  }
+
+  private GtpCommandStateReset resetGtpCommandStateLocked(String detail) {
+    return resetGtpCommandStateLocked(detail, true);
+  }
+
+  private GtpCommandStateReset resetGtpCommandStateForReaderRebindLocked(String detail) {
+    return resetGtpCommandStateLocked(detail, false);
+  }
+
+  private GtpCommandStateReset resetGtpCommandStateLocked(
+      String detail, boolean retainSentTrackedLoadSgfHandlers) {
     RuntimeException failure =
         new IllegalStateException(
             "Engine command state reset interrupted loadsgf after restore failure: " + detail);
     List<QueuedCommand> cancelledLoadSgfCommands = new ArrayList<>();
     List<QueuedCommand> sentLoadSgfCommands = new ArrayList<>();
     ArrayDeque<PendingResponseHandler> handlers = pendingResponseHandlers();
-    synchronized (commandQueue()) {
-      cancelQueuedLoadSgfCommands(commandQueue(), failure, cancelledLoadSgfCommands);
-      cancelQueuedLoadSgfCommands(
-          foregroundRestoreCommandQueue(), failure, cancelledLoadSgfCommands);
-      classifyTrackedLoadSgfReset(
-          normalCommandBeingSent,
-          failure,
-          cancelledLoadSgfCommands,
-          sentLoadSgfCommands);
-      commandQueue().clear();
-      foregroundRestoreCommandQueue().clear();
-      synchronized (handlers) {
-        Iterator<PendingResponseHandler> iterator = handlers.iterator();
-        while (iterator.hasNext()) {
-          PendingResponseHandler handler = iterator.next();
-          if (handler.isTrackedLoadSgf()) {
-            boolean cancelled =
-                classifyTrackedLoadSgfReset(
-                    handler.queuedCommand,
-                    failure,
-                    cancelledLoadSgfCommands,
-                    sentLoadSgfCommands);
-            if (!cancelled) {
-              handler.requireMatchingResponseCommandId();
-              continue;
-            }
+    cancelQueuedLoadSgfCommands(commandQueue(), failure, cancelledLoadSgfCommands);
+    cancelQueuedLoadSgfCommands(foregroundRestoreCommandQueue(), failure, cancelledLoadSgfCommands);
+    classifyTrackedLoadSgfReset(
+        normalCommandBeingSent, failure, cancelledLoadSgfCommands, sentLoadSgfCommands);
+    commandQueue().clear();
+    foregroundRestoreCommandQueue().clear();
+    synchronized (handlers) {
+      Iterator<PendingResponseHandler> iterator = handlers.iterator();
+      while (iterator.hasNext()) {
+        PendingResponseHandler handler = iterator.next();
+        if (handler.isTrackedLoadSgf()) {
+          boolean cancelled =
+              classifyTrackedLoadSgfReset(
+                  handler.queuedCommand, failure, cancelledLoadSgfCommands, sentLoadSgfCommands);
+          if (!cancelled && retainSentTrackedLoadSgfHandlers) {
+            handler.requireMatchingResponseCommandId();
+            continue;
           }
-          iterator.remove();
         }
+        iterator.remove();
       }
-      cmdNumber = 1;
-      currentCmdNum = 0;
-      modifyNumber = 0;
     }
-    for (QueuedCommand command : cancelledLoadSgfCommands) {
-      command.notifySendFailure(failure);
+    cmdNumber = 1;
+    currentCmdNum = 0;
+    modifyNumber = 0;
+    return new GtpCommandStateReset(failure, cancelledLoadSgfCommands, sentLoadSgfCommands);
+  }
+
+  private void notifyGtpCommandStateReset(GtpCommandStateReset reset) {
+    for (QueuedCommand command : reset.cancelledLoadSgfCommands) {
+      command.notifySendFailure(reset.failure);
     }
-    for (QueuedCommand command : sentLoadSgfCommands) {
+    for (QueuedCommand command : reset.sentLoadSgfCommands) {
       command.publishStateResetAfterOutputWrite();
     }
   }
@@ -5461,26 +6096,41 @@ public class Leelaz {
       ExclusiveGtpWritePhase phase,
       int expectedCommandId,
       String command) {
+    return writeExclusiveGtpCommandResult(expectedSession, phase, expectedCommandId, command)
+        == ExclusiveGtpWriteResult.SENT;
+  }
+
+  private ExclusiveGtpWriteResult writeExclusiveGtpCommandResult(
+      ExclusiveGtpSession expectedSession,
+      ExclusiveGtpWritePhase phase,
+      int expectedCommandId,
+      String command) {
     BufferedOutputStream currentOutputStream = outputStream;
     if (currentOutputStream == null) {
-      return false;
+      return ExclusiveGtpWriteResult.NOT_CLAIMED;
     }
     try {
       synchronized (currentOutputStream) {
         synchronized (engineArbitrationLock()) {
           if (!canWriteExclusiveGtpCommand(expectedSession, phase, expectedCommandId)) {
-            return false;
+            return ExclusiveGtpWriteResult.NOT_CLAIMED;
           }
         }
         currentOutputStream.write((command + "\n").getBytes());
         currentOutputStream.flush();
       }
-      return true;
+      return ExclusiveGtpWriteResult.SENT;
     } catch (IOException ex) {
+      boolean partialWrite = clearBufferedCommandBytesAfterSendFailure(currentOutputStream);
+      if (partialWrite
+          && expectedSession != null
+          && expectedSession.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY) {
+        invalidateCommandOutputStreamAfterPartialWrite(currentOutputStream, command);
+      }
       rememberRecentLine(
           recentStderrLines,
           "Failed to send exclusive remote GTP command '" + command + "': " + ex.getMessage());
-      return false;
+      return ExclusiveGtpWriteResult.SEND_FAILED;
     }
   }
 
@@ -5494,36 +6144,75 @@ public class Leelaz {
         || expectedSession.restoreCompleted) {
       return false;
     }
+    if (expectedSession.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY
+        && (readerStreamBinding != expectedSession.readerBinding
+            || expectedSession.readerBinding.terminated)) {
+      return false;
+    }
     switch (phase) {
       case INITIAL_STOP:
         return !expectedSession.active
             && !expectedSession.releaseRequested
-            && expectedSession.stopCommandId == expectedCommandId;
+            && expectedSession.stopCommandId == expectedCommandId
+            && (expectedSession.releasePolicy != ExclusiveGtpReleasePolicy.STREAM_ONLY
+                || expectedSession.trackingInitialWriteState == TrackingWriteState.WRITING);
       case ACTIVE_COMMAND:
-        return expectedSession.active && !expectedSession.releaseRequested;
+        return expectedSession.active
+            && (expectedSession.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY
+                ? expectedSession.trackingActiveWriteState == TrackingWriteState.WRITING
+                : !expectedSession.releaseRequested);
       case RELEASE_STOP:
         return expectedSession.active
             && expectedSession.releaseRequested
             && !expectedSession.releaseStopFailed
-            && expectedSession.releaseStopCommandId == expectedCommandId;
+            && expectedSession.releaseStopCommandId == expectedCommandId
+            && (expectedSession.releasePolicy != ExclusiveGtpReleasePolicy.STREAM_ONLY
+                || expectedSession.trackingFinalWriteState == TrackingWriteState.WRITING);
       default:
         return false;
     }
   }
 
   private boolean dispatchExclusiveGtpLine(String line) {
+    return dispatchExclusiveGtpLine(currentReaderStreamBinding(), line);
+  }
+
+  private boolean dispatchExclusiveGtpLine(ReaderStreamBinding binding, String line) {
     ExclusiveGtpSession session = exclusiveGtpSession;
     if (session == null) {
       return false;
     }
+    if (session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY
+        && session.readerBinding != binding) {
+      closeStaleTrackingStreamLease(session, true);
+      return false;
+    }
     String trimmed = line == null ? "" : line.trim();
     if (!session.active) {
-      if (trimmed.startsWith("info ")) {
+      if (session.releasePolicy == ExclusiveGtpReleasePolicy.FOREGROUND_RESTORE
+          && trimmed.startsWith("info ")) {
         return true;
       }
       if (trimmed.startsWith("?") && parseResponseCommandId(trimmed) == session.stopCommandId) {
-        abortExclusiveGtpSession(
-            session, true, ForegroundAnalysisLeaseFailure.INITIAL_STOP_ERROR_RESPONSE);
+        if (session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY) {
+          boolean failNow = false;
+          synchronized (engineArbitrationLock()) {
+            if (exclusiveGtpSession == session && !session.closing) {
+              session.initialStopErrorResponse = trimmed;
+              failNow = session.trackingInitialWriteState == TrackingWriteState.SENT;
+            }
+          }
+          if (failNow) {
+            failTrackingStreamLease(
+                session,
+                TrackingStreamLeaseFailure.INITIAL_STOP_ERROR_RESPONSE,
+                "initial stop command failed: " + trimmed,
+                true);
+          }
+        } else {
+          abortExclusiveGtpSession(
+              session, true, ForegroundAnalysisLeaseFailure.INITIAL_STOP_ERROR_RESPONSE);
+        }
         return true;
       }
       if (trimmed.isEmpty() && completeExclusiveGtpInitialStopBoundary(session)) {
@@ -5532,9 +6221,40 @@ public class Leelaz {
       return false;
     }
     if (session.releaseRequested) {
+      if (session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY
+          && session.releaseStopCommandId == 0) {
+        recordTrackingAnalyzeTerminator(session, trimmed);
+        session.lineConsumer.accept(line == null ? "" : line);
+        return true;
+      }
+      if (session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY
+          && session.trackingActiveWriteState == TrackingWriteState.SENT
+          && !session.trackingAnalyzeClosed) {
+        recordTrackingAnalyzeTerminator(session, trimmed);
+        return true;
+      }
       int responseCommandId = parseResponseCommandId(trimmed);
       if (responseCommandId == session.releaseStopCommandId) {
-        if (trimmed.startsWith("?")) {
+        if (session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY) {
+          boolean failNow = false;
+          synchronized (engineArbitrationLock()) {
+            if (exclusiveGtpSession == session && !session.closing) {
+              if (trimmed.startsWith("?")) {
+                session.releaseStopErrorResponse = trimmed;
+                failNow = session.trackingFinalWriteState == TrackingWriteState.SENT;
+              } else if (trimmed.startsWith("=")) {
+                session.releaseStopAcknowledged = true;
+              }
+            }
+          }
+          if (failNow) {
+            failTrackingStreamLease(
+                session,
+                TrackingStreamLeaseFailure.FINAL_STOP_ERROR_RESPONSE,
+                "final stop command failed: " + trimmed,
+                true);
+          }
+        } else if (trimmed.startsWith("?")) {
           failForegroundLeaseRelease(
               session,
               ForegroundAnalysisLeaseFailure.FINAL_STOP_ERROR_RESPONSE,
@@ -5548,6 +6268,17 @@ public class Leelaz {
         }
         return true;
       }
+      if (session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY
+          && trimmed.isEmpty()
+          && session.releaseStopAcknowledged) {
+        synchronized (engineArbitrationLock()) {
+          if (exclusiveGtpSession == session && !session.closing) {
+            session.releaseStopTerminated = true;
+          }
+        }
+        completeTrackingReleaseBoundary(session);
+        return true;
+      }
       boolean restore = false;
       synchronized (engineArbitrationLock()) {
         if (exclusiveGtpSession == session
@@ -5559,13 +6290,49 @@ public class Leelaz {
         }
       }
       if (restore) {
-        beforeForegroundReleaseRestoreAfterBoundary();
-        restoreAfterClosedForegroundLease(session);
+        if (session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY) {
+          closeStreamOnlyExclusiveGtpSession(session);
+        } else {
+          beforeForegroundReleaseRestoreAfterBoundary();
+          restoreAfterClosedForegroundLease(session);
+        }
       }
       return true;
     }
+    recordTrackingAnalyzeTerminator(session, trimmed);
     session.lineConsumer.accept(line == null ? "" : line);
     return true;
+  }
+
+  private boolean completeTrackingReleaseBoundary(ExclusiveGtpSession session) {
+    synchronized (engineArbitrationLock()) {
+      if (exclusiveGtpSession != session
+          || session.closing
+          || session.trackingFinalWriteState != TrackingWriteState.SENT
+          || !session.releaseStopAcknowledged
+          || !session.releaseStopTerminated
+          || (session.trackingActiveWriteState == TrackingWriteState.SENT
+              && !session.trackingAnalyzeClosed)) {
+        return false;
+      }
+      session.closing = true;
+    }
+    closeStreamOnlyExclusiveGtpSession(session);
+    return true;
+  }
+
+  private void recordTrackingAnalyzeTerminator(ExclusiveGtpSession session, String line) {
+    if (session.releasePolicy != ExclusiveGtpReleasePolicy.STREAM_ONLY
+        || !line.isEmpty()
+        || (session.trackingActiveWriteState != TrackingWriteState.WRITING
+            && session.trackingActiveWriteState != TrackingWriteState.SENT)) {
+      return;
+    }
+    synchronized (engineArbitrationLock()) {
+      if (exclusiveGtpSession == session && !session.closing) {
+        session.trackingAnalyzeClosed = true;
+      }
+    }
   }
 
   private void acknowledgeExclusiveGtpInitialStop(String line) {
@@ -5594,6 +6361,12 @@ public class Leelaz {
           || !session.initialStopAcknowledged) {
         return false;
       }
+      if (session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY) {
+        session.initialStopTerminated = true;
+        if (session.trackingInitialWriteState != TrackingWriteState.SENT) {
+          return true;
+        }
+      }
       session.active = true;
       if (session.releaseRequested) {
         session.closing = true;
@@ -5602,14 +6375,45 @@ public class Leelaz {
         onReady = session.onReady;
       }
     }
-    cancelForegroundInitialStopTimeout(session);
+    cancelExclusiveGtpInitialStopTimeout(session);
     if (restore) {
-      restoreAfterClosedForegroundLease(session);
+      if (session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY) {
+        closeStreamOnlyExclusiveGtpSession(session);
+      } else {
+        restoreAfterClosedForegroundLease(session);
+      }
     }
     if (onReady != null) {
       onReady.run();
     }
     return true;
+  }
+
+  private void closeStreamOnlyExclusiveGtpSession(ExclusiveGtpSession session) {
+    closeStreamOnlyExclusiveGtpSession(session, true, true);
+  }
+
+  private void closeStreamOnlyExclusiveGtpSession(
+      ExclusiveGtpSession session, boolean advanceOrdinaryQueue, boolean notifyClosed) {
+    cancelExclusiveGtpInitialStopTimeout(session);
+    cancelExclusiveGtpReleaseStopTimeout(session);
+    if (!closeExclusiveGtpSession(session, advanceOrdinaryQueue)) {
+      return;
+    }
+    if (!notifyClosed) {
+      return;
+    }
+    Runnable onClosed;
+    synchronized (engineArbitrationLock()) {
+      if (session.closedCallbackRun) {
+        return;
+      }
+      session.closedCallbackRun = true;
+      onClosed = session.onClosed;
+    }
+    if (onClosed != null) {
+      onClosed.run();
+    }
   }
 
   private void abortExclusiveGtpSession() {
@@ -5631,6 +6435,7 @@ public class Leelaz {
       if (session == null
           || session != expectedSession
           || session.closing
+          || session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY
           || (onlyBeforeReady && session.active)) {
         return false;
       }
@@ -5789,14 +6594,24 @@ public class Leelaz {
     private final Runnable onReady;
     private final Runnable onClosed;
     private final int stopCommandId;
+    private final ExclusiveGtpReleasePolicy releasePolicy;
+    private final ReaderStreamBinding readerBinding;
     private volatile boolean active;
     private boolean initialStopAcknowledged;
     private Timer initialStopTimeout;
     private boolean wasPondering;
     private volatile boolean closing;
     private volatile boolean releaseRequested;
+    private volatile TrackingWriteState trackingInitialWriteState = TrackingWriteState.UNSENT;
+    private String initialStopErrorResponse;
+    private boolean initialStopTerminated;
+    private volatile TrackingWriteState trackingActiveWriteState = TrackingWriteState.UNSENT;
+    private volatile boolean trackingAnalyzeClosed;
     private volatile int releaseStopCommandId;
+    private volatile TrackingWriteState trackingFinalWriteState = TrackingWriteState.UNSENT;
     private volatile boolean releaseStopAcknowledged;
+    private String releaseStopErrorResponse;
+    private boolean releaseStopTerminated;
     private boolean releaseStopFailed;
     private volatile boolean restoreCompleted;
     private boolean restoreFailed;
@@ -5808,18 +6623,118 @@ public class Leelaz {
     private Thread restoreThread;
     private Timer releaseStopTimeout;
     private Timer restoreTimeout;
+    private boolean closedCallbackRun;
 
     private ExclusiveGtpSession(
         Object owner,
         Consumer<String> lineConsumer,
         Runnable onReady,
         Runnable onClosed,
-        int stopCommandId) {
+        int stopCommandId,
+        ExclusiveGtpReleasePolicy releasePolicy,
+        ReaderStreamBinding readerBinding) {
       this.owner = owner;
       this.lineConsumer = lineConsumer;
       this.onReady = onReady;
       this.onClosed = onClosed;
       this.stopCommandId = stopCommandId;
+      this.releasePolicy = releasePolicy;
+      this.readerBinding = readerBinding;
+    }
+  }
+
+  public static final class TrackingStreamLeaseReceipt {
+    private final Leelaz engine;
+    private final long engineIncarnation;
+    private final boolean wasPondering;
+
+    private TrackingStreamLeaseReceipt(
+        Leelaz engine, long engineIncarnation, boolean wasPondering) {
+      this.engine = engine;
+      this.engineIncarnation = engineIncarnation;
+      this.wasPondering = wasPondering;
+    }
+
+    public Leelaz engine() {
+      return engine;
+    }
+
+    public long engineIncarnation() {
+      return engineIncarnation;
+    }
+
+    public boolean wasPondering() {
+      return wasPondering;
+    }
+  }
+
+  public static final class TrackingStreamLeaseAcquisition {
+    private final ExclusiveGtpLeaseAvailability availability;
+    private final TrackingStreamLease lease;
+    private final TrackingStreamLeaseReceipt receipt;
+    private final TrackingStreamLease failureSource;
+
+    private TrackingStreamLeaseAcquisition(
+        ExclusiveGtpLeaseAvailability availability,
+        TrackingStreamLease lease,
+        TrackingStreamLeaseReceipt receipt,
+        TrackingStreamLease failureSource) {
+      this.availability = availability;
+      this.lease = lease;
+      this.receipt = receipt;
+      this.failureSource = failureSource;
+    }
+
+    public ExclusiveGtpLeaseAvailability availability() {
+      return availability;
+    }
+
+    public TrackingStreamLease lease() {
+      return lease;
+    }
+
+    public TrackingStreamLeaseReceipt receipt() {
+      return receipt;
+    }
+
+    public Optional<TrackingStreamLeaseFailure> failureReason() {
+      return failureSource == null ? Optional.empty() : failureSource.failureReason();
+    }
+  }
+
+  public static final class TrackingStreamLease {
+    private final Leelaz engine;
+    private final TrackingStreamLeaseReceipt receipt;
+    private final AtomicReference<TrackingStreamLeaseFailure> failureReason =
+        new AtomicReference<>();
+
+    private TrackingStreamLease(Leelaz engine, TrackingStreamLeaseReceipt receipt) {
+      this.engine = engine;
+      this.receipt = receipt;
+    }
+
+    public TrackingStreamLeaseReceipt receipt() {
+      return receipt;
+    }
+
+    public boolean isOwned() {
+      return engine.hasExclusiveGtpLeaseOwnedBy(this);
+    }
+
+    public boolean send(String command) {
+      return engine.sendTrackingStreamCommand(this, command);
+    }
+
+    public boolean release() {
+      return engine.endTrackingStreamLease(this);
+    }
+
+    public Optional<TrackingStreamLeaseFailure> failureReason() {
+      return Optional.ofNullable(failureReason.get());
+    }
+
+    private void recordFailure(TrackingStreamLeaseFailure failure) {
+      failureReason.compareAndSet(null, failure);
     }
   }
 
@@ -6208,15 +7123,45 @@ public class Leelaz {
       }
     }
 
-    private synchronized void publishStateResetAfterOutputWrite() {
-      if (stateResetAfterOutputWriteFailure == null
-          || stateResetAfterOutputWritePublished) {
-        return;
+    private void publishStateResetAfterOutputWrite() {
+      RuntimeException failure;
+      synchronized (this) {
+        if (stateResetAfterOutputWriteFailure == null
+            || stateResetAfterOutputWritePublished) {
+          return;
+        }
+        failure = stateResetAfterOutputWriteFailure;
+        stateResetAfterOutputWritePublished = true;
       }
       if (onSendFailure != null) {
-        onSendFailure.onStateResetAfterOutputWrite(stateResetAfterOutputWriteFailure);
+        onSendFailure.onStateResetAfterOutputWrite(failure);
       }
-      stateResetAfterOutputWritePublished = true;
+    }
+  }
+
+  private static final class GtpCommandStateReset {
+    private final RuntimeException failure;
+    private final List<QueuedCommand> cancelledLoadSgfCommands;
+    private final List<QueuedCommand> sentLoadSgfCommands;
+
+    private GtpCommandStateReset(
+        RuntimeException failure,
+        List<QueuedCommand> cancelledLoadSgfCommands,
+        List<QueuedCommand> sentLoadSgfCommands) {
+      this.failure = failure;
+      this.cancelledLoadSgfCommands = cancelledLoadSgfCommands;
+      this.sentLoadSgfCommands = sentLoadSgfCommands;
+    }
+  }
+
+  private static final class TrackingStreamCleanup {
+    private final ExclusiveGtpSession session;
+    private final GtpCommandStateReset commandStateReset;
+
+    private TrackingStreamCleanup(
+        ExclusiveGtpSession session, GtpCommandStateReset commandStateReset) {
+      this.session = session;
+      this.commandStateReset = commandStateReset;
     }
   }
 
