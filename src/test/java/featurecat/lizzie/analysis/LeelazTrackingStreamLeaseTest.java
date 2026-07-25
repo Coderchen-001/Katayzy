@@ -910,9 +910,10 @@ class LeelazTrackingStreamLeaseTest {
   void readerRebindWinsAgainstInFlightHandoffActivation() throws Exception {
     try (TestState state = TestState.open(reusableLocalKatago())) {
       BlockingHandoffTarget target =
-          new BlockingHandoffTarget(() -> state.engine.sendCommand("name"));
+          new BlockingHandoffTarget(() -> state.engine.sendCommand("name"), true);
       AtomicReference<Throwable> fenceFailure = new AtomicReference<>();
       AtomicReference<Throwable> rebindFailure = new AtomicReference<>();
+      CountDownLatch rebindFinished = new CountDownLatch(1);
       Leelaz.TrackingStreamLeaseAcquisition acquisition =
           state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
       processCommandResponse(state.engine, "=800000000");
@@ -942,6 +943,8 @@ class LeelazTrackingStreamLeaseTest {
                   initializeStreams(state.engine, reboundOutput);
                 } catch (Throwable failure) {
                   rebindFailure.set(failure);
+                } finally {
+                  rebindFinished.countDown();
                 }
               },
               "tracking-handoff-rebind-cutover");
@@ -955,6 +958,13 @@ class LeelazTrackingStreamLeaseTest {
       assertEquals("", reboundOutput.toString(StandardCharsets.UTF_8));
 
       target.allowCompletion.countDown();
+      assertTrue(target.failureStarted.await(1, TimeUnit.SECONDS));
+      notifyEngineArbitrationWaiters(state.engine);
+      assertFalse(rebindFinished.await(100, TimeUnit.MILLISECONDS));
+      assertEquals(0, target.failures.get());
+      assertEquals("", reboundOutput.toString(StandardCharsets.UTF_8));
+
+      target.allowFailureCompletion.countDown();
       fenceThread.join(1000L);
       rebindThread.join(1000L);
       state.engine.sendCommand("version");
@@ -1824,6 +1834,15 @@ class LeelazTrackingStreamLeaseTest {
     }
   }
 
+  private static void notifyEngineArbitrationWaiters(Leelaz engine) throws Exception {
+    Field field = Leelaz.class.getDeclaredField("engineArbitrationLock");
+    field.setAccessible(true);
+    Object lock = field.get(engine);
+    synchronized (lock) {
+      lock.notifyAll();
+    }
+  }
+
   private static Object commandQueue(Leelaz engine) {
     try {
       Method method = Leelaz.class.getDeclaredMethod("commandQueue");
@@ -2221,15 +2240,19 @@ class LeelazTrackingStreamLeaseTest {
   private static final class BlockingHandoffTarget extends RecordingHandoffTarget {
     private final CountDownLatch activationStarted = new CountDownLatch(1);
     private final CountDownLatch allowCompletion = new CountDownLatch(1);
+    private final CountDownLatch failureStarted = new CountDownLatch(1);
+    private final CountDownLatch allowFailureCompletion = new CountDownLatch(1);
     private final Runnable beforeCompletion;
+    private final boolean blockFailure;
 
     private BlockingHandoffTarget() {
-      this(() -> {});
+      this(() -> {}, false);
     }
 
-    private BlockingHandoffTarget(Runnable beforeCompletion) {
+    private BlockingHandoffTarget(Runnable beforeCompletion, boolean blockFailure) {
       super(Leelaz.TrackingHandoffKind.RETAINED_ENGINE_MODE);
       this.beforeCompletion = beforeCompletion;
+      this.blockFailure = blockFailure;
     }
 
     @Override
@@ -2243,6 +2266,20 @@ class LeelazTrackingStreamLeaseTest {
       }
       beforeCompletion.run();
       super.activate(activation);
+    }
+
+    @Override
+    public void fail(Leelaz.TrackingHandoffFailure failure) {
+      failureStarted.countDown();
+      if (blockFailure) {
+        try {
+          assertTrue(allowFailureCompletion.await(1, TimeUnit.SECONDS));
+        } catch (InterruptedException interrupted) {
+          Thread.currentThread().interrupt();
+          throw new AssertionError(interrupted);
+        }
+      }
+      super.fail(failure);
     }
   }
 

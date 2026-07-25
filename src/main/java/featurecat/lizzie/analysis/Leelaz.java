@@ -6736,7 +6736,6 @@ public class Leelaz {
       if (trackingHandoffGate == claim
           && claim.state.get() == TrackingHandoffState.FAILED
           && claim.deferredFailure != null) {
-        trackingHandoffGate = null;
         notification =
             new TrackingHandoffFailureNotification(claim.target, claim.deferredFailure);
         claim.deferredFailure = null;
@@ -6746,6 +6745,10 @@ public class Leelaz {
       notifyTrackingHandoffFailure(notification);
     } finally {
       synchronized (engineArbitrationLock()) {
+        if (trackingHandoffGate == claim
+            && claim.state.get() == TrackingHandoffState.FAILED) {
+          trackingHandoffGate = null;
+        }
         claim.activationCallbackInProgress = false;
         engineArbitrationLock().notifyAll();
       }
