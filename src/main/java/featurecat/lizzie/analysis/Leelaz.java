@@ -147,6 +147,59 @@ public class Leelaz {
     STREAM_ONLY
   }
 
+  public enum TrackingHandoffKind {
+    FOREGROUND_ANALYSIS,
+    RETAINED_ENGINE_MODE
+  }
+
+  public enum TrackingHandoffAvailability {
+    ACCEPTED_PENDING,
+    BUSY,
+    NOT_TRACKING,
+    INVALID_TARGET
+  }
+
+  public enum TrackingHandoffState {
+    ACCEPTED_PENDING,
+    ACTIVATING,
+    ACTIVE,
+    FAILED
+  }
+
+  public enum TrackingHandoffFailure {
+    TRACKING_FAILED,
+    CONTEXT_INVALIDATED,
+    TARGET_CANCELLED,
+    ACTIVATION_FAILED
+  }
+
+  public enum TrackingReleaseDisposition {
+    ACTIVE,
+    FROZEN_BY_SAFE,
+    CLEARED
+  }
+
+  @FunctionalInterface
+  public interface TrackingReleaseDispositionObserver {
+    void onDispositionChanged(TrackingReleaseDisposition disposition);
+  }
+
+  public interface TrackingHandoffTarget {
+    TrackingHandoffKind kind();
+
+    boolean isCurrent();
+
+    void activate(TrackingHandoffActivation activation);
+
+    void fail(TrackingHandoffFailure failure);
+  }
+
+  public interface TrackingHandoffActivation {
+    boolean activateForegroundAnalysis(Consumer<String> lineConsumer, Runnable onClosed);
+
+    boolean completeRetainedEngineMode();
+  }
+
   // private static final long MINUTE = 60 * 1000; // number of milliseconds in a minute
   private static final Runnable NO_OP_RESPONSE_HANDLER = () -> {};
   private static final int NO_RESPONSE_COMMAND_ID = -1;
@@ -192,6 +245,7 @@ public class Leelaz {
   private volatile ReaderStreamBinding readerStreamBinding;
   private boolean readerTerminalCleanupInProgress;
   private volatile boolean readerStreamRebindInProgress;
+  private volatile TrackingHandoffClaim trackingHandoffGate;
   private final ArrayDeque<String> recentStdoutLines = new ArrayDeque<String>();
   private final ArrayDeque<String> recentStderrLines = new ArrayDeque<String>();
 
@@ -1131,6 +1185,8 @@ public class Leelaz {
     BufferedOutputStream nextOutputStream = createCommandOutputStream(stdin);
     BufferedReader nextErrorStream = new BufferedReader(new InputStreamReader(stderr));
     ExclusiveGtpSession retiredTrackingSession = null;
+    TrackingHandoffFailureNotification retiredHandoffFailure = null;
+    TrackingDispositionNotification dispositionNotification = null;
     GtpCommandStateReset rebindCommandStateReset = null;
     boolean interrupted = false;
     boolean ownsRebindGateAfterTrackingCleanup = false;
@@ -1182,6 +1238,7 @@ public class Leelaz {
               if (cleanup != null) {
                 retiredTrackingSession = cleanup.session;
                 rebindCommandStateReset = cleanup.commandStateReset;
+                dispositionNotification = cleanup.dispositionNotification;
               } else {
                 retiredTrackingSession = exclusiveGtpSession;
                 recordTrackingStreamLeaseFailure(
@@ -1193,10 +1250,20 @@ public class Leelaz {
                         "stale tracking stream retired before reader rebind");
               }
             }
+            if (dispositionNotification == null) {
+              dispositionNotification =
+                  advanceTrackingReleaseDispositionLocked(
+                      retiredTrackingSession, TrackingReleaseDisposition.CLEARED);
+            }
           } else {
             rebindCommandStateReset =
                 resetGtpCommandStateForReaderRebindLocked(
                     "command state retired before reader rebind");
+          }
+          if (trackingHandoffGate != null) {
+            retiredHandoffFailure =
+                claimTrackingHandoffFailureLocked(
+                    trackingHandoffGate, TrackingHandoffFailure.TRACKING_FAILED);
           }
           rebindCommandStateCutover = rebindCommandStateReset != null;
         }
@@ -1224,6 +1291,7 @@ public class Leelaz {
         cancelExclusiveGtpInitialStopTimeout(retiredTrackingSession);
         cancelExclusiveGtpReleaseStopTimeout(retiredTrackingSession);
       }
+      notifyTrackingDisposition(dispositionNotification);
       try {
         notifyGtpCommandStateReset(rebindCommandStateReset);
       } finally {
@@ -1252,14 +1320,13 @@ public class Leelaz {
           readerStreamRebindInProgress = false;
           engineArbitrationLock().notifyAll();
         }
+        notifyTrackingHandoffFailure(retiredHandoffFailure);
         try {
           trySendCommandFromQueue();
         } catch (RuntimeException ex) {
           ex.printStackTrace();
         }
-        if (onClosed != null) {
-          onClosed.run();
-        }
+        runTrackingCallback(onClosed);
       }
     } else if (ownsRebindGateAfterTrackingCleanup) {
       try {
@@ -3651,6 +3718,7 @@ public class Leelaz {
         cancelExclusiveGtpInitialStopTimeout(interruptedForegroundWork);
         cancelExclusiveGtpReleaseStopTimeout(interruptedForegroundWork);
         try {
+          notifyTrackingDisposition(cleanup.dispositionNotification);
           notifyGtpCommandStateReset(cleanup.commandStateReset);
         } finally {
           closeStreamOnlyExclusiveGtpSession(interruptedForegroundWork, false, true);
@@ -4212,6 +4280,7 @@ public class Leelaz {
     QueuedCommand queuedCommand;
     synchronized (commandQueue()) {
       if (exclusiveGtpSession != null
+          || trackingHandoffGate != null
           || readerStreamRebindInProgress
           || normalCommandSendInProgress) {
         return;
@@ -4974,6 +5043,14 @@ public class Leelaz {
       Consumer<String> lineConsumer,
       Consumer<TrackingStreamLease> onReady,
       Consumer<TrackingStreamLease> onClosed) {
+    return acquireTrackingStreamLease(lineConsumer, onReady, onClosed, null);
+  }
+
+  public TrackingStreamLeaseAcquisition acquireTrackingStreamLease(
+      Consumer<String> lineConsumer,
+      Consumer<TrackingStreamLease> onReady,
+      Consumer<TrackingStreamLease> onClosed,
+      TrackingReleaseDispositionObserver dispositionObserver) {
     ExclusiveGtpSession session;
     TrackingStreamLease lease;
     synchronized (engineArbitrationLock()) {
@@ -4995,7 +5072,8 @@ public class Leelaz {
         ReaderStreamBinding binding = currentReaderStreamBinding();
         TrackingStreamLeaseReceipt receipt =
             new TrackingStreamLeaseReceipt(this, binding.incarnation, isPondering());
-        TrackingStreamLease reservedLease = new TrackingStreamLease(this, receipt);
+        TrackingStreamLease reservedLease =
+            new TrackingStreamLease(this, receipt, dispositionObserver);
         lease = reservedLease;
         session =
             reserveExclusiveGtpSession(
@@ -5044,6 +5122,9 @@ public class Leelaz {
     }
     if (exclusiveGtpLifecycleTransition) {
       return ExclusiveGtpLeaseAvailability.ENGINE_LIFECYCLE;
+    }
+    if (trackingHandoffGate != null) {
+      return ExclusiveGtpLeaseAvailability.EXISTING_LEASE;
     }
     if (!isLoaded() || !isStarted() || outputStream == null || !endGetCommandList) {
       return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
@@ -5131,6 +5212,9 @@ public class Leelaz {
     }
     if (exclusiveGtpLifecycleTransition) {
       return ExclusiveGtpLeaseAvailability.ENGINE_LIFECYCLE;
+    }
+    if (trackingHandoffGate != null) {
+      return ExclusiveGtpLeaseAvailability.EXISTING_LEASE;
     }
     if (!isLoaded() || !isStarted() || outputStream == null) {
       return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
@@ -5332,6 +5416,7 @@ public class Leelaz {
   public boolean hasExclusiveGtpWorkInProgress() {
     synchronized (engineArbitrationLock()) {
       return exclusiveGtpSession != null
+          || trackingHandoffGate != null
           || foregroundRestoreInProgress
           || exclusiveGtpLifecycleTransition;
     }
@@ -5404,7 +5489,7 @@ public class Leelaz {
   }
 
   private boolean beginExclusiveGtpLifecycleTransition(Object owner) {
-    if (exclusiveGtpSession != null) {
+    if (exclusiveGtpSession != null || trackingHandoffGate != null) {
       return false;
     }
     if (exclusiveGtpLifecycleTransition) {
@@ -5459,7 +5544,9 @@ public class Leelaz {
 
   private boolean hasConflictingExclusiveGtpWork() {
     synchronized (engineArbitrationLock()) {
-      if (exclusiveGtpSession != null || foregroundRestoreInProgress) {
+      if (exclusiveGtpSession != null
+          || trackingHandoffGate != null
+          || foregroundRestoreInProgress) {
         return true;
       }
       return exclusiveGtpLifecycleTransition && exclusiveGtpLifecycleOwner != Thread.currentThread();
@@ -5509,6 +5596,87 @@ public class Leelaz {
           "failed to send final stop command");
     }
     return true;
+  }
+
+  public TrackingHandoffClaim claimTrackingHandoff(TrackingHandoffTarget target) {
+    if (target == null) {
+      return TrackingHandoffClaim.rejected(
+          this, target, TrackingHandoffAvailability.INVALID_TARGET);
+    }
+    TrackingHandoffKind kind;
+    try {
+      kind = target.kind();
+    } catch (Throwable ignored) {
+      kind = null;
+    }
+    if (kind == null) {
+      return TrackingHandoffClaim.rejected(
+          this, target, TrackingHandoffAvailability.INVALID_TARGET);
+    }
+    ExclusiveGtpSession session;
+    TrackingHandoffClaim claim;
+    TrackingDispositionNotification dispositionNotification;
+    int releaseStopCommandId = 0;
+    synchronized (engineArbitrationLock()) {
+      synchronized (commandQueue()) {
+        session = exclusiveGtpSession;
+        if (trackingHandoffGate != null) {
+          return TrackingHandoffClaim.rejected(this, target, TrackingHandoffAvailability.BUSY);
+        }
+        if (session == null || session.releasePolicy != ExclusiveGtpReleasePolicy.STREAM_ONLY) {
+          return TrackingHandoffClaim.rejected(
+              this, target, TrackingHandoffAvailability.NOT_TRACKING);
+        }
+        if (!(session.owner instanceof TrackingStreamLease)
+            || session.closing
+            || session.releaseRequested
+            || exclusiveGtpLifecycleTransition
+            || normalCommandSendInProgress
+            || !commandQueue().isEmpty()
+            || !foregroundRestoreCommandQueue().isEmpty()) {
+          return TrackingHandoffClaim.rejected(this, target, TrackingHandoffAvailability.BUSY);
+        }
+        claim = new TrackingHandoffClaim(this, target, kind, session.wasPondering);
+        trackingHandoffGate = claim;
+        session.trackingHandoffClaim = claim;
+        session.releaseRequested = true;
+        dispositionNotification =
+            advanceTrackingReleaseDispositionLocked(session, TrackingReleaseDisposition.CLEARED);
+        if (session.active) {
+          releaseStopCommandId = claimTrackingReleaseStopLocked(session);
+        }
+      }
+    }
+    notifyTrackingDisposition(dispositionNotification);
+    if (releaseStopCommandId != 0) {
+      sendTrackingReleaseStop(session, releaseStopCommandId);
+    }
+    return claim;
+  }
+
+  private TrackingDispositionNotification advanceTrackingReleaseDispositionLocked(
+      ExclusiveGtpSession session, TrackingReleaseDisposition disposition) {
+    if (session == null
+        || exclusiveGtpSession != session
+        || session.closedCallbackRun
+        || !(session.owner instanceof TrackingStreamLease)) {
+      return null;
+    }
+    TrackingStreamLease lease = (TrackingStreamLease) session.owner;
+    return lease.advanceDisposition(disposition)
+        ? new TrackingDispositionNotification(lease.dispositionObserver, disposition)
+        : null;
+  }
+
+  private void notifyTrackingDisposition(TrackingDispositionNotification notification) {
+    if (notification == null || notification.observer == null) {
+      return;
+    }
+    try {
+      notification.observer.onDispositionChanged(notification.disposition);
+    } catch (Throwable ignored) {
+      // Observer failures do not own transport settlement.
+    }
   }
 
   private boolean endTrackingStreamLease(TrackingStreamLease owner) {
@@ -5686,6 +5854,7 @@ public class Leelaz {
     rememberRecentLine(recentStderrLines, message);
     System.err.println(message);
     try {
+      notifyTrackingDisposition(cleanup.dispositionNotification);
       notifyGtpCommandStateReset(cleanup.commandStateReset);
     } finally {
       if (notifyClosed && isCurrentTrackingStreamIncarnation(session)) {
@@ -5726,7 +5895,11 @@ public class Leelaz {
             retiringForRebind
                 ? resetGtpCommandStateForReaderRebindLocked(detail)
                 : resetGtpCommandStateLocked(detail);
-        return new TrackingStreamCleanup(expectedSession, commandStateReset);
+        TrackingDispositionNotification dispositionNotification =
+            advanceTrackingReleaseDispositionLocked(
+                expectedSession, TrackingReleaseDisposition.CLEARED);
+        return new TrackingStreamCleanup(
+            expectedSession, commandStateReset, dispositionNotification);
       }
     }
   }
@@ -6397,9 +6570,23 @@ public class Leelaz {
       ExclusiveGtpSession session, boolean advanceOrdinaryQueue, boolean notifyClosed) {
     cancelExclusiveGtpInitialStopTimeout(session);
     cancelExclusiveGtpReleaseStopTimeout(session);
-    if (!closeExclusiveGtpSession(session, advanceOrdinaryQueue)) {
+    TrackingHandoffClaim handoff = session == null ? null : session.trackingHandoffClaim;
+    boolean promoteHandoff =
+        handoff != null
+            && handoff.state.get() == TrackingHandoffState.ACCEPTED_PENDING
+            && session.trackingLeaseFailureReason() == null;
+    if (!closeExclusiveGtpSession(session, promoteHandoff ? false : advanceOrdinaryQueue)) {
       return;
     }
+    runStreamOnlyClosedCallback(session, notifyClosed);
+    if (promoteHandoff) {
+      promoteTrackingHandoff(handoff);
+    } else if (handoff != null) {
+      failTrackingHandoff(handoff, TrackingHandoffFailure.TRACKING_FAILED);
+    }
+  }
+
+  private void runStreamOnlyClosedCallback(ExclusiveGtpSession session, boolean notifyClosed) {
     if (!notifyClosed) {
       return;
     }
@@ -6411,8 +6598,136 @@ public class Leelaz {
       session.closedCallbackRun = true;
       onClosed = session.onClosed;
     }
-    if (onClosed != null) {
-      onClosed.run();
+    runTrackingCallback(onClosed);
+  }
+
+  private void runTrackingCallback(Runnable callback) {
+    if (callback == null) {
+      return;
+    }
+    try {
+      callback.run();
+    } catch (Throwable ignored) {
+      // Tracking callbacks run after ownership has already settled.
+    }
+  }
+
+  private void promoteTrackingHandoff(TrackingHandoffClaim claim) {
+    synchronized (engineArbitrationLock()) {
+      if (trackingHandoffGate != claim
+          || !claim.state.compareAndSet(
+              TrackingHandoffState.ACCEPTED_PENDING, TrackingHandoffState.ACTIVATING)) {
+        return;
+      }
+    }
+    try {
+      if (!claim.target.isCurrent()) {
+        failTrackingHandoff(claim, TrackingHandoffFailure.CONTEXT_INVALIDATED);
+        return;
+      }
+      claim.target.activate(new TrackingHandoffActivationImpl(claim));
+      if (claim.state.get() == TrackingHandoffState.ACTIVATING) {
+        failTrackingHandoff(claim, TrackingHandoffFailure.ACTIVATION_FAILED);
+      }
+    } catch (Throwable failure) {
+      failTrackingHandoff(claim, TrackingHandoffFailure.ACTIVATION_FAILED);
+    }
+  }
+
+  private boolean completeRetainedTrackingHandoff(TrackingHandoffClaim claim) {
+    synchronized (engineArbitrationLock()) {
+      if (trackingHandoffGate != claim
+          || claim.kind != TrackingHandoffKind.RETAINED_ENGINE_MODE
+          || !claim.state.compareAndSet(
+              TrackingHandoffState.ACTIVATING, TrackingHandoffState.ACTIVE)) {
+        return false;
+      }
+      trackingHandoffGate = null;
+    }
+    trySendCommandFromQueue();
+    return true;
+  }
+
+  private boolean activateForegroundTrackingHandoff(
+      TrackingHandoffClaim claim, Consumer<String> lineConsumer, Runnable onClosed) {
+    synchronized (engineArbitrationLock()) {
+      if (trackingHandoffGate != claim
+          || claim.kind != TrackingHandoffKind.FOREGROUND_ANALYSIS
+          || lineConsumer == null
+          || !claim.state.compareAndSet(
+              TrackingHandoffState.ACTIVATING, TrackingHandoffState.ACTIVE)) {
+        return false;
+      }
+      ExclusiveGtpSession session =
+          new ExclusiveGtpSession(
+              claim.target,
+              lineConsumer,
+              null,
+              onClosed,
+              exclusiveGtpResponseCommandIds.getAndIncrement(),
+              ExclusiveGtpReleasePolicy.FOREGROUND_RESTORE,
+              null);
+      session.active = true;
+      session.wasPondering = claim.wasPondering;
+      exclusiveGtpSession = session;
+      suppressNormalCommandsForForegroundAnalysis = true;
+      trackingHandoffGate = null;
+    }
+    return true;
+  }
+
+  private boolean failTrackingHandoff(TrackingHandoffClaim claim, TrackingHandoffFailure failure) {
+    TrackingHandoffFailureNotification notification;
+    synchronized (engineArbitrationLock()) {
+      notification = claimTrackingHandoffFailureLocked(claim, failure);
+    }
+    notifyTrackingHandoffFailure(notification);
+    return notification != null;
+  }
+
+  private TrackingHandoffFailureNotification claimTrackingHandoffFailureLocked(
+      TrackingHandoffClaim claim, TrackingHandoffFailure failure) {
+    TrackingHandoffState current = claim.state.get();
+    if (current == TrackingHandoffState.FAILED || current == TrackingHandoffState.ACTIVE) {
+      return null;
+    }
+    if (!claim.state.compareAndSet(current, TrackingHandoffState.FAILED)) {
+      return null;
+    }
+    if (trackingHandoffGate == claim) {
+      trackingHandoffGate = null;
+    }
+    return new TrackingHandoffFailureNotification(claim.target, failure);
+  }
+
+  private void notifyTrackingHandoffFailure(TrackingHandoffFailureNotification notification) {
+    if (notification == null) {
+      return;
+    }
+    try {
+      notification.target.fail(notification.failure);
+    } catch (Throwable ignored) {
+      // Target failures cannot retain the queue gate.
+    } finally {
+      trySendCommandFromQueue();
+    }
+  }
+
+  private final class TrackingHandoffActivationImpl implements TrackingHandoffActivation {
+    private final TrackingHandoffClaim claim;
+
+    private TrackingHandoffActivationImpl(TrackingHandoffClaim claim) {
+      this.claim = claim;
+    }
+
+    @Override
+    public boolean activateForegroundAnalysis(Consumer<String> lineConsumer, Runnable onClosed) {
+      return activateForegroundTrackingHandoff(claim, lineConsumer, onClosed);
+    }
+
+    @Override
+    public boolean completeRetainedEngineMode() {
+      return completeRetainedTrackingHandoff(claim);
     }
   }
 
@@ -6624,6 +6939,14 @@ public class Leelaz {
     private Timer releaseStopTimeout;
     private Timer restoreTimeout;
     private boolean closedCallbackRun;
+    private TrackingHandoffClaim trackingHandoffClaim;
+
+    private TrackingStreamLeaseFailure trackingLeaseFailureReason() {
+      if (!(owner instanceof TrackingStreamLease)) {
+        return null;
+      }
+      return ((TrackingStreamLease) owner).failureReason.get();
+    }
 
     private ExclusiveGtpSession(
         Object owner,
@@ -6640,6 +6963,28 @@ public class Leelaz {
       this.stopCommandId = stopCommandId;
       this.releasePolicy = releasePolicy;
       this.readerBinding = readerBinding;
+    }
+  }
+
+  private static final class TrackingDispositionNotification {
+    private final TrackingReleaseDispositionObserver observer;
+    private final TrackingReleaseDisposition disposition;
+
+    private TrackingDispositionNotification(
+        TrackingReleaseDispositionObserver observer, TrackingReleaseDisposition disposition) {
+      this.observer = observer;
+      this.disposition = disposition;
+    }
+  }
+
+  private static final class TrackingHandoffFailureNotification {
+    private final TrackingHandoffTarget target;
+    private final TrackingHandoffFailure failure;
+
+    private TrackingHandoffFailureNotification(
+        TrackingHandoffTarget target, TrackingHandoffFailure failure) {
+      this.target = target;
+      this.failure = failure;
     }
   }
 
@@ -6705,12 +7050,19 @@ public class Leelaz {
   public static final class TrackingStreamLease {
     private final Leelaz engine;
     private final TrackingStreamLeaseReceipt receipt;
+    private final TrackingReleaseDispositionObserver dispositionObserver;
+    private final AtomicReference<TrackingReleaseDisposition> disposition =
+        new AtomicReference<>(TrackingReleaseDisposition.ACTIVE);
     private final AtomicReference<TrackingStreamLeaseFailure> failureReason =
         new AtomicReference<>();
 
-    private TrackingStreamLease(Leelaz engine, TrackingStreamLeaseReceipt receipt) {
+    private TrackingStreamLease(
+        Leelaz engine,
+        TrackingStreamLeaseReceipt receipt,
+        TrackingReleaseDispositionObserver dispositionObserver) {
       this.engine = engine;
       this.receipt = receipt;
+      this.dispositionObserver = dispositionObserver;
     }
 
     public TrackingStreamLeaseReceipt receipt() {
@@ -6733,8 +7085,80 @@ public class Leelaz {
       return Optional.ofNullable(failureReason.get());
     }
 
+    public TrackingReleaseDisposition disposition() {
+      return disposition.get();
+    }
+
+    private boolean advanceDisposition(TrackingReleaseDisposition next) {
+      TrackingReleaseDisposition current;
+      do {
+        current = disposition.get();
+        if (current.ordinal() >= next.ordinal()) {
+          return false;
+        }
+      } while (!disposition.compareAndSet(current, next));
+      return true;
+    }
+
     private void recordFailure(TrackingStreamLeaseFailure failure) {
       failureReason.compareAndSet(null, failure);
+    }
+  }
+
+  public static final class TrackingHandoffClaim {
+    private final Leelaz engine;
+    private final TrackingHandoffTarget target;
+    private final TrackingHandoffKind kind;
+    private final boolean wasPondering;
+    private final TrackingHandoffAvailability availability;
+    private final AtomicReference<TrackingHandoffState> state;
+
+    private TrackingHandoffClaim(
+        Leelaz engine,
+        TrackingHandoffTarget target,
+        TrackingHandoffKind kind,
+        boolean wasPondering) {
+      this.engine = engine;
+      this.target = target;
+      this.kind = kind;
+      this.wasPondering = wasPondering;
+      this.availability = TrackingHandoffAvailability.ACCEPTED_PENDING;
+      this.state = new AtomicReference<>(TrackingHandoffState.ACCEPTED_PENDING);
+    }
+
+    private TrackingHandoffClaim(
+        Leelaz engine, TrackingHandoffTarget target, TrackingHandoffAvailability availability) {
+      this.engine = engine;
+      this.target = target;
+      this.kind = null;
+      this.wasPondering = false;
+      this.availability = availability;
+      this.state = new AtomicReference<>(TrackingHandoffState.FAILED);
+    }
+
+    private static TrackingHandoffClaim rejected(
+        Leelaz engine, TrackingHandoffTarget target, TrackingHandoffAvailability availability) {
+      return new TrackingHandoffClaim(engine, target, availability);
+    }
+
+    public TrackingHandoffAvailability availability() {
+      return availability;
+    }
+
+    public TrackingHandoffState state() {
+      return state.get();
+    }
+
+    public boolean cancel() {
+      if (availability != TrackingHandoffAvailability.ACCEPTED_PENDING) {
+        return false;
+      }
+      TrackingHandoffState current = state.get();
+      if (current != TrackingHandoffState.ACCEPTED_PENDING
+          && current != TrackingHandoffState.ACTIVATING) {
+        return false;
+      }
+      return engine.failTrackingHandoff(this, TrackingHandoffFailure.TARGET_CANCELLED);
     }
   }
 
@@ -7157,11 +7581,15 @@ public class Leelaz {
   private static final class TrackingStreamCleanup {
     private final ExclusiveGtpSession session;
     private final GtpCommandStateReset commandStateReset;
+    private final TrackingDispositionNotification dispositionNotification;
 
     private TrackingStreamCleanup(
-        ExclusiveGtpSession session, GtpCommandStateReset commandStateReset) {
+        ExclusiveGtpSession session,
+        GtpCommandStateReset commandStateReset,
+        TrackingDispositionNotification dispositionNotification) {
       this.session = session;
       this.commandStateReset = commandStateReset;
+      this.dispositionNotification = dispositionNotification;
     }
   }
 

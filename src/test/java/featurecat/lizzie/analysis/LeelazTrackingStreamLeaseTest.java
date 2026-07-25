@@ -668,6 +668,7 @@ class LeelazTrackingStreamLeaseTest {
     installOutput(engine);
     installInput(engine, "");
     AtomicInteger closed = new AtomicInteger();
+    List<Leelaz.TrackingReleaseDisposition> dispositions = new ArrayList<>();
     try {
       Lizzie.leelaz = engine;
       Lizzie.frame = allocate(LizzieFrame.class);
@@ -676,7 +677,7 @@ class LeelazTrackingStreamLeaseTest {
       engine.isNormalEnd = true;
       Leelaz.TrackingStreamLeaseAcquisition acquisition =
           engine.acquireTrackingStreamLease(
-              line -> {}, lease -> {}, lease -> closed.incrementAndGet());
+              line -> {}, lease -> {}, lease -> closed.incrementAndGet(), dispositions::add);
 
       invokeRead(engine);
 
@@ -686,6 +687,8 @@ class LeelazTrackingStreamLeaseTest {
           acquisition.lease().failureReason());
       assertFalse(acquisition.lease().isOwned());
       assertFalse(engine.isStarted());
+      assertEquals(List.of(Leelaz.TrackingReleaseDisposition.CLEARED), dispositions);
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, acquisition.lease().disposition());
     } finally {
       Lizzie.leelaz = previousEngine;
       Lizzie.frame = previousFrame;
@@ -713,6 +716,528 @@ class LeelazTrackingStreamLeaseTest {
       assertFalse(acquisition.lease().isOwned());
       assertEquals("800000000 stop\n", state.output.toString(StandardCharsets.UTF_8));
       assertTrue(state.engine.isLoaded());
+    }
+  }
+
+  @Test
+  void acquiringTrackingLeaseAcceptsOneTypedHandoffAndActivatesAfterInitialFence()
+      throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      RecordingHandoffTarget target = RecordingHandoffTarget.retained();
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+
+      Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+      Leelaz.TrackingHandoffClaim second =
+          state.engine.claimTrackingHandoff(RecordingHandoffTarget.foreground());
+
+      assertEquals(Leelaz.TrackingHandoffAvailability.ACCEPTED_PENDING, claim.availability());
+      assertEquals(Leelaz.TrackingHandoffState.ACCEPTED_PENDING, claim.state());
+      assertEquals(Leelaz.TrackingHandoffAvailability.BUSY, second.availability());
+      assertEquals(0, target.activations.get());
+      assertFalse(acquisition.lease().send("kata-analyze B 10"));
+
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      assertEquals(1, target.activations.get());
+      assertEquals(0, target.failures.get());
+      assertEquals(Leelaz.TrackingHandoffState.ACTIVE, claim.state());
+      assertEquals("800000000 stop\n", state.output.toString(StandardCharsets.UTF_8));
+    }
+  }
+
+  @Test
+  void foregroundHandoffOwnsExclusiveGateAfterInitialFence() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      RecordingHandoffTarget target = RecordingHandoffTarget.foreground();
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+      state.engine.sendCommand("version");
+
+      assertEquals(Leelaz.TrackingHandoffState.ACTIVE, claim.state());
+      assertEquals(1, target.activations.get());
+      assertTrue(state.engine.hasExclusiveGtpLeaseOwnedBy(target));
+      assertFalse(state.engine.beginExclusiveGtpLifecycleTransition());
+      assertEquals("800000000 stop\n", state.output.toString(StandardCharsets.UTF_8));
+    }
+  }
+
+  @Test
+  void typedHandoffClearsReleaseDispositionBeforeActivationDespiteObserverFailure()
+      throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      List<Leelaz.TrackingReleaseDisposition> dispositions = new ArrayList<>();
+      AtomicInteger activations = new AtomicInteger();
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(
+              line -> {},
+              lease -> {},
+              lease -> {},
+              disposition -> {
+                dispositions.add(disposition);
+                throw new IllegalStateException("simulated disposition observer failure");
+              });
+      Leelaz.TrackingHandoffTarget target =
+          new Leelaz.TrackingHandoffTarget() {
+            @Override
+            public Leelaz.TrackingHandoffKind kind() {
+              return Leelaz.TrackingHandoffKind.RETAINED_ENGINE_MODE;
+            }
+
+            @Override
+            public boolean isCurrent() {
+              return true;
+            }
+
+            @Override
+            public void activate(Leelaz.TrackingHandoffActivation activation) {
+              assertEquals(List.of(Leelaz.TrackingReleaseDisposition.CLEARED), dispositions);
+              activations.incrementAndGet();
+              assertTrue(activation.completeRetainedEngineMode());
+            }
+
+            @Override
+            public void fail(Leelaz.TrackingHandoffFailure failure) {}
+          };
+
+      Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      assertEquals(Leelaz.TrackingHandoffAvailability.ACCEPTED_PENDING, claim.availability());
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, acquisition.lease().disposition());
+      assertEquals(1, activations.get());
+      assertEquals(Leelaz.TrackingHandoffState.ACTIVE, claim.state());
+    }
+  }
+
+  @Test
+  void activeTrackingHandoffKeepsOrdinaryQueueClosedUntilRetainedTargetCompletes()
+      throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      BlockingHandoffTarget target = new BlockingHandoffTarget();
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(acquisition.lease().send("kata-analyze B 10"));
+
+      Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+      assertEquals(Leelaz.TrackingHandoffAvailability.ACCEPTED_PENDING, claim.availability());
+      state.engine.sendCommand("version");
+      assertEquals(
+          "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
+          state.output.toString(StandardCharsets.UTF_8));
+
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(dispatch(state.engine, "=800000002"));
+      AtomicReference<Throwable> fenceFailure = new AtomicReference<>();
+      Thread fenceThread =
+          new Thread(
+              () -> {
+                try {
+                  dispatch(state.engine, "");
+                } catch (Throwable failure) {
+                  fenceFailure.set(failure);
+                }
+              },
+              "tracking-handoff-final-fence");
+      fenceThread.setDaemon(true);
+      fenceThread.start();
+      assertTrue(target.activationStarted.await(1, TimeUnit.SECONDS));
+
+      assertFalse(state.output.toString(StandardCharsets.UTF_8).contains("version\n"));
+      assertEquals(
+          Leelaz.TrackingHandoffAvailability.BUSY,
+          state.engine.claimTrackingHandoff(RecordingHandoffTarget.foreground()).availability());
+      assertFalse(state.engine.beginExclusiveGtpLifecycleTransition());
+      assertEquals(
+          Leelaz.ExclusiveGtpLeaseAvailability.EXISTING_LEASE,
+          state.engine.previewForegroundAnalysisLeaseAvailability());
+      assertEquals(
+          Leelaz.ExclusiveGtpLeaseAvailability.EXISTING_LEASE,
+          state
+              .engine
+              .acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {})
+              .availability());
+
+      target.allowCompletion.countDown();
+      fenceThread.join(1000L);
+
+      assertFalse(fenceThread.isAlive());
+      assertEquals(null, fenceFailure.get());
+      assertEquals(Leelaz.TrackingHandoffState.ACTIVE, claim.state());
+      assertTrue(state.output.toString(StandardCharsets.UTF_8).endsWith("version\n"));
+    }
+  }
+
+  @Test
+  void readerRebindFailsPendingHandoffOnceBeforeReopeningOrdinaryQueue() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      List<Leelaz.TrackingReleaseDisposition> dispositions = new ArrayList<>();
+      RecordingHandoffTarget target = RecordingHandoffTarget.retained();
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(
+              line -> {}, lease -> {}, lease -> {}, dispositions::add);
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(acquisition.lease().send("kata-analyze B 10"));
+      Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+      ByteArrayOutputStream reboundOutput = new ByteArrayOutputStream();
+
+      initializeStreams(state.engine, reboundOutput);
+      state.engine.sendCommand("version");
+
+      assertEquals(Leelaz.TrackingHandoffState.FAILED, claim.state());
+      assertEquals(0, target.activations.get());
+      assertEquals(1, target.failures.get());
+      assertEquals(List.of(Leelaz.TrackingReleaseDisposition.CLEARED), dispositions);
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, acquisition.lease().disposition());
+      assertEquals("version\n", reboundOutput.toString(StandardCharsets.UTF_8));
+    }
+  }
+
+  @Test
+  void readerRebindWinsAgainstInFlightHandoffActivation() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      BlockingHandoffTarget target = new BlockingHandoffTarget();
+      AtomicReference<Throwable> fenceFailure = new AtomicReference<>();
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(acquisition.lease().send("kata-analyze B 10"));
+      Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(dispatch(state.engine, "=800000002"));
+      Thread fenceThread =
+          new Thread(
+              () -> {
+                try {
+                  dispatch(state.engine, "");
+                } catch (Throwable failure) {
+                  fenceFailure.set(failure);
+                }
+              },
+              "tracking-handoff-rebind-during-activation");
+      fenceThread.setDaemon(true);
+      fenceThread.start();
+      assertTrue(target.activationStarted.await(1, TimeUnit.SECONDS));
+      ByteArrayOutputStream reboundOutput = new ByteArrayOutputStream();
+
+      initializeStreams(state.engine, reboundOutput);
+      target.allowCompletion.countDown();
+      fenceThread.join(1000L);
+      state.engine.sendCommand("version");
+
+      assertFalse(fenceThread.isAlive());
+      assertEquals(null, fenceFailure.get());
+      assertEquals(Leelaz.TrackingHandoffState.FAILED, claim.state());
+      assertEquals(1, target.failures.get());
+      assertEquals("version\n", reboundOutput.toString(StandardCharsets.UTF_8));
+    }
+  }
+
+  @Test
+  void targetCancellationSettlesOnceAndCallbackFailureCannotLoseQueueWakeup() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      AtomicInteger activations = new AtomicInteger();
+      AtomicInteger failures = new AtomicInteger();
+      Leelaz.TrackingHandoffTarget target =
+          new Leelaz.TrackingHandoffTarget() {
+            @Override
+            public Leelaz.TrackingHandoffKind kind() {
+              return Leelaz.TrackingHandoffKind.RETAINED_ENGINE_MODE;
+            }
+
+            @Override
+            public boolean isCurrent() {
+              return true;
+            }
+
+            @Override
+            public void activate(Leelaz.TrackingHandoffActivation activation) {
+              activations.incrementAndGet();
+            }
+
+            @Override
+            public void fail(Leelaz.TrackingHandoffFailure failure) {
+              failures.incrementAndGet();
+              throw new IllegalStateException("simulated target failure callback exception");
+            }
+          };
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+
+      assertTrue(claim.cancel());
+      assertFalse(claim.cancel());
+      state.engine.sendCommand("version");
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      assertEquals(Leelaz.TrackingHandoffState.FAILED, claim.state());
+      assertEquals(0, activations.get());
+      assertEquals(1, failures.get());
+      assertFalse(acquisition.lease().isOwned());
+      assertEquals("800000000 stop\nversion\n", state.output.toString(StandardCharsets.UTF_8));
+    }
+  }
+
+  @Test
+  void retainedHandoffCannotActivateAsForegroundOwner() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      AtomicReference<Boolean> mismatchedActivation = new AtomicReference<>();
+      AtomicReference<Leelaz.TrackingHandoffFailure> failure = new AtomicReference<>();
+      Leelaz.TrackingHandoffTarget target =
+          new Leelaz.TrackingHandoffTarget() {
+            @Override
+            public Leelaz.TrackingHandoffKind kind() {
+              return Leelaz.TrackingHandoffKind.RETAINED_ENGINE_MODE;
+            }
+
+            @Override
+            public boolean isCurrent() {
+              return true;
+            }
+
+            @Override
+            public void activate(Leelaz.TrackingHandoffActivation activation) {
+              mismatchedActivation.set(activation.activateForegroundAnalysis(line -> {}, () -> {}));
+            }
+
+            @Override
+            public void fail(Leelaz.TrackingHandoffFailure reason) {
+              failure.compareAndSet(null, reason);
+            }
+          };
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      assertEquals(false, mismatchedActivation.get());
+      assertEquals(Leelaz.TrackingHandoffState.FAILED, claim.state());
+      assertEquals(Leelaz.TrackingHandoffFailure.ACTIVATION_FAILED, failure.get());
+      assertFalse(state.engine.hasExclusiveGtpLeaseOwnedBy(target));
+    }
+  }
+
+  @Test
+  void handoffKindIsCapturedOnceAtClaim() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      AtomicInteger kindReads = new AtomicInteger();
+      Leelaz.TrackingHandoffTarget target =
+          new Leelaz.TrackingHandoffTarget() {
+            @Override
+            public Leelaz.TrackingHandoffKind kind() {
+              return kindReads.incrementAndGet() == 1
+                  ? Leelaz.TrackingHandoffKind.RETAINED_ENGINE_MODE
+                  : Leelaz.TrackingHandoffKind.FOREGROUND_ANALYSIS;
+            }
+
+            @Override
+            public boolean isCurrent() {
+              return true;
+            }
+
+            @Override
+            public void activate(Leelaz.TrackingHandoffActivation activation) {
+              assertTrue(activation.completeRetainedEngineMode());
+            }
+
+            @Override
+            public void fail(Leelaz.TrackingHandoffFailure failure) {}
+          };
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+
+      Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      assertEquals(1, kindReads.get());
+      assertEquals(Leelaz.TrackingHandoffState.ACTIVE, claim.state());
+    }
+  }
+
+  @Test
+  void targetValidationExceptionFailsHandoffAndReopensOrdinaryQueue() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      AtomicInteger failures = new AtomicInteger();
+      AtomicReference<Leelaz.TrackingHandoffFailure> reason = new AtomicReference<>();
+      Leelaz.TrackingHandoffTarget target =
+          new Leelaz.TrackingHandoffTarget() {
+            @Override
+            public Leelaz.TrackingHandoffKind kind() {
+              return Leelaz.TrackingHandoffKind.RETAINED_ENGINE_MODE;
+            }
+
+            @Override
+            public boolean isCurrent() {
+              throw new IllegalStateException("simulated target validation failure");
+            }
+
+            @Override
+            public void activate(Leelaz.TrackingHandoffActivation activation) {
+              throw new AssertionError("invalid target must not activate");
+            }
+
+            @Override
+            public void fail(Leelaz.TrackingHandoffFailure failure) {
+              failures.incrementAndGet();
+              reason.compareAndSet(null, failure);
+            }
+          };
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+      state.engine.sendCommand("version");
+
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      assertEquals(Leelaz.TrackingHandoffState.FAILED, claim.state());
+      assertEquals(1, failures.get());
+      assertEquals(Leelaz.TrackingHandoffFailure.ACTIVATION_FAILED, reason.get());
+      assertEquals("800000000 stop\nversion\n", state.output.toString(StandardCharsets.UTF_8));
+    }
+  }
+
+  @Test
+  void trackingClosedCallbackFailureCannotBlockHandoffActivationOrQueueWakeup() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      AtomicInteger closed = new AtomicInteger();
+      RecordingHandoffTarget target = RecordingHandoffTarget.retained();
+      state.engine.acquireTrackingStreamLease(
+          line -> {},
+          lease -> {},
+          lease -> {
+            closed.incrementAndGet();
+            throw new IllegalStateException("simulated tracking closed callback failure");
+          });
+      Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+      state.engine.sendCommand("version");
+
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      assertEquals(1, closed.get());
+      assertEquals(1, target.activations.get());
+      assertEquals(0, target.failures.get());
+      assertEquals(Leelaz.TrackingHandoffState.ACTIVE, claim.state());
+      assertEquals("800000000 stop\nversion\n", state.output.toString(StandardCharsets.UTF_8));
+    }
+  }
+
+  @Test
+  void cancellationWinsAgainstInFlightActivationExactlyOnce() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      CountDownLatch activationStarted = new CountDownLatch(1);
+      CountDownLatch continueActivation = new CountDownLatch(1);
+      AtomicReference<Boolean> completion = new AtomicReference<>();
+      AtomicInteger failures = new AtomicInteger();
+      AtomicReference<Throwable> activationFailure = new AtomicReference<>();
+      Leelaz.TrackingHandoffTarget target =
+          new Leelaz.TrackingHandoffTarget() {
+            @Override
+            public Leelaz.TrackingHandoffKind kind() {
+              return Leelaz.TrackingHandoffKind.RETAINED_ENGINE_MODE;
+            }
+
+            @Override
+            public boolean isCurrent() {
+              return true;
+            }
+
+            @Override
+            public void activate(Leelaz.TrackingHandoffActivation activation) {
+              activationStarted.countDown();
+              try {
+                assertTrue(continueActivation.await(1, TimeUnit.SECONDS));
+                completion.set(activation.completeRetainedEngineMode());
+              } catch (Throwable failure) {
+                activationFailure.set(failure);
+              }
+            }
+
+            @Override
+            public void fail(Leelaz.TrackingHandoffFailure failure) {
+              failures.incrementAndGet();
+            }
+          };
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(acquisition.lease().send("kata-analyze B 10"));
+      Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+      state.engine.sendCommand("version");
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(dispatch(state.engine, "=800000002"));
+      Thread fenceThread =
+          new Thread(
+              () -> {
+                try {
+                  dispatch(state.engine, "");
+                } catch (Throwable failure) {
+                  activationFailure.compareAndSet(null, failure);
+                }
+              },
+              "tracking-handoff-cancel-during-activation");
+      fenceThread.setDaemon(true);
+
+      fenceThread.start();
+      assertTrue(activationStarted.await(1, TimeUnit.SECONDS));
+      assertTrue(claim.cancel());
+      continueActivation.countDown();
+      fenceThread.join(1000L);
+
+      assertFalse(fenceThread.isAlive());
+      assertEquals(null, activationFailure.get());
+      assertEquals(false, completion.get());
+      assertEquals(1, failures.get());
+      assertEquals(Leelaz.TrackingHandoffState.FAILED, claim.state());
+      assertTrue(state.output.toString(StandardCharsets.UTF_8).endsWith("version\n"));
+    }
+  }
+
+  @Test
+  void releaseRequestedTrackingLeaseRejectsLateHandoff() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      assertTrue(acquisition.lease().release());
+
+      Leelaz.TrackingHandoffClaim claim =
+          state.engine.claimTrackingHandoff(RecordingHandoffTarget.retained());
+
+      assertEquals(Leelaz.TrackingHandoffAvailability.BUSY, claim.availability());
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+    }
+  }
+
+  @Test
+  void ordinaryQueueWinnerMakesLaterTypedHandoffBusy() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+      state.engine.sendCommand("version");
+
+      Leelaz.TrackingHandoffClaim claim =
+          state.engine.claimTrackingHandoff(RecordingHandoffTarget.retained());
+
+      assertEquals(Leelaz.TrackingHandoffAvailability.BUSY, claim.availability());
+      assertTrue(acquisition.lease().release());
+      assertTrue(dispatch(state.engine, "=800000001"));
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(state.output.toString(StandardCharsets.UTF_8).endsWith("version\n"));
     }
   }
 
@@ -749,6 +1274,41 @@ class LeelazTrackingStreamLeaseTest {
           java.util.Optional.of(Leelaz.TrackingStreamLeaseFailure.FINAL_STOP_TIMEOUT),
           acquisition.lease().failureReason());
       assertFalse(state.engine.isLoaded());
+    }
+  }
+
+  @Test
+  void trackingFenceTimeoutsFailPendingHandoffExactlyOnce() throws Exception {
+    TimeoutLeelaz initialEngine = reusableTimeoutKatago();
+    initialEngine.initialStopTimeoutMillis = 25L;
+    try (TestState state = TestState.open(initialEngine)) {
+      RecordingHandoffTarget target = RecordingHandoffTarget.retained();
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+
+      waitUntil(() -> target.failures.get() == 1);
+
+      assertEquals(Leelaz.TrackingHandoffState.FAILED, claim.state());
+      assertEquals(0, target.activations.get());
+      assertEquals(1, target.failures.get());
+    }
+
+    TimeoutLeelaz finalEngine = reusableTimeoutKatago();
+    finalEngine.releaseStopTimeoutMillis = 25L;
+    try (TestState state = TestState.open(finalEngine)) {
+      RecordingHandoffTarget target = RecordingHandoffTarget.foreground();
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(acquisition.lease().send("kata-analyze B 10"));
+      Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+
+      waitUntil(() -> target.failures.get() == 1);
+
+      assertEquals(Leelaz.TrackingHandoffState.FAILED, claim.state());
+      assertEquals(0, target.activations.get());
+      assertEquals(1, target.failures.get());
     }
   }
 
@@ -1581,6 +2141,70 @@ class LeelazTrackingStreamLeaseTest {
       } finally {
         timeoutFinished.countDown();
       }
+    }
+  }
+
+  private static class RecordingHandoffTarget implements Leelaz.TrackingHandoffTarget {
+    private final Leelaz.TrackingHandoffKind kind;
+    protected final AtomicInteger activations = new AtomicInteger();
+    protected final AtomicInteger failures = new AtomicInteger();
+
+    private RecordingHandoffTarget(Leelaz.TrackingHandoffKind kind) {
+      this.kind = kind;
+    }
+
+    private static RecordingHandoffTarget foreground() {
+      return new RecordingHandoffTarget(Leelaz.TrackingHandoffKind.FOREGROUND_ANALYSIS);
+    }
+
+    private static RecordingHandoffTarget retained() {
+      return new RecordingHandoffTarget(Leelaz.TrackingHandoffKind.RETAINED_ENGINE_MODE);
+    }
+
+    @Override
+    public Leelaz.TrackingHandoffKind kind() {
+      return kind;
+    }
+
+    @Override
+    public boolean isCurrent() {
+      return true;
+    }
+
+    @Override
+    public void activate(Leelaz.TrackingHandoffActivation activation) {
+      activations.incrementAndGet();
+      if (kind == Leelaz.TrackingHandoffKind.RETAINED_ENGINE_MODE) {
+        assertTrue(activation.completeRetainedEngineMode());
+      } else {
+        assertTrue(activation.activateForegroundAnalysis(line -> {}, () -> {}));
+      }
+    }
+
+    @Override
+    public void fail(Leelaz.TrackingHandoffFailure failure) {
+      failures.incrementAndGet();
+    }
+  }
+
+  private static final class BlockingHandoffTarget extends RecordingHandoffTarget {
+    private final CountDownLatch activationStarted = new CountDownLatch(1);
+    private final CountDownLatch allowCompletion = new CountDownLatch(1);
+
+    private BlockingHandoffTarget() {
+      super(Leelaz.TrackingHandoffKind.RETAINED_ENGINE_MODE);
+    }
+
+    @Override
+    public void activate(Leelaz.TrackingHandoffActivation activation) {
+      activationStarted.countDown();
+      try {
+        assertTrue(allowCompletion.await(1, TimeUnit.SECONDS));
+      } catch (InterruptedException interrupted) {
+        Thread.currentThread().interrupt();
+        throw new AssertionError(interrupted);
+      }
+      super.activate(activation);
     }
   }
 
