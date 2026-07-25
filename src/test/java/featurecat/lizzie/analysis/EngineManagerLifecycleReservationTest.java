@@ -36,6 +36,38 @@ class EngineManagerLifecycleReservationTest {
   }
 
   @Test
+  void restartClaimsActiveTrackingAndRetiresItOnReaderRebind() throws Exception {
+    Leelaz previousEngine = Lizzie.leelaz;
+    boolean previousEmpty = EngineManager.isEmpty;
+    int previousEngineNo = EngineManager.currentEngineNo;
+    TrackingRestartActionLeelaz engine = new TrackingRestartActionLeelaz();
+    DeferredSwitchEngineManager manager = new DeferredSwitchEngineManager(List.of(engine));
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    setLeelazField(engine, "outputStream", new BufferedOutputStream(output));
+    setCapabilityDiscoveryComplete(engine, true);
+    try {
+      Lizzie.leelaz = engine;
+      EngineManager.isEmpty = false;
+      EngineManager.currentEngineNo = 0;
+      Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(engine);
+
+      manager.reStartEngine(0);
+
+      assertEquals(1, engine.shutdownCount);
+      assertEquals(1, manager.switchCount);
+      assertFalse(tracking.lease().isOwned());
+      assertTrue(engine.hasExclusiveGtpWorkInProgress());
+      assertNotNull(manager.afterSync);
+      manager.afterSync.run();
+      assertFalse(engine.hasExclusiveGtpWorkInProgress());
+    } finally {
+      Lizzie.leelaz = previousEngine;
+      EngineManager.isEmpty = previousEmpty;
+      EngineManager.currentEngineNo = previousEngineNo;
+    }
+  }
+
+  @Test
   void unresponsiveRemoteAnalysisRestartsAndRestoresThroughExistingLifecycle() throws Exception {
     Leelaz previousEngine = Lizzie.leelaz;
     boolean previousEmpty = EngineManager.isEmpty;
@@ -270,20 +302,26 @@ class EngineManagerLifecycleReservationTest {
       Lizzie.frame = frame;
       Lizzie.leelaz = current;
       Lizzie.config = allocate(Config.class);
-      current.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      activateTracking(current);
 
       manager.switchEngine(1, true);
 
       assertEquals(1, manager.switchCount);
       assertNotNull(manager.afterSync);
-      assertEquals("800000000 stop\n", output.toString(StandardCharsets.UTF_8));
+      assertEquals(
+          "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
+          output.toString(StandardCharsets.UTF_8));
       current.sendCommand("stop");
       manager.afterSync.run();
-      assertEquals("800000000 stop\n", output.toString(StandardCharsets.UTF_8));
+      assertEquals(
+          "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
+          output.toString(StandardCharsets.UTF_8));
 
-      processCommandResponse(current, "=800000000");
+      assertTrue(dispatchExclusiveLine(current, ""));
+      assertTrue(dispatchExclusiveLine(current, "=800000002"));
       assertTrue(dispatchExclusiveLine(current, ""));
       assertFalse(current.hasExclusiveGtpWorkInProgress());
+      assertTrue(output.toString(StandardCharsets.UTF_8).endsWith("stop\nstop\n"));
     } finally {
       Lizzie.leelaz = previousEngine;
       Lizzie.frame = previousFrame;
@@ -741,8 +779,7 @@ class EngineManagerLifecycleReservationTest {
       Menu.engineMenu = new JFontMenu();
       EngineManager.isEmpty = false;
       EngineManager.currentEngineNo = 0;
-      Leelaz.TrackingStreamLeaseAcquisition tracking =
-          engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(engine);
       EngineManager manager = new EngineManager(List.of(engine));
 
       if (killAll) {
@@ -753,10 +790,13 @@ class EngineManagerLifecycleReservationTest {
 
       assertEquals(1, engine.forceQuitCount);
       assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
-      assertEquals("800000000 stop\n", output.toString(StandardCharsets.UTF_8));
+      assertEquals(
+          "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
+          output.toString(StandardCharsets.UTF_8));
       assertEquals(1, frame.clearTrackedCoordsCount);
       assertEquals(1, frame.destroyTrackingEngineCount);
-      processCommandResponse(engine, "=800000000");
+      assertTrue(dispatchExclusiveLine(engine, ""));
+      assertTrue(dispatchExclusiveLine(engine, "=800000002"));
       assertTrue(dispatchExclusiveLine(engine, ""));
     } finally {
       Lizzie.leelaz = previousEngine;
@@ -803,6 +843,35 @@ class EngineManagerLifecycleReservationTest {
     Field field = Leelaz.class.getDeclaredField("endGetCommandList");
     field.setAccessible(true);
     field.setBoolean(engine, value);
+  }
+
+  private static Leelaz.TrackingStreamLeaseAcquisition activateTracking(Leelaz engine)
+      throws Exception {
+    Leelaz.TrackingStreamLeaseAcquisition tracking =
+        engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+    processCommandResponse(engine, "=800000000");
+    assertTrue(dispatchExclusiveLine(engine, ""));
+    assertTrue(tracking.lease().send("kata-analyze B 10"));
+    return tracking;
+  }
+
+  private static void rebindReader(Leelaz engine) {
+    try {
+      Method method =
+          Leelaz.class.getDeclaredMethod(
+              "initializeStreams",
+              java.io.InputStream.class,
+              java.io.OutputStream.class,
+              java.io.InputStream.class);
+      method.setAccessible(true);
+      method.invoke(
+          engine,
+          new java.io.ByteArrayInputStream(new byte[0]),
+          new ByteArrayOutputStream(),
+          new java.io.ByteArrayInputStream(new byte[0]));
+    } catch (ReflectiveOperationException failure) {
+      throw new AssertionError(failure);
+    }
   }
 
   private static void setReadBoardGmaReservation(
@@ -864,6 +933,24 @@ class EngineManagerLifecycleReservationTest {
     @Override
     public void forceQuit() {
       forceQuitCount++;
+    }
+  }
+
+  private static final class TrackingRestartActionLeelaz extends Leelaz {
+    private int shutdownCount;
+
+    private TrackingRestartActionLeelaz() throws Exception {
+      super("");
+      started = true;
+      isLoaded = true;
+      isKatago = true;
+      commandLists.addAll(List.of("stop", "boardsize", "komi", "kata-analyze"));
+    }
+
+    @Override
+    public void shutdown() {
+      shutdownCount++;
+      rebindReader(this);
     }
   }
 

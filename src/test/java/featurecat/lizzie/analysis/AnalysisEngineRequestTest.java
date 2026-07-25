@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import featurecat.lizzie.Config;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.gui.HumanSlGameController;
+import featurecat.lizzie.gui.GtpConsolePane;
 import featurecat.lizzie.gui.LizzieFrame;
 import featurecat.lizzie.gui.WaitForAnalysis;
 import featurecat.lizzie.rules.Board;
@@ -21,9 +22,12 @@ import featurecat.lizzie.rules.SGFParser;
 import featurecat.lizzie.rules.Stone;
 import featurecat.lizzie.rules.Zobrist;
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.StringReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -202,7 +206,7 @@ class AnalysisEngineRequestTest {
   }
 
   @Test
-  void reuseModeClaimsActiveTrackingBeforeStartingTheForegroundRequest() throws Exception {
+  void reuseModeClaimsAcquiringTrackingBeforeStartingTheForegroundRequest() throws Exception {
     try (TestEnvironment env = TestEnvironment.open()) {
       Lizzie.config.analysisReuseCurrentEngine = true;
       singleUnanalyzedMoveNode();
@@ -225,6 +229,136 @@ class AnalysisEngineRequestTest {
       assertTrue(
           output.toString(StandardCharsets.UTF_8).contains("830000000 kata-get-rules\n"),
           "foreground request must activate only after the tracking fence");
+      closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
+  void reuseModeClaimsActiveTrackingBeforeStartingTheForegroundRequest() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      engine.startRequest(1, -1, false);
+
+      assertEquals(
+          "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
+          output.toString(StandardCharsets.UTF_8));
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).contains("kata-get-rules\n"),
+          output.toString(StandardCharsets.UTF_8));
+      closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
+  void activeTrackingForegroundRequestFailsWithoutActivationAfterReaderRebind() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      engine.startRequest(1, -1, false);
+      initializeStreams(foreground, new ByteArrayOutputStream());
+
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
+    }
+  }
+
+  @Test
+  void activeTrackingForegroundRequestFailsWithoutActivationAfterCurrentTerminal()
+      throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      GtpConsolePane previousConsole = Lizzie.gtpConsole;
+      try {
+        Lizzie.config.analysisReuseCurrentEngine = true;
+        singleUnanalyzedMoveNode();
+        Leelaz foreground = reusableForegroundEngine(true);
+        ByteArrayOutputStream output = installLeelazOutput(foreground);
+        setField(
+            Leelaz.class, foreground, "inputStream", new BufferedReader(new StringReader("")));
+        Lizzie.gtpConsole = allocate(SilentGtpConsole.class);
+        Lizzie.leelaz = foreground;
+        activateTracking(foreground);
+        AnalysisEngine engine = new AnalysisEngine(false);
+
+        engine.startRequest(1, -1, false);
+        foreground.isNormalEnd = true;
+        invokeRead(foreground);
+
+        assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+        assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+        assertFalse(engine.isAnalysisInProgress());
+      } finally {
+        Lizzie.gtpConsole = previousConsole;
+      }
+    }
+  }
+
+  @Test
+  void activeTrackingForegroundRequestFailsWithoutActivationAfterFinalFenceFailure()
+      throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      engine.startRequest(1, -1, false);
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "?800000002 simulated final stop failure"));
+
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
+    }
+  }
+
+  @Test
+  void foregroundRetainedAndLifecycleContendersShareOneTrackingWinner() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+      TrackingLizzieFrame frame = (TrackingLizzieFrame) Lizzie.frame;
+
+      engine.startRequest(1, -1, false);
+      frame.startNewGame();
+      Leelaz.ExclusiveGtpLifecycleReservation lifecycle =
+          foreground.beginExclusiveGtpLifecycleReservation();
+
+      assertNull(lifecycle);
+      assertEquals(1, frame.retainedModeConflictCount);
+
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(foreground.hasExclusiveGtpLease());
       closeExclusiveSessionForTest(foreground);
     }
   }
@@ -414,16 +548,19 @@ class AnalysisEngineRequestTest {
       Leelaz foreground = reusableForegroundEngine(true);
       ByteArrayOutputStream output = installLeelazOutput(foreground);
       Lizzie.leelaz = foreground;
-      foreground.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      activateTracking(foreground);
       TrackingLizzieFrame frame = (TrackingLizzieFrame) Lizzie.frame;
 
       frame.startContributeEngine();
 
       assertEquals(1, frame.contributionStarts);
       assertEquals(0, frame.foregroundReservationConflictCount);
-      assertEquals("800000000 stop\n", output.toString(StandardCharsets.UTF_8));
+      assertEquals(
+          "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
+          output.toString(StandardCharsets.UTF_8));
       assertNull(foreground.beginExclusiveGtpLifecycleReservation());
-      processCommandResponse(foreground, "=800000000");
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
       assertTrue(dispatchExclusiveLine(foreground, ""));
     }
   }
@@ -2351,6 +2488,38 @@ class AnalysisEngineRequestTest {
     return output;
   }
 
+  private static Leelaz.TrackingStreamLeaseAcquisition activateTracking(Leelaz engine)
+      throws Exception {
+    Leelaz.TrackingStreamLeaseAcquisition tracking =
+        engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+    processCommandResponse(engine, "=800000000");
+    assertTrue(dispatchExclusiveLine(engine, ""));
+    assertTrue(tracking.lease().send("kata-analyze B 10"));
+    return tracking;
+  }
+
+  private static void initializeStreams(Leelaz engine, ByteArrayOutputStream output)
+      throws Exception {
+    Method method =
+        Leelaz.class.getDeclaredMethod(
+            "initializeStreams",
+            java.io.InputStream.class,
+            java.io.OutputStream.class,
+            java.io.InputStream.class);
+    method.setAccessible(true);
+    method.invoke(
+        engine,
+        new ByteArrayInputStream(new byte[0]),
+        output,
+        new ByteArrayInputStream(new byte[0]));
+  }
+
+  private static void invokeRead(Leelaz engine) throws Exception {
+    Method method = Leelaz.class.getDeclaredMethod("read");
+    method.setAccessible(true);
+    method.invoke(engine);
+  }
+
   private static void closeExclusiveSessionForTest(Leelaz engine) throws Exception {
     Field field = Leelaz.class.getDeclaredField("exclusiveGtpSession");
     field.setAccessible(true);
@@ -2450,6 +2619,7 @@ class AnalysisEngineRequestTest {
     private int flashAutoAnaSaveAndLoadCalls;
     private int foregroundReservationConflictCount;
     private int contributionStarts;
+    private int retainedModeConflictCount;
 
     private TrackingLizzieFrame() {}
 
@@ -2470,9 +2640,23 @@ class AnalysisEngineRequestTest {
     }
 
     @Override
+    protected void showForegroundEngineLeaseConflict() {
+      retainedModeConflictCount++;
+    }
+
+    @Override
     protected void startContributeEngineReserved() {
       contributionStarts++;
     }
+  }
+
+  private static final class SilentGtpConsole extends GtpConsolePane {
+    private SilentGtpConsole() {
+      super(null);
+    }
+
+    @Override
+    public void addCommand(String command, int commandNumber, String engineName) {}
   }
 
   private static final class DeferredRestoreLeelaz extends Leelaz {
