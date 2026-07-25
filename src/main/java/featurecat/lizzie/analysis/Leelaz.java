@@ -179,9 +179,16 @@ public class Leelaz {
     CLEARED
   }
 
+  public enum TrackingReleaseReason {
+    SAFE_READ_ONLY_QUERY,
+    ORDINARY_OPERATION
+  }
+
   @FunctionalInterface
   public interface TrackingReleaseDispositionObserver {
     void onDispositionChanged(TrackingReleaseDisposition disposition);
+
+    default void onReleaseClaimed(TrackingReleaseReason reason) {}
   }
 
   public interface TrackingHandoffTarget {
@@ -392,6 +399,8 @@ public class Leelaz {
   private final Object positionEstimateLock = new Object();
   private final KataRawOwnershipParser positionEstimateParser = new KataRawOwnershipParser();
   private Consumer<List<Double>> positionEstimateConsumer;
+  private Object positionEstimateRequestOwner;
+  private Object manualGenmoveRequestOwner;
 
   private boolean canheatRedraw = false;
   public ArrayList<Double> heatPolicy = new ArrayList<Double>();
@@ -3408,21 +3417,57 @@ public class Leelaz {
         || !isLoaded
         || isNormalEnd
         || isProcessDead()
-        || rejectNewExclusiveWorkDuringGtpLease()) {
+        || (rejectNewExclusiveWorkDuringGtpLease() && !hasTrackingStreamSession())) {
       return false;
     }
-    synchronized (positionEstimateLock) {
-      positionEstimateParser.begin(Board.boardWidth, Board.boardHeight);
-      positionEstimateConsumer = consumer;
+    Object requestOwner = new Object();
+    int boardWidth = Board.boardWidth;
+    int boardHeight = Board.boardHeight;
+    QueuedCommandSettlement settlement =
+        new QueuedCommandSettlement() {
+          @Override
+          public void onWriteClaimed() {
+            synchronized (positionEstimateLock) {
+              positionEstimateParser.begin(boardWidth, boardHeight);
+              positionEstimateConsumer = consumer;
+              positionEstimateRequestOwner = requestOwner;
+            }
+          }
+
+          @Override
+          public void onRequestFailed(RuntimeException failure) {
+            synchronized (positionEstimateLock) {
+              if (positionEstimateRequestOwner != requestOwner) {
+                return;
+              }
+              positionEstimateParser.reset();
+              positionEstimateConsumer = null;
+              positionEstimateRequestOwner = null;
+            }
+          }
+        };
+    return sendCommand(
+        "kata-raw-nn 0",
+        null,
+        null,
+        false,
+        false,
+        TrackingReleaseReason.ORDINARY_OPERATION,
+        settlement,
+        true);
+  }
+
+  private boolean hasTrackingStreamSession() {
+    synchronized (engineArbitrationLock()) {
+      return isTrackingStreamSession(exclusiveGtpSession);
     }
-    sendCommand("kata-raw-nn 0", null, null, false, false);
-    return true;
   }
 
   public void cancelPositionEstimateRequest() {
     synchronized (positionEstimateLock) {
       positionEstimateParser.reset();
       positionEstimateConsumer = null;
+      positionEstimateRequestOwner = null;
     }
   }
 
@@ -3435,6 +3480,7 @@ public class Leelaz {
         ownership = parsed.get();
         consumer = positionEstimateConsumer;
         positionEstimateConsumer = null;
+        positionEstimateRequestOwner = null;
       }
     }
     if (consumer != null) {
@@ -3915,6 +3961,37 @@ public class Leelaz {
     sendCommand(command, null);
   }
 
+  public boolean sendRawConsoleCommand(String command) {
+    synchronized (engineArbitrationLock()) {
+      if (isTrackingStreamSession(exclusiveGtpSession) && !isSafeRawGtpQuery(command)) {
+        return false;
+      }
+    }
+    return sendCommand(
+        command, null, null, false, true, TrackingReleaseReason.SAFE_READ_ONLY_QUERY, null, false);
+  }
+
+  private static boolean isSafeRawGtpQuery(String command) {
+    if (command == null || command.indexOf('\n') >= 0 || command.indexOf('\r') >= 0) {
+      return false;
+    }
+    String trimmed = command.trim();
+    if (trimmed.isEmpty()) {
+      return false;
+    }
+    String[] tokens = trimmed.split("\\s+");
+    String name = tokens[0].toLowerCase(Locale.ROOT);
+    if (name.equals("known_command")) {
+      return tokens.length == 2;
+    }
+    return tokens.length == 1
+        && (name.equals("name")
+            || name.equals("version")
+            || name.equals("protocol_version")
+            || name.equals("list_commands")
+            || name.equals("showboard"));
+  }
+
   private void sendCommand(String command, Runnable onResponse) {
     sendCommand(command, onResponse, null, false, true);
   }
@@ -3930,9 +4007,29 @@ public class Leelaz {
       CommandSendFailureHandler onSendFailure,
       boolean failOnSendError,
       boolean mirrorToSecondEngine) {
+    sendCommand(
+        command,
+        onResponse,
+        onSendFailure,
+        failOnSendError,
+        mirrorToSecondEngine,
+        TrackingReleaseReason.ORDINARY_OPERATION,
+        null,
+        false);
+  }
+
+  private boolean sendCommand(
+      String command,
+      Runnable onResponse,
+      CommandSendFailureHandler onSendFailure,
+      boolean failOnSendError,
+      boolean mirrorToSecondEngine,
+      TrackingReleaseReason releaseReason,
+      QueuedCommandSettlement settlement,
+      boolean rejectForPendingHandoff) {
     if (shouldDropStaleForegroundRestoreCommand()
         || shouldSuppressNormalCommandForForegroundAnalysis()) {
-      return;
+      return false;
     }
     if (Lizzie.config.isDoubleEngineMode()) {
       if ((command.startsWith("heat") || command.startsWith("kata-raw"))
@@ -3942,7 +4039,7 @@ public class Leelaz {
       if (Lizzie.leelaz2 != null && this == Lizzie.leelaz2)
         if (this.isLeela0110) {
           if (command.startsWith("lz-") || command.startsWith("kata-")) this.leela0110Ponder(true);
-          return;
+          return false;
         } else if (this.isKatago && !Lizzie.leelaz.isKatago) {
           if (command.startsWith("lz-")) {
             command = "kata-" + command.substring(3);
@@ -3970,36 +4067,17 @@ public class Leelaz {
         }
       }
     }
-    synchronized (commandQueue()) {
-      if (shouldDropStaleForegroundRestoreCommand()
-          || shouldSuppressNormalCommandForForegroundAnalysis()) {
-        return;
-      }
-      ArrayDeque<QueuedCommand> targetQueue = commandQueueForCurrentThread();
-      // For efficiency, delete unnecessary "lz-analyze" that will be stopped
-      // immediately
-      cmdNumber++;
-      calculateModifyNumber();
-      if (!targetQueue.isEmpty()) {
-        String lastQueuedCommand = targetQueue.peekLast().command;
-        if ((isKatago
-                && (lastQueuedCommand.startsWith("kata-analyze")
-                    || lastQueuedCommand.startsWith("kata-raw")
-                    || lastQueuedCommand.startsWith("stop-ponder")))
-            || (!isKatago
-                && (lastQueuedCommand.startsWith("lz-analyze")
-                    || lastQueuedCommand.startsWith("analyze")
-                    || lastQueuedCommand.startsWith("heatmap")))) {
-          targetQueue.removeLast();
-          cmdNumber--;
-        }
-      }
-      targetQueue.addLast(
-          new QueuedCommand(
-              command,
-              onResponse,
-              onSendFailure,
-              failOnSendError || foregroundRestoreCommandSession.get() != null));
+    if (!enqueueOrdinaryCommand(
+        command,
+        onResponse,
+        onSendFailure,
+        failOnSendError || foregroundRestoreCommandSession.get() != null,
+        settlement,
+        releaseReason,
+        rejectForPendingHandoff,
+        true,
+        false)) {
+      return false;
     }
     trySendCommandFromQueue();
     if (Lizzie.frame.isAutocounting) {
@@ -4010,6 +4088,132 @@ public class Leelaz {
       mirroredEngine.sendCommand(command);
       mirroredEngine.startPonderTime = this.startPonderTime;
     }
+    return true;
+  }
+
+  private boolean enqueueOrdinaryCommand(
+      String command,
+      Runnable onResponse,
+      CommandSendFailureHandler onSendFailure,
+      boolean failOnSendError,
+      QueuedCommandSettlement settlement,
+      TrackingReleaseReason releaseReason,
+      boolean rejectForPendingHandoff,
+      boolean countCommand,
+      boolean noLeelaz2Coalescing) {
+    ArrayDeque<QueuedCommand> currentQueue = commandQueue();
+    if (Thread.holdsLock(currentQueue)
+        && exclusiveGtpSession == null
+        && trackingHandoffGate == null
+        && settlement == null) {
+      if (shouldDropStaleForegroundRestoreCommand()
+          || shouldSuppressNormalCommandForForegroundAnalysis()) {
+        return false;
+      }
+      ArrayDeque<QueuedCommand> targetQueue = commandQueueForCurrentThread();
+      if (countCommand) {
+        cmdNumber++;
+        calculateModifyNumber();
+      }
+      if (!targetQueue.isEmpty()
+          && !targetQueue.peekLast().requiresStateReset()
+          && shouldCoalesceQueuedCommand(targetQueue.peekLast().command, noLeelaz2Coalescing)) {
+        targetQueue.removeLast();
+        if (countCommand) {
+          cmdNumber--;
+        }
+      }
+      targetQueue.addLast(new QueuedCommand(command, onResponse, onSendFailure, failOnSendError));
+      return true;
+    }
+    QueuedCommand coalesced = null;
+    TrackingDispositionNotification dispositionNotification = null;
+    ExclusiveGtpSession trackingSession = null;
+    int releaseStopCommandId = 0;
+    synchronized (engineArbitrationLock()) {
+      synchronized (commandQueue()) {
+        if (shouldDropStaleForegroundRestoreCommand()
+            || shouldSuppressNormalCommandForForegroundAnalysis()
+            || (rejectForPendingHandoff && trackingHandoffGate != null)) {
+          return false;
+        }
+        trackingSession = exclusiveGtpSession;
+        if (isTrackingStreamSession(trackingSession)
+            && releaseReason == TrackingReleaseReason.SAFE_READ_ONLY_QUERY
+            && !isSafeRawGtpQuery(command)) {
+          return false;
+        }
+        ArrayDeque<QueuedCommand> targetQueue = commandQueueForCurrentThread();
+        if (countCommand) {
+          cmdNumber++;
+          calculateModifyNumber();
+        }
+        if (!targetQueue.isEmpty()
+            && shouldCoalesceQueuedCommand(targetQueue.peekLast().command, noLeelaz2Coalescing)) {
+          coalesced = targetQueue.removeLast();
+          if (countCommand) {
+            cmdNumber--;
+          }
+        }
+        targetQueue.addLast(
+            new QueuedCommand(command, onResponse, onSendFailure, failOnSendError, settlement));
+        if (isTrackingStreamSession(trackingSession) && trackingHandoffGate == null) {
+          TrackingReleaseDisposition disposition =
+              releaseReason == TrackingReleaseReason.SAFE_READ_ONLY_QUERY
+                  ? TrackingReleaseDisposition.FROZEN_BY_SAFE
+                  : TrackingReleaseDisposition.CLEARED;
+          dispositionNotification =
+              advanceTrackingReleaseDispositionLocked(trackingSession, disposition, releaseReason);
+          if (!trackingSession.releaseRequested) {
+            trackingSession.releaseRequested = true;
+            if (trackingSession.active) {
+              releaseStopCommandId = claimTrackingReleaseStopLocked(trackingSession);
+            }
+          }
+        }
+      }
+    }
+    if (coalesced != null) {
+      RuntimeException failure =
+          new IllegalStateException("Queued GTP command was coalesced before output write");
+      if (coalesced.cancelBeforeOutputWrite(failure)) {
+        try {
+          coalesced.notifySendFailure(failure);
+        } catch (Throwable ignored) {
+          // A cancelled request callback cannot strand the replacement command.
+        }
+      }
+    }
+    notifyTrackingDisposition(dispositionNotification);
+    if (releaseStopCommandId != 0) {
+      sendTrackingReleaseStop(trackingSession, releaseStopCommandId);
+    }
+    return true;
+  }
+
+  private boolean shouldCoalesceQueuedCommand(String command, boolean noLeelaz2Coalescing) {
+    if (noLeelaz2Coalescing) {
+      return command.startsWith("lz-analyze")
+          || command.startsWith("kata-analyze")
+          || command.startsWith("kata-raw")
+          || command.startsWith("heatmap");
+    }
+    return (isKatago
+            && (command.startsWith("kata-analyze")
+                || command.startsWith("kata-raw")
+                || command.startsWith("stop-ponder")))
+        || (!isKatago
+            && (command.startsWith("lz-analyze")
+                || command.startsWith("analyze")
+                || command.startsWith("heatmap")));
+  }
+
+  private static boolean isTrackingStreamSession(ExclusiveGtpSession session) {
+    return session != null
+        && session.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY
+        && session.owner instanceof TrackingStreamLease
+        && !session.closing
+        && !session.closedCallbackRun;
   }
 
   private Leelaz resolveDefaultCommandMirrorEngine() {
@@ -4249,26 +4453,17 @@ public class Leelaz {
         }
       }
     }
-    synchronized (commandQueue()) {
-      if (shouldDropStaleForegroundRestoreCommand()
-          || shouldSuppressNormalCommandForForegroundAnalysis()) {
-        return;
-      }
-      ArrayDeque<QueuedCommand> targetQueue = commandQueueForCurrentThread();
-      // For efficiency, delete unnecessary "lz-analyze" that will be stopped
-      // immediately
-      if (!targetQueue.isEmpty()) {
-        String lastQueuedCommand = targetQueue.peekLast().command;
-        if (lastQueuedCommand.startsWith("lz-analyze")
-            || lastQueuedCommand.startsWith("kata-analyze")
-            || lastQueuedCommand.startsWith("kata-raw")
-            || lastQueuedCommand.startsWith("heatmap")) {
-          targetQueue.removeLast();
-        }
-      }
-      targetQueue.addLast(
-          new QueuedCommand(
-              command, onResponse, null, foregroundRestoreCommandSession.get() != null));
+    if (!enqueueOrdinaryCommand(
+        command,
+        onResponse,
+        null,
+        foregroundRestoreCommandSession.get() != null,
+        null,
+        TrackingReleaseReason.ORDINARY_OPERATION,
+        false,
+        false,
+        true)) {
+      return;
     }
     trySendCommandFromQueue();
     if (Lizzie.frame.isAutocounting) {
@@ -4404,8 +4599,11 @@ public class Leelaz {
         rememberRecentLine(
             recentStderrLines, "Failed to send GTP command '" + commandLine + "': " + detail);
         System.err.println("Failed to send GTP command '" + commandLine + "': " + detail);
+        RuntimeException commandFailure = buildCommandSendFailure(commandLine, detail, e);
+        queuedCommand.markStateResetAfterOutputWrite(commandFailure);
+        queuedCommand.publishStateResetAfterOutputWrite();
         if (queuedCommand.failOnSendError) {
-          throw buildCommandSendFailure(commandLine, detail, e);
+          throw commandFailure;
         }
         deferredResponse = queuedCommand.onResponse;
       }
@@ -4426,9 +4624,13 @@ public class Leelaz {
       rememberRecentLine(
           recentStderrLines, "Failed to send GTP command '" + commandLine + "': " + detail);
       System.err.println("Failed to send GTP command '" + commandLine + "': " + detail);
+      RuntimeException commandFailure = buildCommandSendFailure(commandLine, detail, null);
+      if (queuedCommand.cancelBeforeOutputWrite(commandFailure)) {
+        queuedCommand.publishSettlementFailure(commandFailure);
+      }
       if (queuedCommand.failOnSendError) {
         retireOutstandingResponseCountOnSendFailure(pendingHandler);
-        throw buildCommandSendFailure(commandLine, detail, null);
+        throw commandFailure;
       }
       deferredResponse = queuedCommand.onResponse;
     }
@@ -5667,6 +5869,13 @@ public class Leelaz {
 
   private TrackingDispositionNotification advanceTrackingReleaseDispositionLocked(
       ExclusiveGtpSession session, TrackingReleaseDisposition disposition) {
+    return advanceTrackingReleaseDispositionLocked(session, disposition, null);
+  }
+
+  private TrackingDispositionNotification advanceTrackingReleaseDispositionLocked(
+      ExclusiveGtpSession session,
+      TrackingReleaseDisposition disposition,
+      TrackingReleaseReason reason) {
     if (session == null
         || exclusiveGtpSession != session
         || session.closedCallbackRun
@@ -5675,13 +5884,20 @@ public class Leelaz {
     }
     TrackingStreamLease lease = (TrackingStreamLease) session.owner;
     return lease.advanceDisposition(disposition)
-        ? new TrackingDispositionNotification(lease.dispositionObserver, disposition)
+        ? new TrackingDispositionNotification(lease.dispositionObserver, disposition, reason)
         : null;
   }
 
   private void notifyTrackingDisposition(TrackingDispositionNotification notification) {
     if (notification == null || notification.observer == null) {
       return;
+    }
+    if (notification.reason != null) {
+      try {
+        notification.observer.onReleaseClaimed(notification.reason);
+      } catch (Throwable ignored) {
+        // Observer failures do not own transport settlement.
+      }
     }
     try {
       notification.observer.onDispositionChanged(notification.disposition);
@@ -6192,11 +6408,11 @@ public class Leelaz {
       Iterator<PendingResponseHandler> iterator = handlers.iterator();
       while (iterator.hasNext()) {
         PendingResponseHandler handler = iterator.next();
-        if (handler.isTrackedLoadSgf()) {
+        if (handler.queuedCommand.requiresStateReset()) {
           boolean cancelled =
               classifyTrackedLoadSgfReset(
                   handler.queuedCommand, failure, cancelledLoadSgfCommands, sentLoadSgfCommands);
-          if (!cancelled && retainSentTrackedLoadSgfHandlers) {
+          if (!cancelled && handler.isTrackedLoadSgf() && retainSentTrackedLoadSgfHandlers) {
             handler.requireMatchingResponseCommandId();
             continue;
           }
@@ -6211,11 +6427,30 @@ public class Leelaz {
   }
 
   private void notifyGtpCommandStateReset(GtpCommandStateReset reset) {
+    Throwable firstFailure = null;
     for (QueuedCommand command : reset.cancelledLoadSgfCommands) {
-      command.notifySendFailure(reset.failure);
+      try {
+        command.notifySendFailure(reset.failure);
+      } catch (Throwable failure) {
+        if (firstFailure == null) {
+          firstFailure = failure;
+        }
+      }
     }
     for (QueuedCommand command : reset.sentLoadSgfCommands) {
-      command.publishStateResetAfterOutputWrite();
+      try {
+        command.publishStateResetAfterOutputWrite();
+      } catch (Throwable failure) {
+        if (firstFailure == null) {
+          firstFailure = failure;
+        }
+      }
+    }
+    if (firstFailure instanceof RuntimeException) {
+      throw (RuntimeException) firstFailure;
+    }
+    if (firstFailure instanceof Error) {
+      throw (Error) firstFailure;
     }
   }
 
@@ -6224,7 +6459,7 @@ public class Leelaz {
       RuntimeException failure,
       List<QueuedCommand> cancelledCommands) {
     for (QueuedCommand command : queue) {
-      if (command.isTrackedLoadSgf() && command.cancelBeforeOutputWrite(failure)) {
+      if (command.requiresStateReset() && command.cancelBeforeOutputWrite(failure)) {
         addUniqueCommand(cancelledCommands, command);
       }
     }
@@ -6235,7 +6470,7 @@ public class Leelaz {
       RuntimeException failure,
       List<QueuedCommand> cancelledCommands,
       List<QueuedCommand> sentCommands) {
-    if (command == null || !command.isTrackedLoadSgf()) {
+    if (command == null || !command.requiresStateReset()) {
       return false;
     }
     if (command.cancelBeforeOutputWrite(failure)) {
@@ -6959,7 +7194,11 @@ public class Leelaz {
 
     private void run() {
       queuedCommand.publishStateResetAfterOutputWrite();
-      handler.run();
+      try {
+        handler.run();
+      } finally {
+        queuedCommand.publishResponseSettlement();
+      }
     }
   }
 
@@ -7029,11 +7268,15 @@ public class Leelaz {
   private static final class TrackingDispositionNotification {
     private final TrackingReleaseDispositionObserver observer;
     private final TrackingReleaseDisposition disposition;
+    private final TrackingReleaseReason reason;
 
     private TrackingDispositionNotification(
-        TrackingReleaseDispositionObserver observer, TrackingReleaseDisposition disposition) {
+        TrackingReleaseDispositionObserver observer,
+        TrackingReleaseDisposition disposition,
+        TrackingReleaseReason reason) {
       this.observer = observer;
       this.disposition = disposition;
+      this.reason = reason;
     }
   }
 
@@ -7559,13 +7802,23 @@ public class Leelaz {
     }
   }
 
+  private interface QueuedCommandSettlement {
+    void onWriteClaimed();
+
+    void onRequestFailed(RuntimeException failure);
+
+    default void onResponseSettled() {}
+  }
+
   private static final class QueuedCommand {
     private final String command;
     private final Runnable onResponse;
     private final CommandSendFailureHandler onSendFailure;
     private final boolean failOnSendError;
+    private final QueuedCommandSettlement settlement;
     private RuntimeException cancellationFailure;
     private boolean outputWriteStarted;
+    private boolean settlementFailurePublished;
     private RuntimeException stateResetAfterOutputWriteFailure;
     private boolean stateResetAfterOutputWritePublished;
     private boolean outstandingResponseRetired;
@@ -7575,14 +7828,28 @@ public class Leelaz {
         Runnable onResponse,
         CommandSendFailureHandler onSendFailure,
         boolean failOnSendError) {
+      this(command, onResponse, onSendFailure, failOnSendError, null);
+    }
+
+    private QueuedCommand(
+        String command,
+        Runnable onResponse,
+        CommandSendFailureHandler onSendFailure,
+        boolean failOnSendError,
+        QueuedCommandSettlement settlement) {
       this.command = command;
       this.onResponse = onResponse;
       this.onSendFailure = onSendFailure;
       this.failOnSendError = failOnSendError;
+      this.settlement = settlement;
     }
 
     private boolean isTrackedLoadSgf() {
       return command != null && command.startsWith("loadsgf ") && onSendFailure != null;
+    }
+
+    private boolean requiresStateReset() {
+      return isTrackedLoadSgf() || settlement != null;
     }
 
     private synchronized boolean cancelBeforeOutputWrite(RuntimeException failure) {
@@ -7600,11 +7867,16 @@ public class Leelaz {
       return cancellationFailure != null;
     }
 
-    private synchronized boolean beginOutputWrite() {
-      if (cancellationFailure != null) {
-        return false;
+    private boolean beginOutputWrite() {
+      synchronized (this) {
+        if (cancellationFailure != null) {
+          return false;
+        }
+        outputWriteStarted = true;
       }
-      outputWriteStarted = true;
+      if (settlement != null) {
+        settlement.onWriteClaimed();
+      }
       return true;
     }
 
@@ -7620,24 +7892,47 @@ public class Leelaz {
     }
 
     private void notifySendFailure(RuntimeException failure) {
-      if (onSendFailure != null) {
-        onSendFailure.onSendFailure(failure);
+      try {
+        if (onSendFailure != null) {
+          onSendFailure.onSendFailure(failure);
+        }
+      } finally {
+        publishSettlementFailure(failure);
       }
     }
 
     private void publishStateResetAfterOutputWrite() {
       RuntimeException failure;
       synchronized (this) {
-        if (stateResetAfterOutputWriteFailure == null
-            || stateResetAfterOutputWritePublished) {
+        if (stateResetAfterOutputWriteFailure == null || stateResetAfterOutputWritePublished) {
           return;
         }
         failure = stateResetAfterOutputWriteFailure;
         stateResetAfterOutputWritePublished = true;
       }
-      if (onSendFailure != null) {
-        onSendFailure.onStateResetAfterOutputWrite(failure);
+      try {
+        if (onSendFailure != null) {
+          onSendFailure.onStateResetAfterOutputWrite(failure);
+        }
+      } finally {
+        publishSettlementFailure(failure);
       }
+    }
+
+    private void publishResponseSettlement() {
+      if (settlement != null) {
+        settlement.onResponseSettled();
+      }
+    }
+
+    private void publishSettlementFailure(RuntimeException failure) {
+      synchronized (this) {
+        if (settlement == null || settlementFailurePublished) {
+          return;
+        }
+        settlementFailurePublished = true;
+      }
+      settlement.onRequestFailed(failure);
     }
   }
 
@@ -7887,9 +8182,13 @@ public class Leelaz {
   }
 
   public synchronized boolean genmove(String color, boolean inputCommand) {
-    if (rejectNewExclusiveWorkDuringGtpLease()) return false;
-    if (inputCommand) {
-      isInputCommand = true;
+    boolean manualRequest =
+        inputCommand
+            && (Lizzie.frame == null
+                || (!Lizzie.frame.isPlayingAgainstLeelaz
+                    && !Lizzie.frame.isAnaPlayingAgainstLeelaz));
+    if (rejectNewExclusiveWorkDuringGtpLease() && !(manualRequest && hasTrackingStreamSession())) {
+      return false;
     }
     sendPlayingAgainstHumanTimeLeftBeforeGenmove();
     String command =
@@ -7900,6 +8199,58 @@ public class Leelaz {
                 : (this.isSai || this.isLeela
                     ? ("lz-genmove_analyze " + color + " " + getInterval())
                     : ("genmove " + color))));
+    if (manualRequest) {
+      Object requestOwner = new Object();
+      QueuedCommandSettlement settlement =
+          new QueuedCommandSettlement() {
+            @Override
+            public void onWriteClaimed() {
+              synchronized (Leelaz.this) {
+                manualGenmoveRequestOwner = requestOwner;
+                isInputCommand = true;
+                isThinking = true;
+              }
+              LizzieFrame.menu.toggleEngineMenuStatus(false, true);
+            }
+
+            @Override
+            public void onRequestFailed(RuntimeException failure) {
+              boolean cleared;
+              synchronized (Leelaz.this) {
+                cleared = manualGenmoveRequestOwner == requestOwner;
+                if (cleared) {
+                  manualGenmoveRequestOwner = null;
+                  isInputCommand = false;
+                  isThinking = false;
+                }
+              }
+              if (cleared) {
+                LizzieFrame.menu.toggleEngineMenuStatus(false, false);
+              }
+            }
+
+            @Override
+            public void onResponseSettled() {
+              synchronized (Leelaz.this) {
+                if (manualGenmoveRequestOwner == requestOwner) {
+                  manualGenmoveRequestOwner = null;
+                }
+              }
+            }
+          };
+      return sendCommand(
+          command,
+          null,
+          null,
+          false,
+          true,
+          TrackingReleaseReason.ORDINARY_OPERATION,
+          settlement,
+          true);
+    }
+    if (inputCommand) {
+      isInputCommand = true;
+    }
     sendCommand(command);
     isThinking = true;
     LizzieFrame.menu.toggleEngineMenuStatus(false, true);

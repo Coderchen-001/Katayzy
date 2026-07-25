@@ -9,6 +9,7 @@ import featurecat.lizzie.Config;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.gui.GtpConsolePane;
 import featurecat.lizzie.gui.LizzieFrame;
+import featurecat.lizzie.gui.Menu;
 import featurecat.lizzie.rules.Board;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -20,6 +21,8 @@ import java.io.StringReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -82,7 +85,6 @@ class LeelazTrackingStreamLeaseTest {
       assertEquals(List.of("=800000001", "info move D4 visits 10"), lines);
 
       engine.sendCommand("version");
-      assertTrue(acquisition.lease().release());
       assertFalse(acquisition.lease().release());
       assertEquals(
           "800000000 stop\n"
@@ -151,7 +153,6 @@ class LeelazTrackingStreamLeaseTest {
       processCommandResponse(finalFailureEngine, "=800000000");
       assertTrue(dispatch(finalFailureEngine, ""));
       finalFailureEngine.sendCommand("version");
-      assertTrue(finalAcquisition.lease().release());
 
       assertTrue(dispatch(finalFailureEngine, "?800000001 cannot stop"));
       assertEquals(1, finalClosed.get());
@@ -219,7 +220,6 @@ class LeelazTrackingStreamLeaseTest {
               lines::add, lease -> {}, lease -> closed.incrementAndGet());
       processCommandResponse(state.engine, "=800000000");
       assertTrue(dispatch(state.engine, ""));
-      state.engine.sendCommand("version");
       BlockingOutput oldOutput = new BlockingOutput();
       installOutput(state.engine, Leelaz.createCommandOutputStream(oldOutput));
       AtomicReference<Boolean> sendResult = new AtomicReference<>();
@@ -1277,10 +1277,327 @@ class LeelazTrackingStreamLeaseTest {
           state.engine.claimTrackingHandoff(RecordingHandoffTarget.retained());
 
       assertEquals(Leelaz.TrackingHandoffAvailability.BUSY, claim.availability());
-      assertTrue(acquisition.lease().release());
+      assertFalse(acquisition.lease().release());
       assertTrue(dispatch(state.engine, "=800000001"));
       assertTrue(dispatch(state.engine, ""));
       assertTrue(state.output.toString(StandardCharsets.UTF_8).endsWith("version\n"));
+    }
+  }
+
+  @Test
+  void ordinaryCommandClaimsTrackingReleaseAfterQueueAdmission() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      RecordingDispositionObserver observer = new RecordingDispositionObserver();
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {}, observer);
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      state.engine.sendCommand("komi 7.5");
+
+      assertEquals(List.of(Leelaz.TrackingReleaseReason.ORDINARY_OPERATION), observer.reasons);
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, acquisition.lease().disposition());
+      assertEquals(
+          Leelaz.TrackingHandoffAvailability.BUSY,
+          state.engine.claimTrackingHandoff(RecordingHandoffTarget.retained()).availability());
+      assertEquals(
+          "800000000 stop\n800000001 stop\n", state.output.toString(StandardCharsets.UTF_8));
+
+      assertTrue(dispatch(state.engine, "=800000001"));
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(state.output.toString(StandardCharsets.UTF_8).endsWith("komi 7.5\n"));
+    }
+  }
+
+  @Test
+  void safeRawQueryFreezesThenOrdinaryCommandClearsBeforeFinalFence() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      RecordingDispositionObserver observer = new RecordingDispositionObserver();
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {}, observer);
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      assertTrue(state.engine.sendRawConsoleCommand("KnOwN_CoMmAnD showboard"));
+      state.engine.sendCommand("komi 6.5");
+
+      assertEquals(
+          List.of(
+              Leelaz.TrackingReleaseReason.SAFE_READ_ONLY_QUERY,
+              Leelaz.TrackingReleaseReason.ORDINARY_OPERATION),
+          observer.reasons);
+      assertEquals(
+          List.of(
+              Leelaz.TrackingReleaseDisposition.FROZEN_BY_SAFE,
+              Leelaz.TrackingReleaseDisposition.CLEARED),
+          observer.dispositions);
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, acquisition.lease().disposition());
+      assertEquals(
+          "800000000 stop\n800000001 stop\n", state.output.toString(StandardCharsets.UTF_8));
+    }
+  }
+
+  @Test
+  void rawConsoleWhitelistRejectsIdsWrongArityAndUnsafeCommandsBeforeRelease() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      RecordingDispositionObserver observer = new RecordingDispositionObserver();
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {}, observer);
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      for (String command :
+          List.of(
+              "1 name",
+              "name extra",
+              "known_command",
+              "known_command showboard extra",
+              "kata-get-rules",
+              "kata-raw-nn 0",
+              "unknown_command")) {
+        assertFalse(state.engine.sendRawConsoleCommand(command), command);
+      }
+
+      assertEquals(List.of(), observer.reasons);
+      assertEquals(Leelaz.TrackingReleaseDisposition.ACTIVE, acquisition.lease().disposition());
+      assertEquals("800000000 stop\n", state.output.toString(StandardCharsets.UTF_8));
+    }
+  }
+
+  @Test
+  void rawConsoleWhitelistAcceptsEveryStrictSafeQueryCaseInsensitively() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      RecordingDispositionObserver observer = new RecordingDispositionObserver();
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {}, observer);
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      for (String command :
+          List.of(
+              "NaMe",
+              "VERSION",
+              "Protocol_Version",
+              "LIST_COMMANDS",
+              "known_COMMAND kata-analyze",
+              "ShowBoard")) {
+        assertTrue(state.engine.sendRawConsoleCommand(command), command);
+      }
+
+      assertEquals(List.of(Leelaz.TrackingReleaseReason.SAFE_READ_ONLY_QUERY), observer.reasons);
+      assertEquals(
+          List.of(Leelaz.TrackingReleaseDisposition.FROZEN_BY_SAFE), observer.dispositions);
+      assertEquals(
+          "800000000 stop\n800000001 stop\n", state.output.toString(StandardCharsets.UTF_8));
+    }
+  }
+
+  @Test
+  void ordinaryThenSafeCannotDowngradeDispositionAndClosedCommandsDoNotNotify() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      RecordingDispositionObserver observer = new RecordingDispositionObserver();
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {}, observer);
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      state.engine.sendCommand("komi 7.5");
+      assertTrue(state.engine.sendRawConsoleCommand("name"));
+      assertEquals(List.of(Leelaz.TrackingReleaseReason.ORDINARY_OPERATION), observer.reasons);
+      assertEquals(List.of(Leelaz.TrackingReleaseDisposition.CLEARED), observer.dispositions);
+
+      assertTrue(dispatch(state.engine, "=800000001"));
+      assertTrue(dispatch(state.engine, ""));
+      state.engine.sendCommand("version");
+
+      assertEquals(List.of(Leelaz.TrackingReleaseReason.ORDINARY_OPERATION), observer.reasons);
+      assertEquals(List.of(Leelaz.TrackingReleaseDisposition.CLEARED), observer.dispositions);
+    }
+  }
+
+  @Test
+  void secondOrdinaryEnqueuePathClaimsReleaseAndSharesCoalescingCleanup() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      RecordingDispositionObserver observer = new RecordingDispositionObserver();
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {}, observer);
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      assertTrue(state.engine.requestPositionEstimate(ownership -> {}));
+      state.engine.sendCommandNoLeelaz2("version");
+
+      assertEquals(null, positionEstimateConsumer(state.engine));
+      assertEquals(List.of(Leelaz.TrackingReleaseReason.ORDINARY_OPERATION), observer.reasons);
+      assertTrue(dispatch(state.engine, "=800000001"));
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(state.output.toString(StandardCharsets.UTF_8).endsWith("version\n"));
+      assertFalse(state.output.toString(StandardCharsets.UTF_8).contains("kata-raw-nn 0\n"));
+    }
+  }
+
+  @Test
+  void trackingFaultEndsBlockingLoadSgfOnceWithoutWritingLoadCommand() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      Path sgf = Files.createTempFile("tracking-fault-loadsgf-", ".sgf");
+      AtomicInteger consumed = new AtomicInteger();
+      AtomicReference<Throwable> failure = new AtomicReference<>();
+      Thread loadThread =
+          new Thread(
+              () -> {
+                try {
+                  state.engine.loadSgf(sgf, consumed::incrementAndGet);
+                } catch (Throwable thrown) {
+                  failure.set(thrown);
+                }
+              },
+              "tracking-fault-blocking-loadsgf");
+      loadThread.setDaemon(true);
+      try {
+        state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+        loadThread.start();
+        waitUntil(() -> commandQueueSize(state.engine) == 1);
+
+        ByteArrayOutputStream reboundOutput = new ByteArrayOutputStream();
+        initializeStreams(state.engine, reboundOutput);
+        loadThread.join(1000L);
+
+        assertFalse(loadThread.isAlive());
+        assertEquals(1, consumed.get());
+        assertTrue(failure.get() instanceof RuntimeException);
+        assertFalse(
+            state.output.toString(StandardCharsets.UTF_8).contains("loadsgf "),
+            state.output.toString(StandardCharsets.UTF_8));
+        assertEquals("", reboundOutput.toString(StandardCharsets.UTF_8));
+      } finally {
+        Files.deleteIfExists(sgf);
+      }
+    }
+  }
+
+  @Test
+  void positionEstimateArmsOnlyAfterWriterClaimAndCleansAfterWriteFailure() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      assertTrue(state.engine.requestPositionEstimate(ownership -> {}));
+      assertEquals(null, positionEstimateConsumer(state.engine));
+      assertEquals(
+          "800000000 stop\n800000001 stop\n", state.output.toString(StandardCharsets.UTF_8));
+
+      assertTrue(dispatch(state.engine, "=800000001"));
+      installOutput(
+          state.engine,
+          Leelaz.createCommandOutputStream(
+              new OutputStream() {
+                @Override
+                public void write(int value) throws IOException {
+                  throw new IOException("simulated position estimate write failure");
+                }
+              }));
+      assertTrue(dispatch(state.engine, ""));
+
+      assertEquals(null, positionEstimateConsumer(state.engine));
+      assertFalse(acquisition.lease().isOwned());
+    }
+  }
+
+  @Test
+  void pendingTypedHandoffRejectsStatefulOrdinaryRequestsWithoutStateOrBytes() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      Leelaz.TrackingHandoffClaim claim =
+          state.engine.claimTrackingHandoff(RecordingHandoffTarget.retained());
+
+      assertEquals(Leelaz.TrackingHandoffAvailability.ACCEPTED_PENDING, claim.availability());
+      assertFalse(state.engine.requestPositionEstimate(ownership -> {}));
+      assertFalse(state.engine.genmove("B", true));
+      assertEquals(null, positionEstimateConsumer(state.engine));
+      assertFalse(state.engine.isInputCommand);
+      assertFalse(state.engine.isThinking);
+      assertEquals("800000000 stop\n", state.output.toString(StandardCharsets.UTF_8));
+    }
+  }
+
+  @Test
+  void manualGenmoveSetsAndClearsRequestStateAtWriterBoundary() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      assertTrue(state.engine.genmove("B", true));
+      assertFalse(state.engine.isInputCommand);
+      assertFalse(state.engine.isThinking);
+
+      assertTrue(dispatch(state.engine, "=800000001"));
+      installOutput(
+          state.engine,
+          Leelaz.createCommandOutputStream(
+              new OutputStream() {
+                @Override
+                public void write(int value) throws IOException {
+                  throw new IOException("simulated manual genmove write failure");
+                }
+              }));
+      assertTrue(dispatch(state.engine, ""));
+
+      assertFalse(state.engine.isInputCommand);
+      assertFalse(state.engine.isThinking);
+      assertFalse(acquisition.lease().isOwned());
+      assertEquals(List.of(List.of(false, true), List.of(false, false)), state.menu.transitions);
+    }
+  }
+
+  @Test
+  void preWriteRebindCancelsStatefulRequestsWithoutArmingState() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      assertTrue(state.engine.requestPositionEstimate(ownership -> {}));
+      assertTrue(state.engine.genmove("B", true));
+      assertEquals(null, positionEstimateConsumer(state.engine));
+      assertFalse(state.engine.isInputCommand);
+      assertFalse(state.engine.isThinking);
+
+      ByteArrayOutputStream reboundOutput = new ByteArrayOutputStream();
+      initializeStreams(state.engine, reboundOutput);
+
+      assertEquals(null, positionEstimateConsumer(state.engine));
+      assertFalse(state.engine.isInputCommand);
+      assertFalse(state.engine.isThinking);
+      assertEquals(List.of(), state.menu.transitions);
+      assertEquals("", reboundOutput.toString(StandardCharsets.UTF_8));
+    }
+  }
+
+  @Test
+  void postWriteRebindCleansPositionEstimateAndManualGenmoveStateExactlyOnce() throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      ensureReaderStreamBinding(state.engine);
+      assertTrue(state.engine.requestPositionEstimate(ownership -> {}));
+      assertTrue(positionEstimateConsumer(state.engine) != null);
+
+      ByteArrayOutputStream firstReboundOutput = new ByteArrayOutputStream();
+      initializeStreams(state.engine, firstReboundOutput);
+      assertEquals(null, positionEstimateConsumer(state.engine));
+
+      assertTrue(state.engine.genmove("B", true));
+      assertTrue(state.engine.isInputCommand);
+      assertTrue(state.engine.isThinking);
+
+      ByteArrayOutputStream secondReboundOutput = new ByteArrayOutputStream();
+      initializeStreams(state.engine, secondReboundOutput);
+      assertFalse(state.engine.isInputCommand);
+      assertFalse(state.engine.isThinking);
+      assertEquals(List.of(List.of(false, true), List.of(false, false)), state.menu.transitions);
+
+      ByteArrayOutputStream thirdReboundOutput = new ByteArrayOutputStream();
+      initializeStreams(state.engine, thirdReboundOutput);
+      assertEquals(List.of(List.of(false, true), List.of(false, false)), state.menu.transitions);
     }
   }
 
@@ -1584,7 +1901,6 @@ class LeelazTrackingStreamLeaseTest {
       assertTrue(dispatch(state.engine, ""));
       assertTrue(acquisition.lease().send("kata-analyze B 10"));
       state.engine.sendCommand("version");
-      assertTrue(acquisition.lease().release());
 
       assertTrue(dispatch(state.engine, "=800000002"));
       assertTrue(dispatch(state.engine, ""));
@@ -1610,13 +1926,15 @@ class LeelazTrackingStreamLeaseTest {
       processCommandResponse(state.engine, "=800000000");
       assertTrue(dispatch(state.engine, ""));
       assertTrue(acquisition.lease().send("kata-analyze B 10"));
-      state.engine.sendCommand("version");
       BlockingFailingFlushOutput blockedOutput = new BlockingFailingFlushOutput();
       installOutput(state.engine, Leelaz.createCommandOutputStream(blockedOutput));
-      AtomicReference<Boolean> releaseResult = new AtomicReference<>();
+      AtomicReference<Boolean> commandFinished = new AtomicReference<>(false);
       Thread releaseThread =
           new Thread(
-              () -> releaseResult.set(acquisition.lease().release()),
+              () -> {
+                state.engine.sendCommand("version");
+                commandFinished.set(true);
+              },
               "tracking-final-write-result");
       releaseThread.setDaemon(true);
 
@@ -1649,7 +1967,7 @@ class LeelazTrackingStreamLeaseTest {
       assertTrue(ownedBeforeWriteResult);
       assertEquals(0, closedBeforeWriteResult);
       assertEquals(null, frameFailure.get());
-      assertTrue(releaseResult.get());
+      assertTrue(commandFinished.get());
       assertEquals(1, closed.get());
       assertEquals(
           java.util.Optional.of(Leelaz.TrackingStreamLeaseFailure.FINAL_STOP_SEND_FAILED),
@@ -1855,6 +2173,26 @@ class LeelazTrackingStreamLeaseTest {
     }
   }
 
+  private static Object positionEstimateConsumer(Leelaz engine) {
+    try {
+      Field field = Leelaz.class.getDeclaredField("positionEstimateConsumer");
+      field.setAccessible(true);
+      return field.get(engine);
+    } catch (ReflectiveOperationException failure) {
+      throw new AssertionError(failure);
+    }
+  }
+
+  private static int commandQueueSize(Leelaz engine) {
+    try {
+      Method method = Leelaz.class.getDeclaredMethod("commandQueue");
+      method.setAccessible(true);
+      return ((java.util.Collection<?>) method.invoke(engine)).size();
+    } catch (ReflectiveOperationException failure) {
+      throw new AssertionError(failure);
+    }
+  }
+
   private static int pendingResponseHandlerCount(Leelaz engine) {
     try {
       Field field = Leelaz.class.getDeclaredField("pendingResponseHandlers");
@@ -2027,6 +2365,17 @@ class LeelazTrackingStreamLeaseTest {
 
     @Override
     public void addCommand(String command, int commandNumber, String engineName) {}
+  }
+
+  private static final class RecordingMenu extends Menu {
+    private List<List<Boolean>> transitions;
+
+    private RecordingMenu() {}
+
+    @Override
+    public void toggleEngineMenuStatus(boolean isPondering, boolean isThinking) {
+      transitions.add(List.of(isPondering, isThinking));
+    }
   }
 
   private static final class RecordingBoard extends Board {
@@ -2239,6 +2588,22 @@ class LeelazTrackingStreamLeaseTest {
     }
   }
 
+  private static final class RecordingDispositionObserver
+      implements Leelaz.TrackingReleaseDispositionObserver {
+    private final List<Leelaz.TrackingReleaseReason> reasons = new ArrayList<>();
+    private final List<Leelaz.TrackingReleaseDisposition> dispositions = new ArrayList<>();
+
+    @Override
+    public void onDispositionChanged(Leelaz.TrackingReleaseDisposition disposition) {
+      dispositions.add(disposition);
+    }
+
+    @Override
+    public void onReleaseClaimed(Leelaz.TrackingReleaseReason reason) {
+      reasons.add(reason);
+    }
+  }
+
   private static final class BlockingHandoffTarget extends RecordingHandoffTarget {
     private final CountDownLatch activationStarted = new CountDownLatch(1);
     private final CountDownLatch allowCompletion = new CountDownLatch(1);
@@ -2355,16 +2720,19 @@ class LeelazTrackingStreamLeaseTest {
     private final LizzieFrame previousFrame;
     private final Config previousConfig;
     private final GtpConsolePane previousGtpConsole;
+    private final Menu previousMenu;
     private final boolean previousEngineGame;
     private final boolean previousPreEngineGame;
     private final Leelaz engine;
     private final ByteArrayOutputStream output;
+    private final RecordingMenu menu;
 
     private TestState(Leelaz engine) throws Exception {
       previousEngine = Lizzie.leelaz;
       previousFrame = Lizzie.frame;
       previousConfig = Lizzie.config;
       previousGtpConsole = Lizzie.gtpConsole;
+      previousMenu = LizzieFrame.menu;
       previousEngineGame = EngineManager.isEngineGame;
       previousPreEngineGame = EngineManager.isPreEngineGame;
       this.engine = engine;
@@ -2373,6 +2741,9 @@ class LeelazTrackingStreamLeaseTest {
       Lizzie.frame = allocate(LizzieFrame.class);
       Lizzie.config = allocate(Config.class);
       Lizzie.gtpConsole = allocate(SilentGtpConsole.class);
+      menu = allocate(RecordingMenu.class);
+      menu.transitions = new ArrayList<>();
+      LizzieFrame.menu = menu;
       EngineManager.isEngineGame = false;
       EngineManager.isPreEngineGame = false;
     }
@@ -2387,6 +2758,7 @@ class LeelazTrackingStreamLeaseTest {
       Lizzie.frame = previousFrame;
       Lizzie.config = previousConfig;
       Lizzie.gtpConsole = previousGtpConsole;
+      LizzieFrame.menu = previousMenu;
       EngineManager.isEngineGame = previousEngineGame;
       EngineManager.isPreEngineGame = previousPreEngineGame;
     }
