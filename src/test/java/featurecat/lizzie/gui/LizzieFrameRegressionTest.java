@@ -47,6 +47,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
@@ -302,6 +303,7 @@ class LizzieFrameRegressionTest {
       RetainedModeActivationFrame frame = allocate(RetainedModeActivationFrame.class);
       Leelaz engine = reusableTrackingKatago();
       ByteArrayOutputStream output = installOutput(engine);
+      installEmptyBoard();
       Lizzie.frame = frame;
       Lizzie.leelaz = engine;
       Leelaz.TrackingStreamLeaseAcquisition tracking =
@@ -321,9 +323,63 @@ class LizzieFrameRegressionTest {
       assertTrue(frame.isPlayingAgainstLeelaz);
       assertEquals(1, frame.activations);
       assertEquals(0, frame.conflicts);
+      assertEquals(0, frame.activationFailures);
       assertEquals(
           Leelaz.ExclusiveGtpLeaseAvailability.PLAY_MODE,
           engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {}).availability());
+    }
+  }
+
+  @Test
+  void newGameAndAnalyzeGameActivateOnlyAfterTheirTrackingFence() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      for (boolean newGame : List.of(true, false)) {
+        RetainedModeActivationFrame frame = allocate(RetainedModeActivationFrame.class);
+        Leelaz engine = reusableTrackingKatago();
+        ByteArrayOutputStream output = installOutput(engine);
+        installEmptyBoard();
+        Lizzie.frame = frame;
+        Lizzie.leelaz = engine;
+        engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+
+        if (newGame) {
+          frame.startNewGame();
+        } else {
+          frame.startAnalyzeGameDialog();
+        }
+
+        assertEquals(0, frame.activations);
+        assertEquals("800000000 stop\n", output.toString(java.nio.charset.StandardCharsets.UTF_8));
+        processCommandResponse(engine, "=800000000");
+        assertTrue(dispatchExclusiveLine(engine, ""));
+        assertEquals(1, frame.activations);
+        assertEquals(newGame ? "new-game" : "analyze-game", frame.lastAction);
+        assertEquals(0, frame.conflicts);
+        assertEquals(0, frame.activationFailures);
+      }
+    }
+  }
+
+  @Test
+  void secondRetainedModeEntryReportsBusyWithoutReplacingFirstTarget() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      RetainedModeActivationFrame frame = allocate(RetainedModeActivationFrame.class);
+      Leelaz engine = reusableTrackingKatago();
+      installOutput(engine);
+      installEmptyBoard();
+      Lizzie.frame = frame;
+      Lizzie.leelaz = engine;
+      engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+
+      frame.continueAiPlaying(true, true, true, false);
+      frame.startAnalyzeGameDialog();
+
+      assertEquals(1, frame.conflicts);
+      assertEquals(0, frame.activationFailures);
+      processCommandResponse(engine, "=800000000");
+      assertTrue(dispatchExclusiveLine(engine, ""));
+      assertEquals(1, frame.activations);
+      assertEquals("continue", frame.lastAction);
     }
   }
 
@@ -333,6 +389,7 @@ class LizzieFrameRegressionTest {
       RetainedModeActivationFrame frame = allocate(RetainedModeActivationFrame.class);
       Leelaz engine = reusableTrackingKatago();
       installOutput(engine);
+      installEmptyBoard();
       Lizzie.frame = frame;
       Lizzie.leelaz = engine;
       engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
@@ -344,7 +401,61 @@ class LizzieFrameRegressionTest {
 
       assertFalse(frame.isPlayingAgainstLeelaz);
       assertEquals(0, frame.activations);
-      assertEquals(1, frame.conflicts);
+      assertEquals(0, frame.conflicts);
+      assertEquals(1, frame.activationFailures);
+    }
+  }
+
+  @Test
+  void retainedModeRevalidatesContextOnEdtImmediatelyBeforeMutation() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      RetainedModeActivationFrame frame = allocate(RetainedModeActivationFrame.class);
+      Leelaz engine = reusableTrackingKatago();
+      installOutput(engine);
+      installEmptyBoard();
+      Lizzie.frame = frame;
+      Lizzie.leelaz = engine;
+      engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      frame.continueAiPlaying(true, true, true, false);
+
+      CountDownLatch edtBlocked = new CountDownLatch(1);
+      CountDownLatch releaseEdt = new CountDownLatch(1);
+      AtomicReference<Throwable> workerFailure = new AtomicReference<>();
+      SwingUtilities.invokeLater(
+          () -> {
+            edtBlocked.countDown();
+            try {
+              if (!releaseEdt.await(2, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("timed out waiting to release EDT");
+              }
+            } catch (InterruptedException failure) {
+              Thread.currentThread().interrupt();
+              throw new IllegalStateException(failure);
+            }
+          });
+      assertTrue(edtBlocked.await(1, TimeUnit.SECONDS));
+
+      Thread fenceThread =
+          new Thread(
+              () -> {
+                try {
+                  processCommandResponse(engine, "=800000000");
+                  dispatchExclusiveLine(engine, "");
+                } catch (Throwable failure) {
+                  workerFailure.set(failure);
+                }
+              },
+              "retained-mode-edt-revalidation");
+      fenceThread.start();
+      Lizzie.board.getHistory().setStone(new int[] {0, 0}, Stone.BLACK);
+      releaseEdt.countDown();
+      fenceThread.join(2000L);
+
+      assertFalse(fenceThread.isAlive());
+      assertEquals(null, workerFailure.get());
+      assertEquals(0, frame.activations);
+      assertEquals(0, frame.conflicts);
+      assertEquals(1, frame.activationFailures);
     }
   }
 
@@ -1716,6 +1827,12 @@ class LizzieFrameRegressionTest {
     return engine;
   }
 
+  private static void installEmptyBoard() throws Exception {
+    Board board = allocate(Board.class);
+    board.setHistory(new BoardHistoryList(BoardData.empty(BOARD_SIZE, BOARD_SIZE)));
+    Lizzie.board = board;
+  }
+
   private static ByteArrayOutputStream installOutput(Leelaz engine) throws Exception {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     setLeelazField(engine, "outputStream", new BufferedOutputStream(output));
@@ -2241,17 +2358,37 @@ class LizzieFrameRegressionTest {
   private static final class RetainedModeActivationFrame extends LizzieFrame {
     private int activations;
     private int conflicts;
+    private int activationFailures;
+    private String lastAction;
+
+    @Override
+    protected void startNewGameReserved() {
+      activations++;
+      lastAction = "new-game";
+    }
+
+    @Override
+    protected void startAnalyzeGameDialogReserved() {
+      activations++;
+      lastAction = "analyze-game";
+    }
 
     @Override
     protected void continueAiPlayingReserved(
         boolean isGenmove, boolean continueNow, boolean playerIsB, boolean fromShortCut) {
       activations++;
+      lastAction = "continue";
       isPlayingAgainstLeelaz = true;
     }
 
     @Override
     protected void showForegroundEngineModeReservationConflict() {
       conflicts++;
+    }
+
+    @Override
+    protected void showRetainedEngineModeActivationFailure(Leelaz.TrackingHandoffFailure failure) {
+      activationFailures++;
     }
   }
 

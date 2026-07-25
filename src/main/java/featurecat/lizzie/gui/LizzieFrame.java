@@ -40,6 +40,7 @@ import featurecat.lizzie.rules.Movelist;
 import featurecat.lizzie.rules.NodeInfo;
 import featurecat.lizzie.rules.SGFParser;
 import featurecat.lizzie.rules.Stone;
+import featurecat.lizzie.rules.Zobrist;
 import featurecat.lizzie.theme.MorandiPalette;
 import featurecat.lizzie.util.KataGoRuntimeHelper;
 import featurecat.lizzie.util.Utils;
@@ -81,6 +82,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
@@ -13646,29 +13648,27 @@ public class LizzieFrame extends JFrame {
     }
   }
 
-  private boolean startRetainedEngineMode(RetainedEngineModeTarget target) {
+  private void startRetainedEngineMode(RetainedEngineModeTarget target) {
     Leelaz currentForegroundEngine = target.engine;
     if (currentForegroundEngine == null) {
       target.runWithoutTracking();
-      return true;
+      return;
     }
     Leelaz.TrackingHandoffClaim claim = currentForegroundEngine.claimTrackingHandoff(target);
     if (claim.availability() == Leelaz.TrackingHandoffAvailability.ACCEPTED_PENDING) {
-      target.claim = claim;
-      return true;
+      return;
     }
     if (claim.availability() != Leelaz.TrackingHandoffAvailability.NOT_TRACKING) {
       target.reportConflict();
-      return false;
+      return;
     }
     Leelaz.EngineModeReservation reservation = currentForegroundEngine.beginEngineModeReservation();
     if (reservation == null) {
       target.reportConflict();
-      return false;
+      return;
     }
     try {
       target.runWithoutTracking();
-      return true;
     } finally {
       reservation.close();
     }
@@ -13684,6 +13684,9 @@ public class LizzieFrame extends JFrame {
     private final LizzieFrame frame;
     private final Leelaz engine;
     private final BoardHistoryNode historyNode;
+    private final Zobrist boardPosition;
+    private final boolean blackToPlay;
+    private final long contextRevision;
     private final Action action;
     private final boolean isGenmove;
     private final boolean continueNow;
@@ -13691,7 +13694,6 @@ public class LizzieFrame extends JFrame {
     private final boolean fromShortCut;
     private final java.util.concurrent.atomic.AtomicBoolean settled =
         new java.util.concurrent.atomic.AtomicBoolean(false);
-    private volatile Leelaz.TrackingHandoffClaim claim;
 
     private RetainedEngineModeTarget(
         LizzieFrame frame,
@@ -13706,6 +13708,15 @@ public class LizzieFrame extends JFrame {
           Lizzie.board == null || Lizzie.board.getHistory() == null
               ? null
               : Lizzie.board.getHistory().getCurrentHistoryNode();
+      this.boardPosition =
+          Lizzie.board == null || Lizzie.board.getHistory() == null
+              ? null
+              : Lizzie.board.getHistory().getZobrist();
+      this.blackToPlay =
+          Lizzie.board != null
+              && Lizzie.board.getHistory() != null
+              && Lizzie.board.getHistory().isBlacksTurn();
+      this.contextRevision = Lizzie.board == null ? 0L : Lizzie.board.getContextRevision();
       this.action = action;
       this.isGenmove = isGenmove;
       this.continueNow = continueNow;
@@ -13747,16 +13758,28 @@ public class LizzieFrame extends JFrame {
               ? null
               : Lizzie.board.getHistory().getCurrentHistoryNode();
       return currentNode == historyNode
+          && Lizzie.board.getHistory().getZobrist().equals(boardPosition)
+          && Lizzie.board.getHistory().isBlacksTurn() == blackToPlay
+          && Lizzie.board.getContextRevision() == contextRevision
           && !frame.isPlayingAgainstLeelaz
           && !frame.isAnaPlayingAgainstLeelaz;
     }
 
     @Override
     public void activate(Leelaz.TrackingHandoffActivation activation) {
-      if (!isCurrent() || settled.get()) {
+      if (settled.get()) {
         return;
       }
-      runOnEdtAndWait(this::runAction);
+      if (!callOnEdtAndWait(
+          () -> {
+            if (!isCurrent()) {
+              return false;
+            }
+            runAction();
+            return true;
+          })) {
+        return;
+      }
       if (activation.completeRetainedEngineMode()) {
         settled.compareAndSet(false, true);
       }
@@ -13765,7 +13788,7 @@ public class LizzieFrame extends JFrame {
     @Override
     public void fail(Leelaz.TrackingHandoffFailure failure) {
       if (settled.compareAndSet(false, true)) {
-        runOnEdtAndWait(this::reportConflict);
+        runOnEdtAndWait(() -> frame.showRetainedEngineModeActivationFailure(failure));
       }
     }
 
@@ -13808,10 +13831,27 @@ public class LizzieFrame extends JFrame {
         throw new IllegalStateException(failure);
       }
     }
+
+    private static boolean callOnEdtAndWait(BooleanSupplier action) {
+      if (SwingUtilities.isEventDispatchThread()) {
+        return action.getAsBoolean();
+      }
+      AtomicBoolean result = new AtomicBoolean(false);
+      runOnEdtAndWait(() -> result.set(action.getAsBoolean()));
+      return result.get();
+    }
   }
 
   protected void showForegroundEngineModeReservationConflict() {
     Utils.showMsg(Lizzie.resourceBundle.getString("AnalysisSettings.reuseStatus.existing_lease"));
+  }
+
+  protected void showRetainedEngineModeActivationFailure(Leelaz.TrackingHandoffFailure failure) {
+    String key =
+        failure == Leelaz.TrackingHandoffFailure.CONTEXT_INVALIDATED
+            ? "AnalysisSettings.reuseStatus.not_current_foreground_engine"
+            : "AnalysisSettings.reuseStatus.engine_state_unrestored";
+    Utils.showMsg(Lizzie.resourceBundle.getString(key));
   }
 
   private final java.util.concurrent.atomic.AtomicBoolean trackingEngineStarting =
@@ -18961,7 +19001,7 @@ public class LizzieFrame extends JFrame {
     }
   }
 
-  private void startContributeEngineReserved() {
+  protected void startContributeEngineReserved() {
     if (Lizzie.frame.isContributing) {
       Utils.showMsg(Lizzie.resourceBundle.getString("Contribute.tips.alreadyTraining"));
       return;

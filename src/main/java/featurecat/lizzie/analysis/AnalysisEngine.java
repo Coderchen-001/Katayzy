@@ -10,10 +10,12 @@ import featurecat.lizzie.gui.RemoteEngineData;
 import featurecat.lizzie.gui.WaitForAnalysis;
 import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardData;
+import featurecat.lizzie.rules.BoardHistoryList;
 import featurecat.lizzie.rules.BoardHistoryNode;
 import featurecat.lizzie.rules.Movelist;
 import featurecat.lizzie.rules.SGFParser;
 import featurecat.lizzie.rules.Stone;
+import featurecat.lizzie.rules.Zobrist;
 import featurecat.lizzie.util.CommandLaunchHelper;
 import featurecat.lizzie.util.KataGoRuntimeHelper;
 import featurecat.lizzie.util.Utils;
@@ -2027,6 +2029,10 @@ public class AnalysisEngine {
   private static final class ForegroundRequestTarget implements Leelaz.TrackingHandoffTarget {
     private final AnalysisEngine owner;
     private final BoardHistoryNode historyRoot;
+    private final BoardHistoryNode historyNode;
+    private final Zobrist boardPosition;
+    private final boolean blackToPlay;
+    private final long contextRevision;
     private final boolean allBranches;
     private final int startMove;
     private final int endMove;
@@ -2045,10 +2051,12 @@ public class AnalysisEngine {
         int endMove,
         boolean showProgressDialog) {
       this.owner = owner;
-      this.historyRoot =
-          Lizzie.board == null || Lizzie.board.getHistory() == null
-              ? null
-              : Lizzie.board.getHistory().getStart();
+      BoardHistoryList history = Lizzie.board == null ? null : Lizzie.board.getHistory();
+      this.historyRoot = history == null ? null : history.getStart();
+      this.historyNode = history == null ? null : history.getCurrentHistoryNode();
+      this.boardPosition = history == null ? null : history.getZobrist();
+      this.blackToPlay = history != null && history.isBlacksTurn();
+      this.contextRevision = Lizzie.board == null ? 0L : Lizzie.board.getContextRevision();
       this.allBranches = allBranches;
       this.startMove = startMove;
       this.endMove = endMove;
@@ -2079,7 +2087,11 @@ public class AnalysisEngine {
             && owner.sharedForegroundEngine == Lizzie.leelaz
             && Lizzie.board != null
             && Lizzie.board.getHistory() != null
-            && Lizzie.board.getHistory().getStart() == historyRoot;
+            && Lizzie.board.getHistory().getStart() == historyRoot
+            && Lizzie.board.getHistory().getCurrentHistoryNode() == historyNode
+            && Lizzie.board.getHistory().getZobrist().equals(boardPosition)
+            && Lizzie.board.getHistory().isBlacksTurn() == blackToPlay
+            && Lizzie.board.getContextRevision() == contextRevision;
       }
     }
 
