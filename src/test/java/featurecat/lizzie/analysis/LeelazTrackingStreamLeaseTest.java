@@ -774,6 +774,40 @@ class LeelazTrackingStreamLeaseTest {
   }
 
   @Test
+  void lifecycleReservationClaimsTrackingAndKeepsOrdinaryQueueClosedUntilCallerFinishes()
+      throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      List<Leelaz.TrackingReleaseDisposition> dispositions = new ArrayList<>();
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(
+              line -> {}, lease -> {}, lease -> {}, dispositions::add);
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(acquisition.lease().send("kata-analyze B 10"));
+
+      Leelaz.ExclusiveGtpLifecycleReservation reservation =
+          state.engine.beginExclusiveGtpLifecycleReservation();
+      state.engine.sendCommand("stop");
+
+      assertTrue(reservation != null, "destructive lifecycle must win active tracking once");
+      assertEquals(List.of(Leelaz.TrackingReleaseDisposition.CLEARED), dispositions);
+      assertEquals(
+          "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
+          state.output.toString(StandardCharsets.UTF_8));
+      assertEquals(null, state.engine.beginExclusiveGtpLifecycleReservation());
+
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(dispatch(state.engine, "=800000002"));
+      assertTrue(dispatch(state.engine, ""));
+      assertFalse(state.output.toString(StandardCharsets.UTF_8).endsWith("stop\nstop\n"));
+
+      reservation.close();
+
+      assertTrue(state.output.toString(StandardCharsets.UTF_8).endsWith("stop\nstop\n"));
+    }
+  }
+
+  @Test
   void typedHandoffClearsReleaseDispositionBeforeActivationDespiteObserverFailure()
       throws Exception {
     try (TestState state = TestState.open(reusableLocalKatago())) {

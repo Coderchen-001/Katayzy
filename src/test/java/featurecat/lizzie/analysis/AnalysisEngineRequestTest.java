@@ -201,6 +201,82 @@ class AnalysisEngineRequestTest {
   }
 
   @Test
+  void reuseModeClaimsActiveTrackingBeforeStartingTheForegroundRequest() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      Leelaz.TrackingStreamLeaseAcquisition tracking =
+          foreground.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+
+      AnalysisEngine engine = new AnalysisEngine(false);
+      engine.startRequest(1, -1, false);
+
+      assertTrue(engine.isLoaded(), "tracking should be a competitive foreground handoff");
+      assertEquals("800000000 stop\n", output.toString(StandardCharsets.UTF_8));
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+
+      processCommandResponse(foreground, "=800000000");
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).contains("830000000 kata-get-rules\n"),
+          "foreground request must activate only after the tracking fence");
+      closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
+  void reuseModeAllowsOnlyTheFirstForegroundRequestToClaimTracking() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      foreground.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      AnalysisEngine first = new AnalysisEngine(false);
+      AnalysisEngine second = new AnalysisEngine(false);
+
+      first.startRequest(1, -1, false);
+      second.startRequest(1, -1, false);
+
+      assertEquals("800000000 stop\n", output.toString(StandardCharsets.UTF_8));
+      assertEquals(
+          Leelaz.ExclusiveGtpLeaseAvailability.EXISTING_LEASE,
+          second.getForegroundLeaseAvailability());
+
+      processCommandResponse(foreground, "=800000000");
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(output.toString(StandardCharsets.UTF_8).contains("830000000 kata-get-rules\n"));
+      closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
+  void reuseModeDoesNotStartForegroundRequestAfterBoardContextChanges() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      foreground.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      engine.startRequest(1, -1, false);
+      singleUnanalyzedMoveNode();
+      processCommandResponse(foreground, "=800000000");
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+    }
+  }
+
+  @Test
   void reuseModeRejectsHumanSlAndContributionModes() throws Exception {
     try (TestEnvironment env = TestEnvironment.open()) {
       Lizzie.config.analysisReuseCurrentEngine = true;
@@ -2161,6 +2237,18 @@ class AnalysisEngineRequestTest {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     setField(Leelaz.class, engine, "outputStream", new BufferedOutputStream(output));
     return output;
+  }
+
+  private static void closeExclusiveSessionForTest(Leelaz engine) throws Exception {
+    Field field = Leelaz.class.getDeclaredField("exclusiveGtpSession");
+    field.setAccessible(true);
+    Object session = field.get(engine);
+    if (session == null) {
+      return;
+    }
+    Method method = Leelaz.class.getDeclaredMethod("closeExclusiveGtpSession", session.getClass());
+    method.setAccessible(true);
+    method.invoke(engine, session);
   }
 
   private static final class TestEnvironment implements AutoCloseable {

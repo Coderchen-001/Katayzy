@@ -141,6 +141,10 @@ public class AnalysisEngine {
   private boolean sharedForegroundLeaseStarting;
   private boolean sharedForegroundLeaseActive;
   private Leelaz.ForegroundAnalysisLease sharedForegroundLease;
+  private ForegroundRequestTarget sharedForegroundHandoffOwner;
+  private ForegroundRequestTarget pendingForegroundRequest;
+  private boolean sharedForegroundRulesCapturePending;
+  private long foregroundRequestGeneration;
   private Leelaz.ExclusiveGtpLeaseAvailability foregroundLeaseAvailability;
 
   public AnalysisEngine(boolean isPreLoad) throws IOException {
@@ -656,15 +660,14 @@ public class AnalysisEngine {
       return true;
     }
     Leelaz.ForegroundAnalysisLease lease = sharedForegroundLease;
-    if (sharedForegroundEngine == null
-        || lease == null
-        || !lease.setRestoreRules(payload)) {
+    if (sharedForegroundEngine == null || lease == null || !lease.setRestoreRules(payload)) {
       failRemoteGtpSetup();
       return true;
     }
     remoteGtpExpectedRulesCommandId = 0;
     cancelRemoteGtpSetupAckTimeout();
     sharedForegroundOriginalRules = payload;
+    sharedForegroundRulesCapturePending = false;
     if (!startNextRemoteGtpJob()) {
       failRemoteGtpSetup();
     }
@@ -877,8 +880,7 @@ public class AnalysisEngine {
       Lizzie.board.setMovelistAll();
       if (!preserveBoardPositionOnCompletion
           && Lizzie.board.getHistory().getCurrentHistoryNode()
-              == Lizzie.board.getHistory().getStart())
-        Lizzie.board.nextMove(true);
+              == Lizzie.board.getHistory().getStart()) Lizzie.board.nextMove(true);
       Lizzie.frame.refresh();
       Lizzie.frame.requestProblemListRefresh();
       boolean shouldKeepAlive = isPreLoad || keepAliveAfterCurrentRequest;
@@ -912,6 +914,15 @@ public class AnalysisEngine {
   public void normalQuit() {
     // TODO Auto-generated method stub
     isNormalEnd = true;
+    ForegroundRequestTarget pendingTarget;
+    synchronized (this) {
+      foregroundRequestGeneration++;
+      pendingTarget = pendingForegroundRequest;
+      pendingForegroundRequest = null;
+    }
+    if (pendingTarget != null && pendingTarget.claim != null) {
+      pendingTarget.claim.cancel();
+    }
     shutdownRemoteGtpSetupAckTimeoutExecutor();
     if (sharedForegroundEngine != null) {
       requestDispatchFailed = true;
@@ -963,6 +974,14 @@ public class AnalysisEngine {
 
   public void startRequestAllBranches(boolean showProgressDialog) {
     if (!isLoaded) return;
+    ForegroundRequestTarget target = ForegroundRequestTarget.allBranches(this, showProgressDialog);
+    if (tryClaimForegroundTrackingHandoff(target)) {
+      return;
+    }
+    startRequestAllBranchesNow(showProgressDialog);
+  }
+
+  private void startRequestAllBranchesNow(boolean showProgressDialog) {
     prepareRequestState(showProgressDialog);
     BoardHistoryNode node = Lizzie.board.getHistory().getStart();
     Stack<BoardHistoryNode> stack = new Stack<>();
@@ -986,6 +1005,15 @@ public class AnalysisEngine {
 
   public void startRequest(int startMove, int endMove, boolean showProgressDialog) {
     if (!isLoaded) return;
+    ForegroundRequestTarget target =
+        ForegroundRequestTarget.mainline(this, startMove, endMove, showProgressDialog);
+    if (tryClaimForegroundTrackingHandoff(target)) {
+      return;
+    }
+    startRequestNow(startMove, endMove, showProgressDialog);
+  }
+
+  private void startRequestNow(int startMove, int endMove, boolean showProgressDialog) {
     prepareRequestState(showProgressDialog);
     int targetVisits = targetAnalysisVisitsForCurrentRequest(showProgressDialog);
     if (useRemoteCompute) {
@@ -1007,6 +1035,83 @@ public class AnalysisEngine {
       moveNum++;
     }
     showRequestProgressOrContinueBatch(showProgressDialog);
+  }
+
+  private boolean tryClaimForegroundTrackingHandoff(ForegroundRequestTarget target) {
+    Leelaz engine = sharedForegroundEngine;
+    if (engine == null) {
+      return false;
+    }
+    synchronized (this) {
+      if (pendingForegroundRequest != null) {
+        foregroundLeaseAvailability = Leelaz.ExclusiveGtpLeaseAvailability.EXISTING_LEASE;
+        target.fail(Leelaz.TrackingHandoffFailure.ACTIVATION_FAILED);
+        return true;
+      }
+      target.generation = ++foregroundRequestGeneration;
+      pendingForegroundRequest = target;
+    }
+    Leelaz.TrackingHandoffClaim claim = engine.claimTrackingHandoff(target);
+    target.claim = claim;
+    if (claim.availability() == Leelaz.TrackingHandoffAvailability.ACCEPTED_PENDING) {
+      return true;
+    }
+    synchronized (this) {
+      if (pendingForegroundRequest == target) {
+        pendingForegroundRequest = null;
+      }
+    }
+    if (claim.availability() == Leelaz.TrackingHandoffAvailability.NOT_TRACKING) {
+      return false;
+    }
+    foregroundLeaseAvailability = Leelaz.ExclusiveGtpLeaseAvailability.EXISTING_LEASE;
+    target.fail(Leelaz.TrackingHandoffFailure.ACTIVATION_FAILED);
+    return true;
+  }
+
+  private void activateForegroundRequest(ForegroundRequestTarget target) {
+    synchronized (this) {
+      if (pendingForegroundRequest != target || target.generation != foregroundRequestGeneration) {
+        return;
+      }
+      pendingForegroundRequest = null;
+      sharedForegroundHandoffOwner = target;
+      sharedForegroundLeaseStarting = false;
+      sharedForegroundLeaseActive = true;
+      sharedForegroundRulesCapturePending = true;
+      foregroundLeaseAvailability = Leelaz.ExclusiveGtpLeaseAvailability.AVAILABLE;
+    }
+    if (target.allBranches) {
+      startRequestAllBranchesNow(target.showProgressDialog);
+    } else {
+      startRequestNow(target.startMove, target.endMove, target.showProgressDialog);
+    }
+    if (!beginSharedForegroundRulesCapture()) {
+      requestDispatchFailed = true;
+      finishFailedRequestDispatch(target.showProgressDialog);
+    }
+  }
+
+  private void failForegroundRequest(ForegroundRequestTarget target) {
+    synchronized (this) {
+      if (pendingForegroundRequest == target) {
+        pendingForegroundRequest = null;
+      }
+    }
+    finishFailedRequestDispatch(target.showProgressDialog);
+  }
+
+  private void closeForegroundHandoff(ForegroundRequestTarget target) {
+    synchronized (this) {
+      if (sharedForegroundHandoffOwner != target) {
+        return;
+      }
+      sharedForegroundHandoffOwner = null;
+      sharedForegroundLeaseActive = false;
+      sharedForegroundRulesCapturePending = false;
+    }
+    requestDispatchFailed = true;
+    finishFailedRequestDispatch(target.showProgressDialog);
   }
 
   public int startRequestMissingMainline(boolean showProgressDialog) {
@@ -1259,9 +1364,7 @@ public class AnalysisEngine {
   private boolean sendRemoteGtpRequest(BoardHistoryNode analyzeNode, int targetVisits) {
     int requestId =
         enqueueRemoteGtpRequest(
-            analyzeNode,
-            Math.max(1, targetVisits),
-            buildRemoteGtpSetupCommands(analyzeNode));
+            analyzeNode, Math.max(1, targetVisits), buildRemoteGtpSetupCommands(analyzeNode));
     if (remoteGtpActiveJob == null && !remoteGtpWaitingForStopAck) {
       if (!startNextRemoteGtpJob()) {
         analyzeMap.remove(requestId);
@@ -1288,8 +1391,7 @@ public class AnalysisEngine {
     enqueueRemoteGtpRequests(orderedNodes, targetVisits);
   }
 
-  private void enqueueRemoteGtpRequests(
-      List<BoardHistoryNode> orderedNodes, int targetVisits) {
+  private void enqueueRemoteGtpRequests(List<BoardHistoryNode> orderedNodes, int targetVisits) {
     BoardHistoryNode previousQueuedNode = null;
     for (BoardHistoryNode selectedNode : orderedNodes) {
       if (!requestStillTargetsCurrentGame()) {
@@ -1346,6 +1448,9 @@ public class AnalysisEngine {
     }
     if (sharedForegroundEngine != null && !sharedForegroundLeaseActive) {
       return beginSharedForegroundLease();
+    }
+    if (sharedForegroundEngine != null && sharedForegroundRulesCapturePending) {
+      return true;
     }
     RemoteGtpAnalyzeJob job = remoteGtpQueue().pollFirst();
     if (job == null) {
@@ -1562,11 +1667,18 @@ public class AnalysisEngine {
   private synchronized boolean releaseSharedForegroundLease(
       Runnable afterRestore, Runnable afterRestoreFailure) {
     Leelaz.ForegroundAnalysisLease lease = sharedForegroundLease;
+    ForegroundRequestTarget handoffOwner = sharedForegroundHandoffOwner;
     sharedForegroundLeaseStarting = false;
     sharedForegroundLeaseActive = false;
     sharedForegroundLease = null;
+    sharedForegroundHandoffOwner = null;
+    sharedForegroundRulesCapturePending = false;
     if (lease != null) {
       return lease.release(afterRestore, afterRestoreFailure);
+    }
+    if (handoffOwner != null) {
+      return sharedForegroundEngine.endForegroundAnalysisLease(
+          handoffOwner, afterRestore, afterRestoreFailure);
     }
     return false;
   }
@@ -1910,6 +2022,86 @@ public class AnalysisEngine {
 
   public boolean usesSharedForegroundEngine() {
     return sharedForegroundEngine != null;
+  }
+
+  private static final class ForegroundRequestTarget implements Leelaz.TrackingHandoffTarget {
+    private final AnalysisEngine owner;
+    private final BoardHistoryNode historyRoot;
+    private final boolean allBranches;
+    private final int startMove;
+    private final int endMove;
+    private final boolean showProgressDialog;
+    private final java.util.concurrent.atomic.AtomicBoolean activationStarted =
+        new java.util.concurrent.atomic.AtomicBoolean(false);
+    private final java.util.concurrent.atomic.AtomicBoolean settled =
+        new java.util.concurrent.atomic.AtomicBoolean(false);
+    private volatile long generation;
+    private volatile Leelaz.TrackingHandoffClaim claim;
+
+    private ForegroundRequestTarget(
+        AnalysisEngine owner,
+        boolean allBranches,
+        int startMove,
+        int endMove,
+        boolean showProgressDialog) {
+      this.owner = owner;
+      this.historyRoot =
+          Lizzie.board == null || Lizzie.board.getHistory() == null
+              ? null
+              : Lizzie.board.getHistory().getStart();
+      this.allBranches = allBranches;
+      this.startMove = startMove;
+      this.endMove = endMove;
+      this.showProgressDialog = showProgressDialog;
+    }
+
+    private static ForegroundRequestTarget mainline(
+        AnalysisEngine owner, int startMove, int endMove, boolean showProgressDialog) {
+      return new ForegroundRequestTarget(owner, false, startMove, endMove, showProgressDialog);
+    }
+
+    private static ForegroundRequestTarget allBranches(
+        AnalysisEngine owner, boolean showProgressDialog) {
+      return new ForegroundRequestTarget(owner, true, -1, -1, showProgressDialog);
+    }
+
+    @Override
+    public Leelaz.TrackingHandoffKind kind() {
+      return Leelaz.TrackingHandoffKind.FOREGROUND_ANALYSIS;
+    }
+
+    @Override
+    public boolean isCurrent() {
+      synchronized (owner) {
+        return owner.pendingForegroundRequest == this
+            && owner.foregroundRequestGeneration == generation
+            && !owner.isNormalEnd
+            && owner.sharedForegroundEngine == Lizzie.leelaz
+            && Lizzie.board != null
+            && Lizzie.board.getHistory() != null
+            && Lizzie.board.getHistory().getStart() == historyRoot;
+      }
+    }
+
+    @Override
+    public void activate(Leelaz.TrackingHandoffActivation activation) {
+      if (!activationStarted.compareAndSet(false, true) || !isCurrent()) {
+        return;
+      }
+      if (!activation.activateForegroundAnalysis(
+          owner::parseLine, () -> owner.closeForegroundHandoff(this))) {
+        return;
+      }
+      settled.set(true);
+      owner.activateForegroundRequest(this);
+    }
+
+    @Override
+    public void fail(Leelaz.TrackingHandoffFailure failure) {
+      if (settled.compareAndSet(false, true)) {
+        owner.failForegroundRequest(this);
+      }
+    }
   }
 
   public void shutdown() {

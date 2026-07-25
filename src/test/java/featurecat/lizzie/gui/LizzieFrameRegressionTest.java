@@ -32,6 +32,8 @@ import java.awt.Window;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -291,6 +293,58 @@ class LizzieFrameRegressionTest {
     } finally {
       Lizzie.frame = previousFrame;
       Lizzie.leelaz = previousEngine;
+    }
+  }
+
+  @Test
+  void continuePlayModeActivatesOnceOnlyAfterTrackingFence() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      RetainedModeActivationFrame frame = allocate(RetainedModeActivationFrame.class);
+      Leelaz engine = reusableTrackingKatago();
+      ByteArrayOutputStream output = installOutput(engine);
+      Lizzie.frame = frame;
+      Lizzie.leelaz = engine;
+      Leelaz.TrackingStreamLeaseAcquisition tracking =
+          engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+
+      frame.continueAiPlaying(true, true, true, false);
+
+      assertFalse(frame.isPlayingAgainstLeelaz);
+      assertEquals(0, frame.activations);
+      assertEquals(0, frame.conflicts);
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+      assertEquals("800000000 stop\n", output.toString(java.nio.charset.StandardCharsets.UTF_8));
+
+      processCommandResponse(engine, "=800000000");
+      assertTrue(dispatchExclusiveLine(engine, ""));
+
+      assertTrue(frame.isPlayingAgainstLeelaz);
+      assertEquals(1, frame.activations);
+      assertEquals(0, frame.conflicts);
+      assertEquals(
+          Leelaz.ExclusiveGtpLeaseAvailability.PLAY_MODE,
+          engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {}).availability());
+    }
+  }
+
+  @Test
+  void continuePlayModeDoesNotActivateAfterItsContextChanges() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      RetainedModeActivationFrame frame = allocate(RetainedModeActivationFrame.class);
+      Leelaz engine = reusableTrackingKatago();
+      installOutput(engine);
+      Lizzie.frame = frame;
+      Lizzie.leelaz = engine;
+      engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+
+      frame.continueAiPlaying(true, true, true, false);
+      Lizzie.leelaz = reusableTrackingKatago();
+      processCommandResponse(engine, "=800000000");
+      assertTrue(dispatchExclusiveLine(engine, ""));
+
+      assertFalse(frame.isPlayingAgainstLeelaz);
+      assertEquals(0, frame.activations);
+      assertEquals(1, frame.conflicts);
     }
   }
 
@@ -1642,6 +1696,50 @@ class LizzieFrameRegressionTest {
     field.set(target, value);
   }
 
+  private static Leelaz reusableTrackingKatago() throws Exception {
+    Leelaz engine = new Leelaz("");
+    engine.isLoaded = true;
+    engine.started = true;
+    engine.isKatago = true;
+    engine.commandLists.addAll(
+        List.of(
+            "stop",
+            "boardsize",
+            "komi",
+            "kata-get-rules",
+            "kata-set-rules",
+            "clear_board",
+            "play",
+            "set_position",
+            "kata-analyze"));
+    setLeelazField(engine, "endGetCommandList", true);
+    return engine;
+  }
+
+  private static ByteArrayOutputStream installOutput(Leelaz engine) throws Exception {
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    setLeelazField(engine, "outputStream", new BufferedOutputStream(output));
+    return output;
+  }
+
+  private static boolean dispatchExclusiveLine(Leelaz engine, String line) throws Exception {
+    Method method = Leelaz.class.getDeclaredMethod("dispatchExclusiveGtpLine", String.class);
+    method.setAccessible(true);
+    return (boolean) method.invoke(engine, line);
+  }
+
+  private static void processCommandResponse(Leelaz engine, String line) throws Exception {
+    Method method = Leelaz.class.getDeclaredMethod("processCommandResponseLine", String.class);
+    method.setAccessible(true);
+    method.invoke(engine, line);
+  }
+
+  private static void setLeelazField(Leelaz engine, String name, Object value) throws Exception {
+    Field field = Leelaz.class.getDeclaredField(name);
+    field.setAccessible(true);
+    field.set(engine, value);
+  }
+
   private static final class TestEnvironment implements AutoCloseable {
     private final int previousBoardWidth;
     private final int previousBoardHeight;
@@ -2137,6 +2235,23 @@ class LizzieFrameRegressionTest {
     public boolean stopAiPlayingAndPolicy() {
       stopAiPlayingCount++;
       return false;
+    }
+  }
+
+  private static final class RetainedModeActivationFrame extends LizzieFrame {
+    private int activations;
+    private int conflicts;
+
+    @Override
+    protected void continueAiPlayingReserved(
+        boolean isGenmove, boolean continueNow, boolean playerIsB, boolean fromShortCut) {
+      activations++;
+      isPlayingAgainstLeelaz = true;
+    }
+
+    @Override
+    protected void showForegroundEngineModeReservationConflict() {
+      conflicts++;
     }
   }
 

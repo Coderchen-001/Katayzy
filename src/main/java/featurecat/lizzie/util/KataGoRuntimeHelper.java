@@ -1487,7 +1487,9 @@ public final class KataGoRuntimeHelper {
 
   public static BenchmarkPauseResult pauseCurrentAnalysisForBenchmark() {
     Leelaz currentEngine = Lizzie.leelaz;
-    if (currentEngine != null && !currentEngine.beginExclusiveGtpLifecycleTransition()) {
+    Leelaz.ExclusiveGtpLifecycleReservation reservation =
+        currentEngine == null ? null : currentEngine.beginExclusiveGtpLifecycleReservation();
+    if (currentEngine != null && reservation == null) {
       return new BenchmarkPauseResult(false, false);
     }
     try {
@@ -1566,8 +1568,8 @@ public final class KataGoRuntimeHelper {
     }
       return new BenchmarkPauseResult(true, analysisWasPondering);
     } finally {
-      if (currentEngine != null) {
-        currentEngine.endExclusiveGtpLifecycleTransition();
+      if (reservation != null) {
+        reservation.close();
       }
     }
   }

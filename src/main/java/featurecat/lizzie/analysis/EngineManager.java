@@ -1980,8 +1980,11 @@ public class EngineManager {
 
   public boolean killAllEngines() {
     Leelaz currentForegroundEngine = Lizzie.leelaz;
-    if (currentForegroundEngine != null
-        && !currentForegroundEngine.beginExclusiveGtpLifecycleTransition()) {
+    Leelaz.ExclusiveGtpLifecycleReservation reservation =
+        currentForegroundEngine == null
+            ? null
+            : currentForegroundEngine.beginExclusiveGtpLifecycleReservation();
+    if (currentForegroundEngine != null && reservation == null) {
       showForegroundEngineLeaseInUse();
       return false;
     }
@@ -2004,8 +2007,8 @@ public class EngineManager {
       Lizzie.frame.destroyTrackingEngine();
       Lizzie.frame.refresh();
     } finally {
-      if (currentForegroundEngine != null) {
-        currentForegroundEngine.endExclusiveGtpLifecycleTransition();
+      if (reservation != null) {
+        reservation.close();
       }
     }
     return true;
@@ -2129,8 +2132,11 @@ public class EngineManager {
 
   public void killThisEngines() {
     Leelaz currentForegroundEngine = Lizzie.leelaz;
-    if (currentForegroundEngine != null
-        && !currentForegroundEngine.beginExclusiveGtpLifecycleTransition()) {
+    Leelaz.ExclusiveGtpLifecycleReservation reservation =
+        currentForegroundEngine == null
+            ? null
+            : currentForegroundEngine.beginExclusiveGtpLifecycleReservation();
+    if (currentForegroundEngine != null && reservation == null) {
       showForegroundEngineLeaseInUse();
       return;
     }
@@ -2146,8 +2152,8 @@ public class EngineManager {
       Lizzie.frame.clearTrackedCoords();
       Lizzie.frame.destroyTrackingEngine();
     } finally {
-      if (currentForegroundEngine != null) {
-        currentForegroundEngine.endExclusiveGtpLifecycleTransition();
+      if (reservation != null) {
+        reservation.close();
       }
     }
   }
@@ -2160,8 +2166,7 @@ public class EngineManager {
   }
 
   protected void showForegroundEngineLeaseInUse() {
-    Utils.showMsg(
-        Lizzie.resourceBundle.getString("AnalysisSettings.reuseStatus.existing_lease"));
+    Utils.showMsg(Lizzie.resourceBundle.getString("AnalysisSettings.reuseStatus.existing_lease"));
   }
 
   /**
@@ -2628,8 +2633,7 @@ public class EngineManager {
       if (now >= deadline) {
         return false;
       }
-      long remainingMillis =
-          Math.max(1L, TimeUnit.NANOSECONDS.toMillis(deadline - now));
+      long remainingMillis = Math.max(1L, TimeUnit.NANOSECONDS.toMillis(deadline - now));
       try {
         Thread.sleep(Math.min(100L, remainingMillis));
       } catch (InterruptedException ex) {
@@ -2649,18 +2653,18 @@ public class EngineManager {
   }
 
   private EngineLifecycleReservations reserveEngineLifecycle(Leelaz current, Leelaz target) {
-    Leelaz.ExclusiveGtpLifecycleReservation currentReservation =
-        current == null ? null : current.beginExclusiveGtpLifecycleReservation();
-    if (current != null && currentReservation == null) {
-      return null;
-    }
     Leelaz.ExclusiveGtpLifecycleReservation targetReservation = null;
     if (target != null && target != current) {
       targetReservation = target.beginExclusiveGtpLifecycleReservation();
       if (targetReservation == null) {
-        if (currentReservation != null) currentReservation.close();
         return null;
       }
+    }
+    Leelaz.ExclusiveGtpLifecycleReservation currentReservation =
+        current == null ? null : current.beginExclusiveGtpLifecycleReservation();
+    if (current != null && currentReservation == null) {
+      if (targetReservation != null) targetReservation.close();
+      return null;
     }
     return new EngineLifecycleReservations(currentReservation, targetReservation);
   }

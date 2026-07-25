@@ -3748,20 +3748,10 @@ public class LizzieFrame extends JFrame {
           Lizzie.resourceBundle.getString("Contribute.tips.contributingAndStartAnotherLizzieYzy"));
       return;
     }
-    Leelaz.EngineModeReservation reservation =
-        Lizzie.leelaz == null ? null : Lizzie.leelaz.beginEngineModeReservation();
-    if (reservation == null) {
-      showForegroundEngineLeaseConflict();
-      return;
-    }
-    try {
-      startNewGameReserved();
-    } finally {
-      reservation.close();
-    }
+    startRetainedEngineMode(RetainedEngineModeTarget.startNewGame(this));
   }
 
-  private void startNewGameReserved() {
+  protected void startNewGameReserved() {
     Lizzie.frame.stopAiPlayingAndPolicy();
     boolean isPondering = false;
     if (Lizzie.leelaz.isPondering()) {
@@ -10888,10 +10878,10 @@ public class LizzieFrame extends JFrame {
   }
 
   public void startAnalyzeGameDialog() {
-    runWithForegroundEngineModeReservation(this::startAnalyzeGameDialogReserved);
+    startRetainedEngineMode(RetainedEngineModeTarget.startAnalyzeGame(this));
   }
 
-  private void startAnalyzeGameDialogReserved() {
+  protected void startAnalyzeGameDialogReserved() {
     if (Lizzie.frame.isContributing) {
       Utils.showMsg(
           Lizzie.resourceBundle.getString("Contribute.tips.contributingAndStartAnotherLizzieYzy"));
@@ -10924,11 +10914,12 @@ public class LizzieFrame extends JFrame {
 
   public void continueAiPlaying(
       boolean isGenmove, boolean continueNow, boolean playerIsB, boolean fromShortCut) {
-    runWithForegroundEngineModeReservation(
-        () -> continueAiPlayingReserved(isGenmove, continueNow, playerIsB, fromShortCut));
+    startRetainedEngineMode(
+        RetainedEngineModeTarget.continuePlaying(
+            this, isGenmove, continueNow, playerIsB, fromShortCut));
   }
 
-  private void continueAiPlayingReserved(
+  protected void continueAiPlayingReserved(
       boolean isGenmove, boolean continueNow, boolean playerIsB, boolean fromShortCut) {
     if (Lizzie.frame.isContributing) {
       Utils.showMsg(
@@ -13553,8 +13544,7 @@ public class LizzieFrame extends JFrame {
             Lizzie.board.getHistory().getStart(),
             WholeGameAnalysisPlan.DEFAULT_BASELINE_VISITS,
             Math.max(
-                WholeGameAnalysisPlan.MINIMUM_DEEP_VISITS,
-                AnalysisEngine.targetAnalysisVisits()));
+                WholeGameAnalysisPlan.MINIMUM_DEEP_VISITS, AnalysisEngine.targetAnalysisVisits()));
     if (plan.moveCount() == 0) {
       Utils.showMsg(Lizzie.resourceBundle.getString("WholeGameAnalysis.noGame"));
       return;
@@ -13656,9 +13646,172 @@ public class LizzieFrame extends JFrame {
     }
   }
 
+  private boolean startRetainedEngineMode(RetainedEngineModeTarget target) {
+    Leelaz currentForegroundEngine = target.engine;
+    if (currentForegroundEngine == null) {
+      target.runWithoutTracking();
+      return true;
+    }
+    Leelaz.TrackingHandoffClaim claim = currentForegroundEngine.claimTrackingHandoff(target);
+    if (claim.availability() == Leelaz.TrackingHandoffAvailability.ACCEPTED_PENDING) {
+      target.claim = claim;
+      return true;
+    }
+    if (claim.availability() != Leelaz.TrackingHandoffAvailability.NOT_TRACKING) {
+      target.reportConflict();
+      return false;
+    }
+    Leelaz.EngineModeReservation reservation = currentForegroundEngine.beginEngineModeReservation();
+    if (reservation == null) {
+      target.reportConflict();
+      return false;
+    }
+    try {
+      target.runWithoutTracking();
+      return true;
+    } finally {
+      reservation.close();
+    }
+  }
+
+  private static final class RetainedEngineModeTarget implements Leelaz.TrackingHandoffTarget {
+    private enum Action {
+      START_NEW_GAME,
+      START_ANALYZE_GAME,
+      CONTINUE_PLAYING
+    }
+
+    private final LizzieFrame frame;
+    private final Leelaz engine;
+    private final BoardHistoryNode historyNode;
+    private final Action action;
+    private final boolean isGenmove;
+    private final boolean continueNow;
+    private final boolean playerIsBlack;
+    private final boolean fromShortCut;
+    private final java.util.concurrent.atomic.AtomicBoolean settled =
+        new java.util.concurrent.atomic.AtomicBoolean(false);
+    private volatile Leelaz.TrackingHandoffClaim claim;
+
+    private RetainedEngineModeTarget(
+        LizzieFrame frame,
+        Action action,
+        boolean isGenmove,
+        boolean continueNow,
+        boolean playerIsBlack,
+        boolean fromShortCut) {
+      this.frame = frame;
+      this.engine = Lizzie.leelaz;
+      this.historyNode =
+          Lizzie.board == null || Lizzie.board.getHistory() == null
+              ? null
+              : Lizzie.board.getHistory().getCurrentHistoryNode();
+      this.action = action;
+      this.isGenmove = isGenmove;
+      this.continueNow = continueNow;
+      this.playerIsBlack = playerIsBlack;
+      this.fromShortCut = fromShortCut;
+    }
+
+    private static RetainedEngineModeTarget startNewGame(LizzieFrame frame) {
+      return new RetainedEngineModeTarget(frame, Action.START_NEW_GAME, false, false, false, false);
+    }
+
+    private static RetainedEngineModeTarget startAnalyzeGame(LizzieFrame frame) {
+      return new RetainedEngineModeTarget(
+          frame, Action.START_ANALYZE_GAME, false, false, false, false);
+    }
+
+    private static RetainedEngineModeTarget continuePlaying(
+        LizzieFrame frame,
+        boolean isGenmove,
+        boolean continueNow,
+        boolean playerIsBlack,
+        boolean fromShortCut) {
+      return new RetainedEngineModeTarget(
+          frame, Action.CONTINUE_PLAYING, isGenmove, continueNow, playerIsBlack, fromShortCut);
+    }
+
+    @Override
+    public Leelaz.TrackingHandoffKind kind() {
+      return Leelaz.TrackingHandoffKind.RETAINED_ENGINE_MODE;
+    }
+
+    @Override
+    public boolean isCurrent() {
+      if (Lizzie.frame != frame || Lizzie.leelaz != engine) {
+        return false;
+      }
+      BoardHistoryNode currentNode =
+          Lizzie.board == null || Lizzie.board.getHistory() == null
+              ? null
+              : Lizzie.board.getHistory().getCurrentHistoryNode();
+      return currentNode == historyNode
+          && !frame.isPlayingAgainstLeelaz
+          && !frame.isAnaPlayingAgainstLeelaz;
+    }
+
+    @Override
+    public void activate(Leelaz.TrackingHandoffActivation activation) {
+      if (!isCurrent() || settled.get()) {
+        return;
+      }
+      runOnEdtAndWait(this::runAction);
+      if (activation.completeRetainedEngineMode()) {
+        settled.compareAndSet(false, true);
+      }
+    }
+
+    @Override
+    public void fail(Leelaz.TrackingHandoffFailure failure) {
+      if (settled.compareAndSet(false, true)) {
+        runOnEdtAndWait(this::reportConflict);
+      }
+    }
+
+    private void runWithoutTracking() {
+      if (settled.compareAndSet(false, true)) {
+        runAction();
+      }
+    }
+
+    private void runAction() {
+      switch (action) {
+        case START_NEW_GAME:
+          frame.startNewGameReserved();
+          break;
+        case START_ANALYZE_GAME:
+          frame.startAnalyzeGameDialogReserved();
+          break;
+        case CONTINUE_PLAYING:
+          frame.continueAiPlayingReserved(isGenmove, continueNow, playerIsBlack, fromShortCut);
+          break;
+      }
+    }
+
+    private void reportConflict() {
+      if (action == Action.START_NEW_GAME) {
+        frame.showForegroundEngineLeaseConflict();
+      } else {
+        frame.showForegroundEngineModeReservationConflict();
+      }
+    }
+
+    private static void runOnEdtAndWait(Runnable action) {
+      if (SwingUtilities.isEventDispatchThread()) {
+        action.run();
+        return;
+      }
+      try {
+        SwingUtilities.invokeAndWait(action);
+      } catch (Exception failure) {
+        throw new IllegalStateException(failure);
+      }
+    }
+  }
+
   protected void showForegroundEngineModeReservationConflict() {
-    Utils.showMsg(
-        Lizzie.resourceBundle.getString("AnalysisSettings.reuseStatus.existing_lease"));
+    Utils.showMsg(Lizzie.resourceBundle.getString("AnalysisSettings.reuseStatus.existing_lease"));
   }
 
   private final java.util.concurrent.atomic.AtomicBoolean trackingEngineStarting =
@@ -18790,7 +18943,22 @@ public class LizzieFrame extends JFrame {
   private boolean savedShowKataGoEstimateOnSubbord;
 
   public void startContributeEngine() {
-    runWithForegroundEngineModeReservation(this::startContributeEngineReserved);
+    Leelaz currentForegroundEngine = Lizzie.leelaz;
+    Leelaz.ExclusiveGtpLifecycleReservation reservation =
+        currentForegroundEngine == null
+            ? null
+            : currentForegroundEngine.beginExclusiveGtpLifecycleReservation();
+    if (currentForegroundEngine != null && reservation == null) {
+      showForegroundEngineModeReservationConflict();
+      return;
+    }
+    try {
+      startContributeEngineReserved();
+    } finally {
+      if (reservation != null) {
+        reservation.close();
+      }
+    }
   }
 
   private void startContributeEngineReserved() {

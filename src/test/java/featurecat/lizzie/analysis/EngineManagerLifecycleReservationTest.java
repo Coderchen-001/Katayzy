@@ -256,6 +256,26 @@ class EngineManagerLifecycleReservationTest {
   }
 
   @Test
+  void switchReservesDistinctTargetBeforeTouchingCurrentOwner() throws Exception {
+    Leelaz previousEngine = Lizzie.leelaz;
+    List<String> reservationOrder = new java.util.ArrayList<>();
+    OrderedLifecycleLeelaz current = new OrderedLifecycleLeelaz("current", reservationOrder, false);
+    OrderedLifecycleLeelaz target = new OrderedLifecycleLeelaz("target", reservationOrder, true);
+    DeferredSwitchEngineManager manager = new DeferredSwitchEngineManager(List.of(current, target));
+    try {
+      Lizzie.leelaz = current;
+
+      assertFalse(manager.switchEngineIfAvailable(1, true));
+
+      assertEquals(List.of("target"), reservationOrder);
+      assertEquals(0, current.reservationAttempts);
+      assertEquals(0, manager.switchCount);
+    } finally {
+      Lizzie.leelaz = previousEngine;
+    }
+  }
+
+  @Test
   void recoverySwitchWaitsForTargetBoardSynchronizationFenceBeforeReleasingReservations()
       throws Exception {
     Leelaz previousEngine = Lizzie.leelaz;
@@ -705,6 +725,28 @@ class EngineManagerLifecycleReservationTest {
     @Override
     public synchronized ExclusiveGtpLifecycleReservation beginExclusiveGtpLifecycleReservation() {
       return null;
+    }
+  }
+
+  private static final class OrderedLifecycleLeelaz extends Leelaz {
+    private final String name;
+    private final List<String> reservationOrder;
+    private final boolean rejectReservation;
+    private int reservationAttempts;
+
+    private OrderedLifecycleLeelaz(
+        String name, List<String> reservationOrder, boolean rejectReservation) throws Exception {
+      super("");
+      this.name = name;
+      this.reservationOrder = reservationOrder;
+      this.rejectReservation = rejectReservation;
+    }
+
+    @Override
+    public ExclusiveGtpLifecycleReservation beginExclusiveGtpLifecycleReservation() {
+      reservationAttempts++;
+      reservationOrder.add(name);
+      return rejectReservation ? null : super.beginExclusiveGtpLifecycleReservation();
     }
   }
 

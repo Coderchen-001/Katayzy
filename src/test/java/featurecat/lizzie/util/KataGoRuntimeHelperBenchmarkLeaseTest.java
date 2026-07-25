@@ -17,6 +17,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,7 +61,7 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
 
       assertEquals(1, pausedEngine.restartCount);
       assertEquals(0, pausedEngine.lastRestartIndex);
-      assertEquals(1, pausedEngine.reservationAttempts);
+      assertEquals(2, pausedEngine.reservationAttempts);
       assertEquals(0, selectedEngine.restartCount);
       assertEquals(0, selectedEngine.normalQuitCount);
       assertEquals(0, selectedEngine.shutdownCount);
@@ -92,7 +94,7 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
       assertTrue(pause.accepted());
       assertTrue(pause.analysisWasPondering());
       assertEquals(pausePonderCalls + 1, pausedEngine.ponderingCallCount);
-      assertEquals(1, pausedEngine.reservationAttempts);
+      assertEquals(2, pausedEngine.reservationAttempts);
       assertEquals(1, pausedEngine.restartCount);
       assertEquals(0, pausedEngine.lastRestartIndex);
       assertFalse(pausedEngine.hasExclusiveGtpWorkInProgress());
@@ -105,9 +107,9 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
     try (BenchmarkEnvironment environment = new BenchmarkEnvironment(2)) {
       RecordingBenchmarkLeelaz pausedEngine = environment.engine(0);
       RecordingBenchmarkLeelaz selectedEngine = environment.engine(1);
-      pausedEngine.reservationGate = new CountDownLatch(1);
       pausedEngine.restartGate = new CountDownLatch(1);
       assertTrue(environment.pause(0).accepted());
+      pausedEngine.prepareReservationGate();
       environment.select(1);
       AtomicReference<Throwable> workerFailure = new AtomicReference<>();
       Thread restoreWorker =
@@ -163,14 +165,14 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
   void rejectedPausedReservationAbandonsRestoreWithoutRetry() throws Exception {
     try (BenchmarkEnvironment environment = new BenchmarkEnvironment(1)) {
       RecordingBenchmarkLeelaz pausedEngine = environment.engine(0);
-      pausedEngine.rejectReservation = true;
       assertTrue(environment.pause(0).accepted());
+      pausedEngine.rejectReservation = true;
 
       KataGoRuntimeHelper.restoreAnalysisAfterBenchmark(false);
       KataGoRuntimeHelper.restoreAnalysisAfterBenchmark(false);
 
       assertFalse(KataGoRuntimeHelper.isBenchmarkEngineSyncSuppressed());
-      assertEquals(1, pausedEngine.reservationAttempts);
+      assertEquals(2, pausedEngine.reservationAttempts);
       assertEquals(0, pausedEngine.restartCount);
       assertNull(pausedEngine.pendingRestartCompletion.get());
       assertFalse(pausedEngine.hasExclusiveGtpWorkInProgress());
@@ -190,7 +192,7 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
       KataGoRuntimeHelper.restoreAnalysisAfterBenchmark(false);
 
       assertFalse(KataGoRuntimeHelper.isBenchmarkEngineSyncSuppressed());
-      assertEquals(0, pausedEngine.reservationAttempts);
+      assertEquals(1, pausedEngine.reservationAttempts);
       assertEquals(0, pausedEngine.restartCount);
       assertEquals(0, replacementEngine.restartCount);
       assertEquals(0, selectedEngine.restartCount);
@@ -201,8 +203,8 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
   void managerReplacementDuringReservationAcquisitionAbandonsRestore() throws Exception {
     try (BenchmarkEnvironment environment = new BenchmarkEnvironment(1)) {
       RecordingBenchmarkLeelaz pausedEngine = environment.engine(0);
-      pausedEngine.reservationGate = new CountDownLatch(1);
       assertTrue(environment.pause(0).accepted());
+      pausedEngine.prepareReservationGate();
       AtomicReference<Throwable> workerFailure = new AtomicReference<>();
       Thread restoreWorker =
           new Thread(
@@ -226,7 +228,7 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
         assertFalse(restoreWorker.isAlive());
         assertNull(workerFailure.get());
         assertFalse(KataGoRuntimeHelper.isBenchmarkEngineSyncSuppressed());
-        assertEquals(1, pausedEngine.reservationAttempts);
+        assertEquals(2, pausedEngine.reservationAttempts);
         assertEquals(0, pausedEngine.restartCount);
         assertFalse(pausedEngine.hasExclusiveGtpWorkInProgress());
       } finally {
@@ -247,7 +249,7 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
       KataGoRuntimeHelper.restoreAnalysisAfterBenchmark(false);
 
       assertFalse(KataGoRuntimeHelper.isBenchmarkEngineSyncSuppressed());
-      assertEquals(1, pausedEngine.reservationAttempts);
+      assertEquals(2, pausedEngine.reservationAttempts);
       assertEquals(1, pausedEngine.restartCount);
       assertNull(pausedEngine.pendingRestartCompletion.get());
       assertFalse(pausedEngine.hasExclusiveGtpWorkInProgress());
@@ -370,6 +372,30 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
   }
 
   @Test
+  void benchmarkPauseClaimsActiveTrackingInOneClick() throws Exception {
+    try (BenchmarkEnvironment environment = new BenchmarkEnvironment(1)) {
+      RecordingBenchmarkLeelaz engine = environment.engine(0);
+      ByteArrayOutputStream output = installOutput(engine);
+      Leelaz.TrackingStreamLeaseAcquisition tracking =
+          engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(engine, "=800000000");
+      assertTrue(dispatchExclusiveLine(engine, ""));
+
+      KataGoRuntimeHelper.BenchmarkPauseResult pause = environment.pause(0);
+
+      assertTrue(pause.accepted());
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+      assertEquals("800000000 stop\n800000001 stop\n", output.toString(StandardCharsets.UTF_8));
+
+      assertTrue(dispatchExclusiveLine(engine, "=800000001"));
+      assertTrue(dispatchExclusiveLine(engine, ""));
+      KataGoRuntimeHelper.restoreAnalysisAfterBenchmark(false);
+      assertEquals(2, engine.reservationAttempts);
+      assertEquals(1, engine.restartCount);
+    }
+  }
+
+  @Test
   void secondBenchmarkPauseIsRejectedWithoutClearingFirstPauseState() throws Exception {
     Config previousConfig = Lizzie.config;
     Leelaz previousEngine = Lizzie.leelaz;
@@ -464,7 +490,7 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
   }
 
   private static final class RecordingBenchmarkLeelaz extends Leelaz {
-    private final CountDownLatch reservationEntered = new CountDownLatch(1);
+    private CountDownLatch reservationEntered = new CountDownLatch(1);
     private final CountDownLatch restartEntered = new CountDownLatch(1);
     private final AtomicReference<Runnable> pendingRestartCompletion = new AtomicReference<>();
     private CountDownLatch reservationGate;
@@ -482,6 +508,11 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
     private RecordingBenchmarkLeelaz() throws Exception {
       super("");
       prepareReusableKatagoEngine(this);
+    }
+
+    private void prepareReservationGate() {
+      reservationEntered = new CountDownLatch(1);
+      reservationGate = new CountDownLatch(1);
     }
 
     @Override
@@ -552,6 +583,26 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
 
   private static Leelaz reusableKatagoEngine() throws Exception {
     return prepareReusableKatagoEngine(new Leelaz(""));
+  }
+
+  private static ByteArrayOutputStream installOutput(Leelaz engine) throws Exception {
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    Field field = Leelaz.class.getDeclaredField("outputStream");
+    field.setAccessible(true);
+    field.set(engine, new BufferedOutputStream(output));
+    return output;
+  }
+
+  private static boolean dispatchExclusiveLine(Leelaz engine, String line) throws Exception {
+    Method method = Leelaz.class.getDeclaredMethod("dispatchExclusiveGtpLine", String.class);
+    method.setAccessible(true);
+    return (boolean) method.invoke(engine, line);
+  }
+
+  private static void processCommandResponse(Leelaz engine, String line) throws Exception {
+    Method method = Leelaz.class.getDeclaredMethod("processCommandResponseLine", String.class);
+    method.setAccessible(true);
+    method.invoke(engine, line);
   }
 
   private static <T extends Leelaz> T prepareReusableKatagoEngine(T engine) throws Exception {
