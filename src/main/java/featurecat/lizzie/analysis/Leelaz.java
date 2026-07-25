@@ -6744,13 +6744,18 @@ public class Leelaz {
     try {
       notifyTrackingHandoffFailure(notification);
     } finally {
+      boolean gateCleared = false;
       synchronized (engineArbitrationLock()) {
         if (trackingHandoffGate == claim
             && claim.state.get() == TrackingHandoffState.FAILED) {
           trackingHandoffGate = null;
+          gateCleared = true;
         }
         claim.activationCallbackInProgress = false;
         engineArbitrationLock().notifyAll();
+      }
+      if (gateCleared) {
+        trySendCommandFromQueue();
       }
     }
   }

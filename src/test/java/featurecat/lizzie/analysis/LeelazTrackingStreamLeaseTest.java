@@ -1054,6 +1054,7 @@ class LeelazTrackingStreamLeaseTest {
           };
       state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
       Leelaz.TrackingHandoffClaim claim = state.engine.claimTrackingHandoff(target);
+      state.engine.sendCommand("version");
 
       processCommandResponse(state.engine, "=800000000");
       assertTrue(dispatch(state.engine, ""));
@@ -1062,6 +1063,7 @@ class LeelazTrackingStreamLeaseTest {
       assertEquals(Leelaz.TrackingHandoffState.FAILED, claim.state());
       assertEquals(Leelaz.TrackingHandoffFailure.ACTIVATION_FAILED, failure.get());
       assertFalse(state.engine.hasExclusiveGtpLeaseOwnedBy(target));
+      assertEquals("800000000 stop\nversion\n", state.output.toString(StandardCharsets.UTF_8));
     }
   }
 
