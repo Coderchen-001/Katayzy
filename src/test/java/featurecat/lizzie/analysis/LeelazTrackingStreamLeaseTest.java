@@ -3,9 +3,11 @@ package featurecat.lizzie.analysis;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import featurecat.lizzie.Config;
+import featurecat.lizzie.ExtraMode;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.gui.GtpConsolePane;
 import featurecat.lizzie.gui.LizzieFrame;
@@ -1503,6 +1505,21 @@ class LeelazTrackingStreamLeaseTest {
   }
 
   @Test
+  void acceptedPositionEstimateDoesNotReportExistingLeaseBusy() throws Exception {
+    FeedbackRecordingLeelaz engine = new FeedbackRecordingLeelaz();
+    configureLocalKatago(engine);
+    try (TestState state = TestState.open(engine)) {
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      assertTrue(state.engine.requestPositionEstimate(ownership -> {}));
+
+      assertEquals(0, engine.feedbackCount.get());
+    }
+  }
+
+  @Test
   void pendingTypedHandoffRejectsStatefulOrdinaryRequestsWithoutStateOrBytes() throws Exception {
     try (TestState state = TestState.open(reusableLocalKatago())) {
       state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
@@ -1547,6 +1564,48 @@ class LeelazTrackingStreamLeaseTest {
       assertFalse(state.engine.isThinking);
       assertFalse(acquisition.lease().isOwned());
       assertEquals(List.of(List.of(false, true), List.of(false, false)), state.menu.transitions);
+    }
+  }
+
+  @Test
+  void acceptedManualGenmoveDoesNotReportExistingLeaseBusy() throws Exception {
+    FeedbackRecordingLeelaz engine = new FeedbackRecordingLeelaz();
+    configureLocalKatago(engine);
+    try (TestState state = TestState.open(engine)) {
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      assertTrue(state.engine.genmove("B", true));
+
+      assertEquals(0, engine.feedbackCount.get());
+    }
+  }
+
+  @Test
+  void mirrorFailureLeavesAdmittedPrimaryOrdinaryRequestInOriginalQueue() throws Exception {
+    Leelaz previousSecondEngine = Lizzie.leelaz2;
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      RecordingDispositionObserver observer = new RecordingDispositionObserver();
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {}, observer);
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+      Lizzie.config.extraMode = ExtraMode.Double_Engine;
+      Lizzie.leelaz2 = new FailingMirrorLeelaz();
+
+      RuntimeException failure =
+          assertThrows(RuntimeException.class, () -> state.engine.sendCommand("komi 7.5"));
+
+      assertEquals("simulated mirror failure", failure.getMessage());
+      assertEquals(List.of(Leelaz.TrackingReleaseReason.ORDINARY_OPERATION), observer.reasons);
+      assertEquals(
+          "800000000 stop\n800000001 stop\n", state.output.toString(StandardCharsets.UTF_8));
+
+      assertTrue(dispatch(state.engine, "=800000001"));
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(state.output.toString(StandardCharsets.UTF_8).endsWith("komi 7.5\n"));
+    } finally {
+      Lizzie.leelaz2 = previousSecondEngine;
     }
   }
 
@@ -2542,6 +2601,30 @@ class LeelazTrackingStreamLeaseTest {
       } finally {
         timeoutFinished.countDown();
       }
+    }
+  }
+
+  private static final class FeedbackRecordingLeelaz extends Leelaz {
+    private final AtomicInteger feedbackCount = new AtomicInteger();
+
+    private FeedbackRecordingLeelaz() throws Exception {
+      super("");
+    }
+
+    @Override
+    void showExclusiveGtpConflictMessage() {
+      feedbackCount.incrementAndGet();
+    }
+  }
+
+  private static final class FailingMirrorLeelaz extends Leelaz {
+    private FailingMirrorLeelaz() throws Exception {
+      super("");
+    }
+
+    @Override
+    public void sendCommand(String command) {
+      throw new RuntimeException("simulated mirror failure");
     }
   }
 

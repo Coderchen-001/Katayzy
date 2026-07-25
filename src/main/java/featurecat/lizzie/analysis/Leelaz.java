@@ -3417,7 +3417,7 @@ public class Leelaz {
         || !isLoaded
         || isNormalEnd
         || isProcessDead()
-        || (rejectNewExclusiveWorkDuringGtpLease() && !hasTrackingStreamSession())) {
+        || (!hasTrackingStreamSession() && rejectNewExclusiveWorkDuringGtpLease())) {
       return false;
     }
     Object requestOwner = new Object();
@@ -5744,15 +5744,19 @@ public class Leelaz {
         && !hasConflictingExclusiveGtpWork()) {
       return false;
     }
-    if (Lizzie.frame != null && Lizzie.frame.isDisplayable() && Lizzie.resourceBundle != null) {
-      String key =
-          engineStateUnrestored
-              ? "AnalysisSettings.reuseStatus.engine_state_unrestored"
-              : "AnalysisSettings.reuseStatus.existing_lease";
-      SwingUtilities.invokeLater(
-          () -> Utils.showMsg(Lizzie.resourceBundle.getString(key)));
-    }
+    showExclusiveGtpConflictMessage();
     return true;
+  }
+
+  void showExclusiveGtpConflictMessage() {
+    if (Lizzie.frame == null || !Lizzie.frame.isDisplayable() || Lizzie.resourceBundle == null) {
+      return;
+    }
+    String key =
+        engineStateUnrestored
+            ? "AnalysisSettings.reuseStatus.engine_state_unrestored"
+            : "AnalysisSettings.reuseStatus.existing_lease";
+    SwingUtilities.invokeLater(() -> Utils.showMsg(Lizzie.resourceBundle.getString(key)));
   }
 
   private boolean hasConflictingExclusiveGtpWork() {
@@ -8187,7 +8191,8 @@ public class Leelaz {
             && (Lizzie.frame == null
                 || (!Lizzie.frame.isPlayingAgainstLeelaz
                     && !Lizzie.frame.isAnaPlayingAgainstLeelaz));
-    if (rejectNewExclusiveWorkDuringGtpLease() && !(manualRequest && hasTrackingStreamSession())) {
+    if (!(manualRequest && hasTrackingStreamSession())
+        && rejectNewExclusiveWorkDuringGtpLease()) {
       return false;
     }
     sendPlayingAgainstHumanTimeLeftBeforeGenmove();
