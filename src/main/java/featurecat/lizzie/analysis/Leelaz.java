@@ -1195,12 +1195,18 @@ public class Leelaz {
       while ((!ownsRebindGateAfterTrackingCleanup && readerStreamRebindInProgress)
           || readerTerminalCleanupInProgress
           || (readerStreamBinding != null && readerStreamBinding.linesInProgress > 0)
-          || isFailedTrackingStreamCleanupInProgress()) {
+          || isFailedTrackingStreamCleanupInProgress()
+          || isTrackingHandoffActivationCallbackInProgress()) {
         if (!ownsRebindGateAfterTrackingCleanup
-            && isFailedTrackingStreamCleanupInProgress()) {
+            && (isFailedTrackingStreamCleanupInProgress()
+                || isTrackingHandoffActivationCallbackInProgress())) {
           synchronized (commandQueue()) {
             readerStreamRebindInProgress = true;
             ownsRebindGateAfterTrackingCleanup = true;
+            if (isTrackingHandoffActivationCallbackInProgress()) {
+              claimTrackingHandoffFailureLocked(
+                  trackingHandoffGate, TrackingHandoffFailure.TRACKING_FAILED);
+            }
           }
         }
         try {
@@ -1346,6 +1352,10 @@ public class Leelaz {
         && exclusiveGtpSession.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY
         && exclusiveGtpSession.closing
         && exclusiveGtpSession.releaseStopFailed;
+  }
+
+  private boolean isTrackingHandoffActivationCallbackInProgress() {
+    return trackingHandoffGate != null && trackingHandoffGate.activationCallbackInProgress;
   }
 
   private ReaderStreamBinding currentReaderStreamBinding() {
@@ -6701,6 +6711,11 @@ public class Leelaz {
     if (current == TrackingHandoffState.FAILED || current == TrackingHandoffState.ACTIVE) {
       return TrackingHandoffFailureSettlement.NOT_WON;
     }
+    if (current == TrackingHandoffState.ACTIVATING
+        && claim.activationCallbackInProgress
+        && failure == TrackingHandoffFailure.TARGET_CANCELLED) {
+      return TrackingHandoffFailureSettlement.NOT_WON;
+    }
     if (!claim.state.compareAndSet(current, TrackingHandoffState.FAILED)) {
       return TrackingHandoffFailureSettlement.NOT_WON;
     }
@@ -6718,7 +6733,6 @@ public class Leelaz {
   private void settleTrackingHandoffAfterActivationCallback(TrackingHandoffClaim claim) {
     TrackingHandoffFailureNotification notification = null;
     synchronized (engineArbitrationLock()) {
-      claim.activationCallbackInProgress = false;
       if (trackingHandoffGate == claim
           && claim.state.get() == TrackingHandoffState.FAILED
           && claim.deferredFailure != null) {
@@ -6728,7 +6742,14 @@ public class Leelaz {
         claim.deferredFailure = null;
       }
     }
-    notifyTrackingHandoffFailure(notification);
+    try {
+      notifyTrackingHandoffFailure(notification);
+    } finally {
+      synchronized (engineArbitrationLock()) {
+        claim.activationCallbackInProgress = false;
+        engineArbitrationLock().notifyAll();
+      }
+    }
   }
 
   private void notifyTrackingHandoffFailure(TrackingHandoffFailureNotification notification) {

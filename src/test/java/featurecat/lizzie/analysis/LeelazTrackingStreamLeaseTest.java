@@ -909,8 +909,10 @@ class LeelazTrackingStreamLeaseTest {
   @Test
   void readerRebindWinsAgainstInFlightHandoffActivation() throws Exception {
     try (TestState state = TestState.open(reusableLocalKatago())) {
-      BlockingHandoffTarget target = new BlockingHandoffTarget();
+      BlockingHandoffTarget target =
+          new BlockingHandoffTarget(() -> state.engine.sendCommand("name"));
       AtomicReference<Throwable> fenceFailure = new AtomicReference<>();
+      AtomicReference<Throwable> rebindFailure = new AtomicReference<>();
       Leelaz.TrackingStreamLeaseAcquisition acquisition =
           state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
       processCommandResponse(state.engine, "=800000000");
@@ -933,8 +935,20 @@ class LeelazTrackingStreamLeaseTest {
       fenceThread.start();
       assertTrue(target.activationStarted.await(1, TimeUnit.SECONDS));
       ByteArrayOutputStream reboundOutput = new ByteArrayOutputStream();
+      Thread rebindThread =
+          new Thread(
+              () -> {
+                try {
+                  initializeStreams(state.engine, reboundOutput);
+                } catch (Throwable failure) {
+                  rebindFailure.set(failure);
+                }
+              },
+              "tracking-handoff-rebind-cutover");
+      rebindThread.setDaemon(true);
 
-      initializeStreams(state.engine, reboundOutput);
+      rebindThread.start();
+      waitUntil(() -> readerStreamRebindInProgress(state.engine));
       state.engine.sendCommand("version");
 
       assertEquals(0, target.failures.get());
@@ -942,9 +956,13 @@ class LeelazTrackingStreamLeaseTest {
 
       target.allowCompletion.countDown();
       fenceThread.join(1000L);
+      rebindThread.join(1000L);
+      state.engine.sendCommand("version");
 
       assertFalse(fenceThread.isAlive());
+      assertFalse(rebindThread.isAlive());
       assertEquals(null, fenceFailure.get());
+      assertEquals(null, rebindFailure.get());
       assertEquals(Leelaz.TrackingHandoffState.FAILED, claim.state());
       assertEquals(1, target.failures.get());
       assertEquals("version\n", reboundOutput.toString(StandardCharsets.UTF_8));
@@ -1143,7 +1161,7 @@ class LeelazTrackingStreamLeaseTest {
   }
 
   @Test
-  void cancellationWinsAgainstInFlightActivationExactlyOnce() throws Exception {
+  void inFlightActivationWinsAgainstLateCancellation() throws Exception {
     try (TestState state = TestState.open(reusableLocalKatago())) {
       CountDownLatch activationStarted = new CountDownLatch(1);
       CountDownLatch continueActivation = new CountDownLatch(1);
@@ -1201,7 +1219,7 @@ class LeelazTrackingStreamLeaseTest {
 
       fenceThread.start();
       assertTrue(activationStarted.await(1, TimeUnit.SECONDS));
-      assertTrue(claim.cancel());
+      assertFalse(claim.cancel());
 
       assertEquals(0, failures.get());
       assertFalse(state.output.toString(StandardCharsets.UTF_8).endsWith("version\n"));
@@ -1211,9 +1229,9 @@ class LeelazTrackingStreamLeaseTest {
 
       assertFalse(fenceThread.isAlive());
       assertEquals(null, activationFailure.get());
-      assertEquals(false, completion.get());
-      assertEquals(1, failures.get());
-      assertEquals(Leelaz.TrackingHandoffState.FAILED, claim.state());
+      assertEquals(true, completion.get());
+      assertEquals(0, failures.get());
+      assertEquals(Leelaz.TrackingHandoffState.ACTIVE, claim.state());
       assertTrue(state.output.toString(StandardCharsets.UTF_8).endsWith("version\n"));
     }
   }
@@ -2203,9 +2221,15 @@ class LeelazTrackingStreamLeaseTest {
   private static final class BlockingHandoffTarget extends RecordingHandoffTarget {
     private final CountDownLatch activationStarted = new CountDownLatch(1);
     private final CountDownLatch allowCompletion = new CountDownLatch(1);
+    private final Runnable beforeCompletion;
 
     private BlockingHandoffTarget() {
+      this(() -> {});
+    }
+
+    private BlockingHandoffTarget(Runnable beforeCompletion) {
       super(Leelaz.TrackingHandoffKind.RETAINED_ENGINE_MODE);
+      this.beforeCompletion = beforeCompletion;
     }
 
     @Override
@@ -2217,6 +2241,7 @@ class LeelazTrackingStreamLeaseTest {
         Thread.currentThread().interrupt();
         throw new AssertionError(interrupted);
       }
+      beforeCompletion.run();
       super.activate(activation);
     }
   }
