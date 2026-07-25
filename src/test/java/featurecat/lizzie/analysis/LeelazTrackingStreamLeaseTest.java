@@ -669,6 +669,7 @@ class LeelazTrackingStreamLeaseTest {
     installInput(engine, "");
     AtomicInteger closed = new AtomicInteger();
     List<Leelaz.TrackingReleaseDisposition> dispositions = new ArrayList<>();
+    RecordingHandoffTarget target = RecordingHandoffTarget.retained();
     try {
       Lizzie.leelaz = engine;
       Lizzie.frame = allocate(LizzieFrame.class);
@@ -678,10 +679,14 @@ class LeelazTrackingStreamLeaseTest {
       Leelaz.TrackingStreamLeaseAcquisition acquisition =
           engine.acquireTrackingStreamLease(
               line -> {}, lease -> {}, lease -> closed.incrementAndGet(), dispositions::add);
+      Leelaz.TrackingHandoffClaim claim = engine.claimTrackingHandoff(target);
 
       invokeRead(engine);
 
       assertEquals(1, closed.get());
+      assertEquals(Leelaz.TrackingHandoffState.FAILED, claim.state());
+      assertEquals(0, target.activations.get());
+      assertEquals(1, target.failures.get());
       assertEquals(
           java.util.Optional.of(Leelaz.TrackingStreamLeaseFailure.TRANSPORT_CLOSED),
           acquisition.lease().failureReason());
@@ -930,9 +935,13 @@ class LeelazTrackingStreamLeaseTest {
       ByteArrayOutputStream reboundOutput = new ByteArrayOutputStream();
 
       initializeStreams(state.engine, reboundOutput);
+      state.engine.sendCommand("version");
+
+      assertEquals(0, target.failures.get());
+      assertEquals("", reboundOutput.toString(StandardCharsets.UTF_8));
+
       target.allowCompletion.countDown();
       fenceThread.join(1000L);
-      state.engine.sendCommand("version");
 
       assertFalse(fenceThread.isAlive());
       assertEquals(null, fenceFailure.get());
@@ -1193,6 +1202,10 @@ class LeelazTrackingStreamLeaseTest {
       fenceThread.start();
       assertTrue(activationStarted.await(1, TimeUnit.SECONDS));
       assertTrue(claim.cancel());
+
+      assertEquals(0, failures.get());
+      assertFalse(state.output.toString(StandardCharsets.UTF_8).endsWith("version\n"));
+
       continueActivation.countDown();
       fenceThread.join(1000L);
 
