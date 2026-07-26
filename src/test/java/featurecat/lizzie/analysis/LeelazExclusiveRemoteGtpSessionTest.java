@@ -1404,7 +1404,6 @@ class LeelazExclusiveRemoteGtpSessionTest {
           harness.engine.endForegroundAnalysisLease(
               harness.owner, harness.completions::incrementAndGet, failures::incrementAndGet));
       Lizzie.frame = null;
-      installInput(harness.engine, "");
       harness.engine.isNormalEnd = true;
 
       invokeRead(harness.engine);
@@ -2009,6 +2008,7 @@ class LeelazExclusiveRemoteGtpSessionTest {
       boolean previousEngineGame = EngineManager.isEngineGame;
       boolean previousPreEngineGame = EngineManager.isPreEngineGame;
       RecordingRestoreLeelaz engine = recordingRestoreEngine();
+      installInput(engine, "");
       RecordingRestoreBoard board = allocate(RecordingRestoreBoard.class);
       ByteArrayOutputStream output = installOutput(engine);
       Lizzie.leelaz = engine;
