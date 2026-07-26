@@ -225,6 +225,8 @@ public class Leelaz {
   private QueuedCommand normalCommandBeingSent;
   private final ThreadLocal<ExclusiveGtpSession> foregroundRestoreCommandSession =
       new ThreadLocal<>();
+  private final ThreadLocal<AtomicReference<RuntimeException>> deferredDefaultMirrorFailure =
+      new ThreadLocal<>();
   private volatile boolean foregroundRestoreInProgress;
   private volatile boolean suppressNormalCommandsForForegroundAnalysis;
   private volatile ExclusiveGtpSession foregroundRestoreSession;
@@ -3088,10 +3090,16 @@ public class Leelaz {
             : "boardsize " + width;
     if (!sendStatefulOrdinaryCommand(command)) return;
     applyBoardSize(width, height, false);
+    AtomicReference<RuntimeException> mirrorFailure = new AtomicReference<>();
+    deferredDefaultMirrorFailure.set(mirrorFailure);
     try {
       mirrorStatefulOrdinaryCommand(command);
-    } finally {
       Lizzie.board.reopen(width, height);
+    } finally {
+      deferredDefaultMirrorFailure.remove();
+    }
+    if (mirrorFailure.get() != null) {
+      throw mirrorFailure.get();
     }
   }
 
@@ -3560,8 +3568,20 @@ public class Leelaz {
   private void mirrorStatefulOrdinaryCommand(String command) {
     Leelaz mirroredEngine = resolveDefaultCommandMirrorEngine();
     if (mirroredEngine != null) {
+      sendDefaultCommandMirror(mirroredEngine, command);
+    }
+  }
+
+  private void sendDefaultCommandMirror(Leelaz mirroredEngine, String command) {
+    try {
       mirroredEngine.sendCommand(command);
       mirroredEngine.startPonderTime = this.startPonderTime;
+    } catch (RuntimeException failure) {
+      AtomicReference<RuntimeException> deferredFailure = deferredDefaultMirrorFailure.get();
+      if (deferredFailure == null) {
+        throw failure;
+      }
+      deferredFailure.compareAndSet(null, failure);
     }
   }
 
@@ -4187,8 +4207,7 @@ public class Leelaz {
     }
     Leelaz mirroredEngine = mirrorToSecondEngine ? resolveDefaultCommandMirrorEngine() : null;
     if (mirroredEngine != null) {
-      mirroredEngine.sendCommand(command);
-      mirroredEngine.startPonderTime = this.startPonderTime;
+      sendDefaultCommandMirror(mirroredEngine, command);
     }
     return true;
   }

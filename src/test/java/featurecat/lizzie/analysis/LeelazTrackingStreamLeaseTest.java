@@ -1684,6 +1684,47 @@ class LeelazTrackingStreamLeaseTest {
   }
 
   @Test
+  void boardSizeCompletesRealReopenBeforePersistentMirrorFailureEscapes() throws Exception {
+    Board previousBoard = Lizzie.board;
+    int previousBoardWidth = Board.boardWidth;
+    int previousBoardHeight = Board.boardHeight;
+    Leelaz previousSecondEngine = Lizzie.leelaz2;
+    WinrateGraph previousWinrateGraph = LizzieFrame.winrateGraph;
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      PonderTrackingFrame frame = allocate(PonderTrackingFrame.class);
+      FailingMirrorLeelaz secondEngine = new FailingMirrorLeelaz();
+      Lizzie.frame = frame;
+      LizzieFrame.winrateGraph = allocate(WinrateGraph.class);
+      Board.boardWidth = 19;
+      Board.boardHeight = 19;
+      Zobrist.init();
+      Lizzie.board = new Board();
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+      Lizzie.config.extraMode = ExtraMode.Double_Engine;
+      Lizzie.leelaz2 = secondEngine;
+
+      RuntimeException failure =
+          assertThrows(RuntimeException.class, () -> state.engine.boardSize(13, 13));
+
+      assertEquals("simulated mirror failure", failure.getMessage());
+      assertEquals(13, Board.boardWidth);
+      assertEquals(13, Board.boardHeight);
+      assertEquals(1, frame.redrawCount);
+      assertEquals(1, frame.refreshCount);
+      assertEquals(5, secondEngine.commandCount);
+    } finally {
+      Board.boardWidth = previousBoardWidth;
+      Board.boardHeight = previousBoardHeight;
+      Zobrist.init();
+      Lizzie.board = previousBoard;
+      Lizzie.leelaz2 = previousSecondEngine;
+      LizzieFrame.winrateGraph = previousWinrateGraph;
+    }
+  }
+
+  @Test
   void lifecycleWinnerKeepsKomiAndBoardSizeBusyWhileTrackingSettles() throws Exception {
     Board previousBoard = Lizzie.board;
     FeedbackRecordingLeelaz engine = new FeedbackRecordingLeelaz();
@@ -2977,6 +3018,9 @@ class LeelazTrackingStreamLeaseTest {
   }
 
   private static final class PonderTrackingFrame extends LizzieFrame {
+    private int redrawCount;
+    private int refreshCount;
+
     @Override
     public void clearTryPlay() {}
 
@@ -2993,19 +3037,26 @@ class LeelazTrackingStreamLeaseTest {
     public void clearKataEstimate() {}
 
     @Override
-    public void redrawBoardrendererBackground() {}
+    public void redrawBoardrendererBackground() {
+      redrawCount++;
+    }
 
     @Override
-    public void refresh() {}
+    public void refresh() {
+      refreshCount++;
+    }
   }
 
   private static final class FailingMirrorLeelaz extends Leelaz {
+    private int commandCount;
+
     private FailingMirrorLeelaz() throws Exception {
       super("");
     }
 
     @Override
     public void sendCommand(String command) {
+      commandCount++;
       throw new RuntimeException("simulated mirror failure");
     }
   }
