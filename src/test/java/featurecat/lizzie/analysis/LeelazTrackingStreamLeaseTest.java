@@ -1684,6 +1684,47 @@ class LeelazTrackingStreamLeaseTest {
   }
 
   @Test
+  void statefulPublicEntriesCommitAfterPrimaryAdmissionWhenMirrorFails() throws Exception {
+    Board previousBoard = Lizzie.board;
+    Leelaz previousSecondEngine = Lizzie.leelaz2;
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      Lizzie.board =
+          new Board() {
+            @Override
+            public void reopen(int width, int height) {}
+          };
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+      Lizzie.config.extraMode = ExtraMode.Double_Engine;
+      Lizzie.leelaz2 = new FailingMirrorLeelaz();
+
+      assertThrows(RuntimeException.class, () -> state.engine.komi(5.5));
+      assertEquals(5.5f, state.engine.komi);
+      assertEquals(5.5, Lizzie.board.getHistory().getGameInfo().getKomi());
+
+      assertThrows(RuntimeException.class, () -> state.engine.komiNoMenu(6.5));
+      assertEquals(6.5f, state.engine.komi);
+      assertEquals(6.5, Lizzie.board.getHistory().getGameInfo().getKomi());
+
+      assertThrows(RuntimeException.class, () -> state.engine.boardSize(13, 13));
+      assertEquals(13, state.engine.width);
+      assertEquals(13, state.engine.height);
+
+      assertTrue(dispatch(state.engine, "=800000001"));
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(
+          state.output
+              .toString(StandardCharsets.UTF_8)
+              .endsWith("komi 5.5\nkomi 6.5\nboardsize 13\n"),
+          state.output.toString(StandardCharsets.UTF_8));
+    } finally {
+      Lizzie.board = previousBoard;
+      Lizzie.leelaz2 = previousSecondEngine;
+    }
+  }
+
+  @Test
   void pendingTypedHandoffRejectsStatefulOrdinaryRequestsWithoutStateOrBytes() throws Exception {
     try (TestState state = TestState.open(reusableLocalKatago())) {
       state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});

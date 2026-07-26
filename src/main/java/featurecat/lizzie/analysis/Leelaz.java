@@ -3088,6 +3088,7 @@ public class Leelaz {
             : "boardsize " + width;
     if (!sendStatefulOrdinaryCommand(command)) return;
     applyBoardSize(width, height, true);
+    mirrorStatefulOrdinaryCommand(command);
   }
 
   public void boardSizeForEngine(int width, int height) {
@@ -3142,6 +3143,7 @@ public class Leelaz {
       Lizzie.board.getHistory().getGameInfo().setKomi(komi);
       //  Lizzie.board.getHistory().getGameInfo().changeKomi();
       Lizzie.board.clearBestMovesAfter(Lizzie.board.getHistory().getStart());
+      mirrorStatefulOrdinaryCommand("komi " + (komi == 0.0 ? "0" : komi));
       if (isPondering) ponder();
     }
   }
@@ -3153,6 +3155,7 @@ public class Leelaz {
       Lizzie.board.getHistory().getGameInfo().setKomiNoMenu(komi);
       //  Lizzie.board.getHistory().getGameInfo().changeKomi();
       Lizzie.board.clearBestMovesAfter(Lizzie.board.getHistory().getStart());
+      mirrorStatefulOrdinaryCommand("komi " + (komi == 0.0 ? "0" : komi));
       if (isPondering) ponder();
     }
   }
@@ -3529,7 +3532,7 @@ public class Leelaz {
             null,
             null,
             false,
-            true,
+            false,
             TrackingReleaseReason.ORDINARY_OPERATION,
             null,
             true);
@@ -3537,6 +3540,14 @@ public class Leelaz {
       rejectNewExclusiveWorkDuringGtpLease();
     }
     return accepted;
+  }
+
+  private void mirrorStatefulOrdinaryCommand(String command) {
+    Leelaz mirroredEngine = resolveDefaultCommandMirrorEngine();
+    if (mirroredEngine != null) {
+      mirroredEngine.sendCommand(command);
+      mirroredEngine.startPonderTime = this.startPonderTime;
+    }
   }
 
   public void cancelPositionEstimateRequest() {
