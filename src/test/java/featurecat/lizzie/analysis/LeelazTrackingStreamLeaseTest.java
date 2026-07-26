@@ -1564,6 +1564,60 @@ class LeelazTrackingStreamLeaseTest {
   }
 
   @Test
+  void komiQueuesBehindOrdinaryTrackingReleaseWithoutReportingBusy() throws Exception {
+    Board previousBoard = Lizzie.board;
+    FeedbackRecordingLeelaz engine = new FeedbackRecordingLeelaz();
+    configureLocalKatago(engine);
+    try (TestState state = TestState.open(engine)) {
+      Lizzie.board = new Board();
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      state.engine.sendCommand("clear_board");
+      state.engine.komi(7.5);
+
+      assertEquals(0, engine.feedbackCount.get());
+      assertTrue(dispatch(state.engine, "=800000001"));
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(
+          state.output.toString(StandardCharsets.UTF_8).endsWith("clear_board\nkomi 7.5\n"),
+          state.output.toString(StandardCharsets.UTF_8));
+    } finally {
+      Lizzie.board = previousBoard;
+    }
+  }
+
+  @Test
+  void boardSizeQueuesBehindOrdinaryTrackingReleaseWithoutReportingBusy() throws Exception {
+    Board previousBoard = Lizzie.board;
+    FeedbackRecordingLeelaz engine = new FeedbackRecordingLeelaz();
+    configureLocalKatago(engine);
+    try (TestState state = TestState.open(engine)) {
+      Lizzie.board =
+          new Board() {
+            @Override
+            public void reopen(int width, int height) {}
+          };
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      state.engine.sendCommand("clear_board");
+      state.engine.boardSize(13, 13);
+
+      assertEquals(0, engine.feedbackCount.get());
+      assertTrue(dispatch(state.engine, "=800000001"));
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(
+          state.output.toString(StandardCharsets.UTF_8).endsWith("clear_board\nboardsize 13\n"),
+          state.output.toString(StandardCharsets.UTF_8));
+    } finally {
+      Lizzie.board = previousBoard;
+    }
+  }
+
+  @Test
   void pendingTypedHandoffRejectsStatefulOrdinaryRequestsWithoutStateOrBytes() throws Exception {
     try (TestState state = TestState.open(reusableLocalKatago())) {
       state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});

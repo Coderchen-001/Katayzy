@@ -3082,7 +3082,7 @@ public class Leelaz {
   }
 
   public void boardSize(int width, int height) {
-    if (rejectNewExclusiveWorkDuringGtpLease()) return;
+    if (!hasTrackingStreamSession() && rejectNewExclusiveWorkDuringGtpLease()) return;
     boardSize(width, height, true);
   }
 
@@ -3133,7 +3133,7 @@ public class Leelaz {
 
   public void komi(double komi) {
     synchronized (this) {
-      if (rejectNewExclusiveWorkDuringGtpLease()) return;
+      if (!hasTrackingStreamSession() && rejectNewExclusiveWorkDuringGtpLease()) return;
       this.komi = (float) komi;
       sendCommand("komi " + (komi == 0.0 ? "0" : komi));
       Lizzie.board.getHistory().getGameInfo().setKomi(komi);
