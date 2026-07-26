@@ -1477,6 +1477,8 @@ class LeelazExclusiveRemoteGtpSessionTest {
     Leelaz previousEngine = Lizzie.leelaz;
     Leelaz engine = reusableKatagoEngine(false, false);
     installOutput(engine);
+    installInput(engine, "info move D4 visits 1\n");
+    AtomicInteger consumerCalls = new AtomicInteger();
     try {
       Lizzie.leelaz = engine;
       assertEquals(
@@ -1484,18 +1486,19 @@ class LeelazExclusiveRemoteGtpSessionTest {
           engine.beginForegroundAnalysisLease(
               new Object(),
               line -> {
+                consumerCalls.incrementAndGet();
                 throw new IllegalStateException("simulated parser failure");
               },
               () -> {},
               () -> {}));
       processCommandResponse(engine, "=800000000");
       assertTrue(dispatch(engine, ""));
-      installInput(engine, "info move D4 visits 1\n");
       Lizzie.leelaz = null;
       engine.isNormalEnd = true;
 
       assertDoesNotThrow(() -> invokeRead(engine));
 
+      assertEquals(1, consumerCalls.get());
       assertFalse(engine.hasExclusiveGtpLease());
       assertFalse(engine.hasExclusiveGtpWorkInProgress());
       assertFalse(engine.isStarted());
