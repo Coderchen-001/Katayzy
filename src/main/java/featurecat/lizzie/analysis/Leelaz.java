@@ -3087,8 +3087,12 @@ public class Leelaz {
             ? "rectangular_boardsize " + width + " " + height
             : "boardsize " + width;
     if (!sendStatefulOrdinaryCommand(command)) return;
-    applyBoardSize(width, height, true);
-    mirrorStatefulOrdinaryCommand(command);
+    applyBoardSize(width, height, false);
+    try {
+      mirrorStatefulOrdinaryCommand(command);
+    } finally {
+      Lizzie.board.reopen(width, height);
+    }
   }
 
   public void boardSizeForEngine(int width, int height) {

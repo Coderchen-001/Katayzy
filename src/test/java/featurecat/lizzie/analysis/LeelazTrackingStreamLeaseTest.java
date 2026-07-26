@@ -12,6 +12,7 @@ import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.gui.GtpConsolePane;
 import featurecat.lizzie.gui.LizzieFrame;
 import featurecat.lizzie.gui.Menu;
+import featurecat.lizzie.gui.WinrateGraph;
 import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.Stone;
 import java.io.BufferedOutputStream;
@@ -1644,6 +1645,36 @@ class LeelazTrackingStreamLeaseTest {
   }
 
   @Test
+  void boardSizeMirrorsBeforeRealBoardReopenCommands() throws Exception {
+    Board previousBoard = Lizzie.board;
+    Leelaz previousSecondEngine = Lizzie.leelaz2;
+    WinrateGraph previousWinrateGraph = LizzieFrame.winrateGraph;
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      Leelaz secondEngine = reusableLocalKatago();
+      ByteArrayOutputStream secondOutput = installOutput(secondEngine);
+      Lizzie.frame = allocate(PonderTrackingFrame.class);
+      LizzieFrame.winrateGraph = allocate(WinrateGraph.class);
+      Lizzie.board = new Board();
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+      Lizzie.config.extraMode = ExtraMode.Double_Engine;
+      Lizzie.leelaz2 = secondEngine;
+
+      state.engine.boardSize(13, 13);
+
+      String mirroredCommands = secondOutput.toString(StandardCharsets.UTF_8);
+      assertTrue(
+          mirroredCommands.startsWith("boardsize 13\nclear_board\n"),
+          mirroredCommands);
+    } finally {
+      Lizzie.board = previousBoard;
+      Lizzie.leelaz2 = previousSecondEngine;
+      LizzieFrame.winrateGraph = previousWinrateGraph;
+    }
+  }
+
+  @Test
   void lifecycleWinnerKeepsKomiAndBoardSizeBusyWhileTrackingSettles() throws Exception {
     Board previousBoard = Lizzie.board;
     FeedbackRecordingLeelaz engine = new FeedbackRecordingLeelaz();
@@ -2938,10 +2969,25 @@ class LeelazTrackingStreamLeaseTest {
 
   private static final class PonderTrackingFrame extends LizzieFrame {
     @Override
+    public void clearTryPlay() {}
+
+    @Override
     public void clearSelectImage() {}
 
     @Override
     public void onMainEnginePonder() {}
+
+    @Override
+    public void resetTitle() {}
+
+    @Override
+    public void clearKataEstimate() {}
+
+    @Override
+    public void redrawBoardrendererBackground() {}
+
+    @Override
+    public void refresh() {}
   }
 
   private static final class FailingMirrorLeelaz extends Leelaz {
