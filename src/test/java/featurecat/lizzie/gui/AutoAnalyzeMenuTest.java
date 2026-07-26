@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.swing.JButton;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import org.junit.jupiter.api.Test;
@@ -20,13 +21,10 @@ class AutoAnalyzeMenuTest {
     ResourceBundle resources =
         ResourceBundle.getBundle("l10n.DisplayStrings", Locale.SIMPLIFIED_CHINESE);
     AtomicInteger activations = new AtomicInteger();
-    AtomicInteger lightningActivations = new AtomicInteger();
 
-    JPopupMenu popup =
-        AutoAnalyzeMenu.create(
-            resources, activations::incrementAndGet, lightningActivations::incrementAndGet);
+    JPopupMenu popup = AutoAnalyzeMenu.create(resources, activations::incrementAndGet);
 
-    assertEquals(13, popup.getComponentCount());
+    assertEquals(8, popup.getComponentCount());
     JMenuItem first = assertInstanceOf(JMenuItem.class, popup.getComponent(0));
     assertEquals("整盘精析（推荐）", first.getText());
     assertEquals("shift ctrl pressed B", first.getAccelerator().toString());
@@ -37,19 +35,11 @@ class AutoAnalyzeMenuTest {
     assertEquals(1, activations.get());
     assertEquals(resources.getString("Menu.autoAnalyze"), menuItem(popup, 1).getText());
     assertInstanceOf(JPopupMenu.Separator.class, popup.getComponent(2));
-    JMenuItem lightning = menuItem(popup, 3);
-    assertEquals("整盘速览（闪电）", lightning.getText());
-    assertEquals("ctrl pressed B", lightning.getAccelerator().toString());
-    assertEquals(
-        AutoAnalyzeMenu.WHOLE_GAME_LIGHTNING_ACTION,
-        lightning.getClientProperty(AutoAnalyzeMenu.ACTION_PROPERTY));
-    lightning.doClick();
-    assertEquals(1, lightningActivations.get());
-    assertEquals(1, activations.get());
+    assertEquals(resources.getString("Menu.batchAnalyze"), menuItem(popup, 3).getText());
   }
 
   @Test
-  void supportedLocalesExplainTheConsolidatedAnalysisEntry() {
+  void supportedLocalesCoverTheSplitAnalysisEntries() {
     List<Locale> locales =
         List.of(
             Locale.SIMPLIFIED_CHINESE,
@@ -76,7 +66,33 @@ class AutoAnalyzeMenuTest {
     }
   }
 
+  @Test
+  void bottomToolbarPopupIsAnchoredDirectlyAboveItsInvoker() {
+    CapturingPopup popup = new CapturingPopup();
+    popup.setPreferredSize(new java.awt.Dimension(180, 140));
+    JButton invoker = new JButton();
+
+    AutoAnalyzeMenu.showAbove(popup, invoker);
+
+    assertEquals(invoker, popup.invoker);
+    assertEquals(0, popup.x);
+    assertEquals(-140, popup.y);
+  }
+
   private static JMenuItem menuItem(JPopupMenu popup, int index) {
     return assertInstanceOf(JMenuItem.class, popup.getComponent(index));
+  }
+
+  private static final class CapturingPopup extends JPopupMenu {
+    private java.awt.Component invoker;
+    private int x;
+    private int y;
+
+    @Override
+    public void show(java.awt.Component invoker, int x, int y) {
+      this.invoker = invoker;
+      this.x = x;
+      this.y = y;
+    }
   }
 }

@@ -13610,7 +13610,7 @@ public class LizzieFrame extends JFrame {
   }
 
   public void destroyAnalysisEngine() {
-    if (wholeGameAnalysisSession != null && wholeGameAnalysisSession.isRunning()) {
+    if (wholeGameAnalysisSession != null && wholeGameAnalysisSession.isActive()) {
       wholeGameAnalysisSession.cancel();
       return;
     }
@@ -13647,7 +13647,7 @@ public class LizzieFrame extends JFrame {
       SwingUtilities.invokeLater(this::openWholeGameDeepAnalysis);
       return;
     }
-    if (wholeGameAnalysisSession != null && wholeGameAnalysisSession.isRunning()) {
+    if (wholeGameAnalysisSession != null && !wholeGameAnalysisSession.isTerminal()) {
       if (wholeGameAnalysisDialog != null) {
         wholeGameAnalysisDialog.showOnScreen();
       }
@@ -13667,14 +13667,36 @@ public class LizzieFrame extends JFrame {
       Utils.showMsg(Lizzie.resourceBundle.getString("WholeGameAnalysis.noGame"));
       return;
     }
+    if (wholeGameAnalysisDialog != null) {
+      wholeGameAnalysisDialog.dispose();
+    }
+    WholeGameAnalysisDialog dialog = new WholeGameAnalysisDialog(this);
+    WholeGameAnalysisSession session = new WholeGameAnalysisSession(this, plan, dialog);
+    dialog.setSession(session);
+    wholeGameAnalysisDialog = dialog;
+    wholeGameAnalysisSession = session;
+    dialog.showOnScreen();
+    session.publishReady();
+  }
+
+  boolean startWholeGameDeepAnalysis(WholeGameAnalysisSession session) {
+    if (session == null
+        || session != wholeGameAnalysisSession
+        || session.state() != WholeGameAnalysisSession.State.IDLE) {
+      return false;
+    }
+    if (!session.matchesCurrentGame()) {
+      Utils.showMsg(Lizzie.resourceBundle.getString("WholeGameAnalysis.error.gameChanged"));
+      return false;
+    }
     if (isWholeGameAnalysisConflict()) {
       Utils.showMsg(Lizzie.resourceBundle.getString("WholeGameAnalysis.conflict"));
-      return;
+      return false;
     }
     if (analysisEngine != null && analysisEngine.isAnalysisInProgress()) {
       if (!analysisEngine.isSilentAnalysisInProgress()) {
         Utils.showMsg(Lizzie.resourceBundle.getString("WholeGameAnalysis.conflict.analysis"));
-        return;
+        return false;
       }
       analysisEngine.clearRequestCallbacks();
       analysisEngine.normalQuit();
@@ -13688,17 +13710,28 @@ public class LizzieFrame extends JFrame {
     synchronized (pendingQuickAnalysisCallbacks) {
       pendingQuickAnalysisCallbacks.clear();
     }
-    if (wholeGameAnalysisDialog != null) {
-      wholeGameAnalysisDialog.dispose();
-    }
-    WholeGameAnalysisDialog dialog = new WholeGameAnalysisDialog(this);
-    WholeGameAnalysisSession session = new WholeGameAnalysisSession(this, plan, dialog);
-    dialog.setSession(session);
-    activateWholeGameAnalysisResultView(plan.root());
-    wholeGameAnalysisDialog = dialog;
-    wholeGameAnalysisSession = session;
-    dialog.showOnScreen();
+    activateWholeGameAnalysisResultView(Lizzie.board.getHistory().getStart());
     session.start();
+    return session.state() != WholeGameAnalysisSession.State.IDLE;
+  }
+
+  void closeWholeGameAnalysisDialog(
+      WholeGameAnalysisDialog dialog, WholeGameAnalysisSession session) {
+    if (dialog != wholeGameAnalysisDialog) {
+      dialog.dispose();
+      return;
+    }
+    if (session != null && session.isActive()) {
+      dialog.setVisible(false);
+      setMainPanelFocus();
+      return;
+    }
+    wholeGameAnalysisDialog = null;
+    if (wholeGameAnalysisSession == session) {
+      wholeGameAnalysisSession = null;
+    }
+    dialog.dispose();
+    setMainPanelFocus();
   }
 
   public void attachWholeGameAnalysisEngine(
@@ -13757,7 +13790,7 @@ public class LizzieFrame extends JFrame {
   }
 
   private boolean isWholeGameAnalysisStartingOrRunning() {
-    return wholeGameAnalysisSession != null && wholeGameAnalysisSession.isRunning();
+    return wholeGameAnalysisSession != null && wholeGameAnalysisSession.isActive();
   }
 
   boolean runWithForegroundEngineModeReservation(Runnable action) {

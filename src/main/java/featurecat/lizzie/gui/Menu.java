@@ -7582,7 +7582,7 @@ public class Menu extends JMenuBar {
             public void actionPerformed(ActionEvent e) {
               Lizzie.frame.startEngineGameDialog();
             }
-      });
+          });
       setToolTipJMenu(engineGame);
       JFontMenuItem analyzeGame = createAnalyzeModeGameItem();
 
@@ -7687,7 +7687,7 @@ public class Menu extends JMenuBar {
       ImageIcon iconNewFile = ToolbarIconCache.get("/assets/newFile.png", iconSize, brightenIcons);
       ImageIcon iconOpen = ToolbarIconCache.get("/assets/open.png", iconSize, brightenIcons);
       ImageIcon iconSave = ToolbarIconCache.get("/assets/save.png", iconSize, brightenIcons);
-      ImageIcon iconAnalyze = ToolbarIconCache.get("/assets/analyze.png", iconSize, brightenIcons);
+      ImageIcon iconFlash = ToolbarIconCache.get("/assets/flash.png", iconSize, brightenIcons);
       ImageIcon iconHawkeye = ToolbarIconCache.get("/assets/hawkeye2.png", iconSize, brightenIcons);
       ImageIcon iconSetMain = ToolbarIconCache.get("/assets/setmain.png", iconSize, brightenIcons);
       ImageIcon iconBackMain =
@@ -7823,22 +7823,16 @@ public class Menu extends JMenuBar {
             }
           });
 
-      JFontButton btnAnalyze = new JFontButton(iconAnalyze);
-      btnAnalyze.setFocusable(false);
-      AppleStyleSupport.markPrimary(btnAnalyze);
-      btnAnalyze.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
-      btnAnalyze.setToolTipText(
-          resourceBundle.getString("Menu.btnAnalyze.toolTipText")); // ("自动分析(A)");
-      btnAnalyze
+      JFontButton btnFlashAnalyze = new JFontButton(iconFlash);
+      btnFlashAnalyze.setFocusable(false);
+      btnFlashAnalyze.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnFlashAnalyze.setToolTipText(resourceBundle.getString("Menu.btnAnalyze.btnFlashAnalyze"));
+      btnFlashAnalyze
           .getAccessibleContext()
-          .setAccessibleDescription(resourceBundle.getString("Menu.btnAnalyze.toolTipText"));
-      JPopupMenu autoAnalyzePopup = AutoAnalyzeMenu.create(resourceBundle);
-      btnAnalyze.addActionListener(
-          e ->
-              autoAnalyzePopup.show(
-                  Lizzie.frame.topPanel,
-                  btnAnalyze.getX(),
-                  btnAnalyze.getY() + btnAnalyze.getHeight()));
+          .setAccessibleDescription(resourceBundle.getString("Menu.btnAnalyze.btnFlashAnalyze"));
+      JPopupMenu flashAnalyzePopup = FlashAnalyzeMenu.create(resourceBundle);
+      btnFlashAnalyze.addActionListener(
+          event -> FlashAnalyzeMenu.showBelow(flashAnalyzePopup, btnFlashAnalyze));
 
       JFontButton btnHawkeye = new JFontButton(iconHawkeye);
       btnHawkeye.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
@@ -8072,7 +8066,7 @@ public class Menu extends JMenuBar {
       Lizzie.frame.topPanel.leftArea.add(btnTencentKifu);
       Lizzie.frame.topPanel.leftArea.add(btnPlayerStrengthEstimate);
       Lizzie.frame.topPanel.centerArea.add(btnAutoSetup);
-      Lizzie.frame.topPanel.centerArea.add(btnAnalyze);
+      Lizzie.frame.topPanel.centerArea.add(btnFlashAnalyze);
 
       Lizzie.frame.topPanel.rightArea.add(btnHawkeye);
       Lizzie.frame.topPanel.rightArea.add(btnRankMark);
