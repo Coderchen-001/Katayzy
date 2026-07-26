@@ -3082,18 +3082,21 @@ public class Leelaz {
   }
 
   public void boardSize(int width, int height) {
-    if (!canAdmitStatefulOrdinaryDuringTracking()
-        && rejectNewExclusiveWorkDuringGtpLease()) return;
-    boardSize(width, height, true);
+    String command =
+        width != height
+            ? "rectangular_boardsize " + width + " " + height
+            : "boardsize " + width;
+    if (!sendStatefulOrdinaryCommand(command)) return;
+    applyBoardSize(width, height, true);
   }
 
   public void boardSizeForEngine(int width, int height) {
-    boardSize(width, height, false);
-  }
-
-  private void boardSize(int width, int height, boolean reopenMainBoard) {
     if (width != height) sendCommand("rectangular_boardsize " + width + " " + height);
     else sendCommand("boardsize " + width);
+    applyBoardSize(width, height, false);
+  }
+
+  private void applyBoardSize(int width, int height, boolean reopenMainBoard) {
     this.width = width;
     this.height = height;
     if (reopenMainBoard) Lizzie.board.reopen(width, height);
@@ -3134,10 +3137,8 @@ public class Leelaz {
 
   public void komi(double komi) {
     synchronized (this) {
-      if (!canAdmitStatefulOrdinaryDuringTracking()
-          && rejectNewExclusiveWorkDuringGtpLease()) return;
+      if (!sendStatefulOrdinaryCommand("komi " + (komi == 0.0 ? "0" : komi))) return;
       this.komi = (float) komi;
-      sendCommand("komi " + (komi == 0.0 ? "0" : komi));
       Lizzie.board.getHistory().getGameInfo().setKomi(komi);
       //  Lizzie.board.getHistory().getGameInfo().changeKomi();
       Lizzie.board.clearBestMovesAfter(Lizzie.board.getHistory().getStart());
@@ -3147,10 +3148,8 @@ public class Leelaz {
 
   public void komiNoMenu(double komi) {
     synchronized (this) {
-      if (!canAdmitStatefulOrdinaryDuringTracking()
-          && rejectNewExclusiveWorkDuringGtpLease()) return;
+      if (!sendStatefulOrdinaryCommand("komi " + (komi == 0.0 ? "0" : komi))) return;
       this.komi = (float) komi;
-      sendCommand("komi " + (komi == 0.0 ? "0" : komi));
       Lizzie.board.getHistory().getGameInfo().setKomiNoMenu(komi);
       //  Lizzie.board.getHistory().getGameInfo().changeKomi();
       Lizzie.board.clearBestMovesAfter(Lizzie.board.getHistory().getStart());
@@ -3523,15 +3522,21 @@ public class Leelaz {
     }
   }
 
-  private boolean canAdmitStatefulOrdinaryDuringTracking() {
-    synchronized (engineArbitrationLock()) {
-      return isTrackingStreamSession(exclusiveGtpSession)
-          && trackingHandoffGate == null
-          && !foregroundRestoreInProgress
-          && !exclusiveGtpLifecycleTransition
-          && readBoardGmaReservation == null
-          && !engineStateUnrestored;
+  private boolean sendStatefulOrdinaryCommand(String command) {
+    boolean accepted =
+        sendCommand(
+            command,
+            null,
+            null,
+            false,
+            true,
+            TrackingReleaseReason.ORDINARY_OPERATION,
+            null,
+            true);
+    if (!accepted) {
+      rejectNewExclusiveWorkDuringGtpLease();
     }
+    return accepted;
   }
 
   public void cancelPositionEstimateRequest() {
@@ -4097,7 +4102,7 @@ public class Leelaz {
       boolean mirrorToSecondEngine,
       TrackingReleaseReason releaseReason,
       QueuedCommandSettlement settlement,
-      boolean rejectForPendingHandoff) {
+      boolean rejectForExclusiveWinner) {
     if (shouldDropStaleForegroundRestoreCommand()
         || shouldSuppressNormalCommandForForegroundAnalysis()) {
       return false;
@@ -4145,7 +4150,7 @@ public class Leelaz {
         failOnSendError || foregroundRestoreCommandSession.get() != null,
         settlement,
         releaseReason,
-        rejectForPendingHandoff,
+        rejectForExclusiveWinner,
         true,
         false)) {
       return false;
@@ -4169,7 +4174,7 @@ public class Leelaz {
       boolean failOnSendError,
       QueuedCommandSettlement settlement,
       TrackingReleaseReason releaseReason,
-      boolean rejectForPendingHandoff,
+      boolean rejectForExclusiveWinner,
       boolean countCommand,
       boolean noLeelaz2Coalescing) {
     ArrayDeque<QueuedCommand> currentQueue = commandQueue();
@@ -4205,7 +4210,15 @@ public class Leelaz {
       synchronized (commandQueue()) {
         if (shouldDropStaleForegroundRestoreCommand()
             || shouldSuppressNormalCommandForForegroundAnalysis()
-            || (rejectForPendingHandoff && trackingHandoffGate != null)) {
+            || (rejectForExclusiveWinner
+                && (engineStateUnrestored
+                    || readBoardGmaReservation != null
+                    || trackingHandoffGate != null
+                    || foregroundRestoreInProgress
+                    || (exclusiveGtpLifecycleTransition
+                        && exclusiveGtpLifecycleOwner != Thread.currentThread())
+                    || (exclusiveGtpSession != null
+                        && !isTrackingStreamSession(exclusiveGtpSession))))) {
           return false;
         }
         trackingSession = exclusiveGtpSession;
