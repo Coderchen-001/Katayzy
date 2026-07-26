@@ -14,7 +14,6 @@ import featurecat.lizzie.analysis.Leelaz;
 import featurecat.lizzie.analysis.MoveRankDefinition;
 import featurecat.lizzie.analysis.PlayerStrengthEstimator;
 import featurecat.lizzie.analysis.ReadBoard;
-import featurecat.lizzie.analysis.TrackingEngine;
 import featurecat.lizzie.analysis.remote.RemoteComputeConfig;
 import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardData;
@@ -1019,47 +1018,6 @@ class LizzieFrameRegressionTest {
   }
 
   @Test
-  void trackingEngineStartupReplaysQueuedPointWithoutOpeningConsole() throws Exception {
-    TestEnvironment env = TestEnvironment.open();
-    try {
-      Lizzie.config = configWithAutoQuickAnalyze(false);
-      Lizzie.board = boardWith(historyWithUnanalyzedMove());
-      TrackingLeelaz leelaz = allocate(TrackingLeelaz.class);
-      leelaz.engineCommand = "katago gtp -model test.bin";
-      Lizzie.leelaz = leelaz;
-      TrackingStartupFrame frame = allocate(TrackingStartupFrame.class);
-      frame.engine = new StartupTrackingEngine();
-      frame.trackedCoords = Collections.synchronizedSet(new LinkedHashSet<>());
-      frame.trackedCoords.add("A1");
-      setField(
-          frame,
-          "trackingEngineStarting",
-          new java.util.concurrent.atomic.AtomicBoolean(false));
-      Lizzie.frame = frame;
-
-      frame.ensureTrackingEngine();
-
-      assertTrue(
-          frame.engine.started.await(2, TimeUnit.SECONDS),
-          "tracking engine should start in the background.");
-      drainEdt();
-      assertTrue(
-          frame.engine.requestSent.await(2, TimeUnit.SECONDS),
-          "queued point should be analyzed after startup.");
-
-      assertEquals(0, frame.engine.consoleAttachCount, "tracking console should stay hidden.");
-      assertEquals(1, frame.engine.requestCount, "queued point should be analyzed after startup.");
-      assertSame(
-          Lizzie.board.getHistory().getCurrentHistoryNode(),
-          frame.engine.lastNode,
-          "tracking analysis should target the current board node.");
-      assertEquals(Set.of("A1"), frame.engine.lastCoords);
-    } finally {
-      env.close();
-    }
-  }
-
-  @Test
   void silentQuickAnalyzeCompletionRestartsForegroundAnalysisForCurrentPosition()
       throws Exception {
     TestEnvironment env = TestEnvironment.open();
@@ -2050,52 +2008,6 @@ class LizzieFrameRegressionTest {
     @Override
     public boolean stopAiPlayingAndPolicy() {
       return false;
-    }
-  }
-
-  private static final class TrackingStartupFrame extends LizzieFrame {
-    private StartupTrackingEngine engine;
-
-    @Override
-    protected TrackingEngine createTrackingEngine() {
-      return engine;
-    }
-
-    @Override
-    public void refresh() {}
-  }
-
-  private static final class StartupTrackingEngine extends TrackingEngine {
-    private final CountDownLatch started = new CountDownLatch(1);
-    private final CountDownLatch requestSent = new CountDownLatch(1);
-    private volatile boolean loaded;
-    private int requestCount;
-    private int consoleAttachCount;
-    private BoardHistoryNode lastNode;
-    private Set<String> lastCoords;
-
-    @Override
-    public void startEngine(String engineCommand) {
-      loaded = true;
-      started.countDown();
-    }
-
-    @Override
-    public boolean isLoaded() {
-      return loaded;
-    }
-
-    @Override
-    public void sendTrackingRequest(BoardHistoryNode node, Set<String> trackedCoords) {
-      requestCount++;
-      lastNode = node;
-      lastCoords = new LinkedHashSet<>(trackedCoords);
-      requestSent.countDown();
-    }
-
-    @Override
-    public void setConsolePane(TrackingConsolePane pane) {
-      consoleAttachCount++;
     }
   }
 

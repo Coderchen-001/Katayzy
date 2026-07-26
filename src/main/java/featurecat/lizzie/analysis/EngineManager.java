@@ -2003,8 +2003,7 @@ public class EngineManager {
       Lizzie.leelaz.notPondering();
       Lizzie.leelaz.isLoaded = true;
       Menu.engineMenu.setText(resourceBundle.getString("Menu.noEngine"));
-      Lizzie.frame.clearTrackedCoords();
-      Lizzie.frame.destroyTrackingEngine();
+      Lizzie.frame.clearTrackingPoints();
       Lizzie.frame.refresh();
     } finally {
       if (reservation != null) {
@@ -2149,8 +2148,7 @@ public class EngineManager {
       Lizzie.leelaz.isLoaded = true;
       Lizzie.leelaz.notPondering();
       Lizzie.leelaz.clearBestMoves();
-      Lizzie.frame.clearTrackedCoords();
-      Lizzie.frame.destroyTrackingEngine();
+      Lizzie.frame.clearTrackingPoints();
     } finally {
       if (reservation != null) {
         reservation.close();
@@ -2457,19 +2455,7 @@ public class EngineManager {
       if (isMain) Lizzie.leelaz = newEng;
       else Lizzie.leelaz2 = newEng;
       if (isMain && Lizzie.frame != null) {
-        if (newEng.isKatago) {
-          Lizzie.frame.destroyTrackingEngineSync();
-          boolean hasTracked;
-          synchronized (Lizzie.frame.trackedCoords) {
-            hasTracked = !Lizzie.frame.trackedCoords.isEmpty();
-          }
-          if (hasTracked) {
-            Lizzie.frame.ensureTrackingEngine();
-          }
-        } else {
-          Lizzie.frame.clearTrackedCoords();
-          Lizzie.frame.destroyTrackingEngine();
-        }
+        Lizzie.frame.clearTrackingPoints();
       }
       boolean changedKomi = Lizzie.board.getHistory().getGameInfo().changedKomi;
       if (!isMain || changedKomi) {

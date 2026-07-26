@@ -2,7 +2,7 @@ package featurecat.lizzie.analysis;
 
 import java.util.Objects;
 
-/** Dormant bridge between a stable ReadBoard frame and the tracking controller. */
+/** Bridge between a stable ReadBoard frame and the tracking controller. */
 public final class ReadBoardTrackingEligibilityAdapter {
   public enum Reason {
     STABLE,

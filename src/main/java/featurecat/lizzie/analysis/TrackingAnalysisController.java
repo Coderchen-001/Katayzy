@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
-/** Owns dormant single-stream tracking requests and their immutable display state. */
+/** Owns single-stream tracking requests and their immutable display state. */
 public final class TrackingAnalysisController {
   static final long PROGRESS_TIMEOUT_MILLIS = 8000L;
 

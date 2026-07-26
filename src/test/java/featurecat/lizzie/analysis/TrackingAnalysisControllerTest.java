@@ -452,7 +452,7 @@ class TrackingAnalysisControllerTest {
   }
 
   @Test
-  void controllerRemainsDormantAndLegacyTrackingOwnsProductionEntry() throws Exception {
+  void productionCutoverReferencesControllerAndHasNoLegacyTrackingRuntime() throws Exception {
     Path productionRoot = Path.of("src/main/java");
     List<Path> productionReferences;
     try (java.util.stream.Stream<Path> files = Files.walk(productionRoot)) {
@@ -480,13 +480,22 @@ class TrackingAnalysisControllerTest {
             Path.of("src/main/java/featurecat/lizzie/analysis/TrackingAnalysisController.java"),
             StandardCharsets.UTF_8);
 
-    assertEquals(
-        List.of(
+    assertTrue(
+        productionReferences.contains(
             Path.of(
-                "src/main/java/featurecat/lizzie/analysis/ReadBoardTrackingEligibilityAdapter.java")),
-        productionReferences);
-    assertTrue(rightClick.contains("ensureTrackingEngineWithWarning()"));
-    assertTrue(rightClick.contains("triggerTrackingAnalysis()"));
+                "src/main/java/featurecat/lizzie/analysis/ReadBoardTrackingEligibilityAdapter.java")));
+    assertTrue(
+        productionReferences.contains(
+            Path.of("src/main/java/featurecat/lizzie/gui/LizzieFrame.java")));
+    assertTrue(
+        productionReferences.contains(
+            Path.of("src/main/java/featurecat/lizzie/gui/BoardRenderer.java")));
+    assertTrue(rightClick.contains("addTrackingPoint("));
+    assertTrue(rightClick.contains("removeTrackingPoint("));
+    assertFalse(rightClick.contains("ensureTrackingEngineWithWarning()"));
+    assertFalse(rightClick.contains("triggerTrackingAnalysis()"));
+    assertFalse(Files.exists(Path.of("src/main/java/featurecat/lizzie/analysis/TrackingEngine.java")));
+    assertFalse(Files.exists(Path.of("src/main/java/featurecat/lizzie/gui/TrackingConsolePane.java")));
     assertFalse(controllerSource.contains("AnalysisRequestBuilder"));
     assertFalse(controllerSource.contains("Lizzie.board"));
     assertFalse(controllerSource.contains("BoardHistory"));

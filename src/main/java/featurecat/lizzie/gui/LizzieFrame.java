@@ -22,9 +22,10 @@ import featurecat.lizzie.analysis.MoveRankDefinition;
 import featurecat.lizzie.analysis.OwnershipEstimate;
 import featurecat.lizzie.analysis.PlayerStrengthEstimator;
 import featurecat.lizzie.analysis.ReadBoard;
+import featurecat.lizzie.analysis.ReadBoardTrackingEligibilityAdapter;
 import featurecat.lizzie.analysis.ReadBoardUpdateInstaller;
 import featurecat.lizzie.analysis.ReadBoardUpdateRequest;
-import featurecat.lizzie.analysis.TrackingEngine;
+import featurecat.lizzie.analysis.TrackingAnalysisController;
 import featurecat.lizzie.analysis.WholeGameAnalysisPlan;
 import featurecat.lizzie.analysis.WholeGameAnalysisSession;
 import featurecat.lizzie.analysis.remote.RemoteComputeConfig;
@@ -541,10 +542,7 @@ public class LizzieFrame extends JFrame {
   private final java.util.List<Runnable> pendingQuickAnalysisCallbacks =
       new java.util.ArrayList<Runnable>();
   private javax.swing.Timer quickAnalysisNavigationResumeTimer;
-  public volatile TrackingEngine trackingEngine;
-  public TrackingConsolePane trackingConsolePane;
-  public Set<String> trackedCoords = Collections.synchronizedSet(new LinkedHashSet<>());
-  public volatile boolean isKeepTracking = false;
+  private volatile TrackingAnalysisController trackingAnalysisController;
   private boolean redrawWinratePaneOnly = false;
   public boolean mouseOverChanged = false;
   public boolean isAutoReplying = false;
@@ -13854,197 +13852,145 @@ public class LizzieFrame extends JFrame {
     Utils.showMsg(Lizzie.resourceBundle.getString(key));
   }
 
-  private final java.util.concurrent.atomic.AtomicBoolean trackingEngineStarting =
-      new java.util.concurrent.atomic.AtomicBoolean(false);
-
-  public void ensureTrackingEngine() {
-    if (trackingEngine != null && trackingEngine.isLoaded()) return;
-    if (!trackingEngineStarting.compareAndSet(false, true)) return;
-    boolean threadStarted = false;
-    try {
-      if (trackingEngine != null && trackingEngine.isLoaded()) return;
-      String engineCmd = Lizzie.leelaz != null ? Lizzie.leelaz.engineCommand : "";
-      if (engineCmd == null || engineCmd.trim().isEmpty()) return;
-      TrackingEngine previous = trackingEngine;
-      TrackingEngine engine = createTrackingEngine();
-      synchronized (trackedCoords) {
-        trackingEngine = engine;
-        lastTrackingPonderNode = null;
+  public TrackingAnalysisController trackingAnalysisController() {
+    TrackingAnalysisController controller = trackingAnalysisController;
+    if (controller != null) {
+      return controller;
+    }
+    synchronized (this) {
+      if (trackingAnalysisController == null) {
+        trackingAnalysisController = new TrackingAnalysisController();
       }
-      SwingUtilities.invokeLater(
-          () -> {
-            if (trackingConsolePane != null && trackingConsolePane.isDisplayable()) {
-              engine.setConsolePane(trackingConsolePane);
-            }
-          });
-      threadStarted = true;
-      new Thread(
-              () -> {
-                try {
-                  if (previous != null) {
-                    try {
-                      previous.shutdown();
-                    } catch (Throwable t) {
-                      t.printStackTrace();
-                    }
-                  }
-                  if (engine != trackingEngine) return;
-                  engine.startEngine(engineCmd);
-                  if (engine == trackingEngine && engine.isLoaded()) {
-                    SwingUtilities.invokeLater(this::triggerTrackingAnalysis);
-                  }
-                } finally {
-                  trackingEngineStarting.set(false);
-                }
-              })
-          .start();
-    } finally {
-      if (!threadStarted) trackingEngineStarting.set(false);
+      return trackingAnalysisController;
     }
   }
 
-  protected TrackingEngine createTrackingEngine() {
-    return new TrackingEngine();
+  public TrackingAnalysisController.AddResult addTrackingPoint(String coordinate) {
+    TrackingAnalysisController.Context context = currentTrackingContext();
+    if (context == null) {
+      return TrackingAnalysisController.AddResult.LEASE_UNAVAILABLE;
+    }
+    TrackingAnalysisController controller = trackingAnalysisController();
+    if (readBoard == null) {
+      return controller.addPoint(coordinate, context);
+    }
+    return new ReadBoardTrackingEligibilityAdapter(controller, readBoard)
+        .addPoint(coordinate, context);
   }
 
-  public boolean ensureTrackingEngineWithWarning() {
-    if (trackingEngine != null && trackingEngine.isLoaded()) return true;
-    ensureTrackingEngine();
-    return trackingEngine != null || trackingEngineStarting.get();
+  public boolean removeTrackingPoint(String coordinate) {
+    TrackingAnalysisController controller = trackingAnalysisController;
+    return controller != null && controller.removePoint(coordinate);
   }
 
-  private boolean showTrackingEngineWarning() {
-    JCheckBox chkDontAsk =
-        new JCheckBox(Lizzie.resourceBundle.getString("LizzieFrame.trackingDontAskAgain"));
-    Object[] message = {
-      Lizzie.resourceBundle.getString("LizzieFrame.trackingEngineWarning"), chkDontAsk
-    };
-    int result =
-        JOptionPane.showConfirmDialog(
-            this,
-            message,
-            Lizzie.resourceBundle.getString("LizzieFrame.trackingEngineWarningTitle"),
-            JOptionPane.OK_CANCEL_OPTION,
-            JOptionPane.WARNING_MESSAGE);
-    if (result == JOptionPane.OK_OPTION) {
-      if (chkDontAsk.isSelected()) {
-        Lizzie.config.trackingEngineSkipWarning = true;
-        Lizzie.config.uiConfig.put("tracking-engine-skip-warning", true);
-      }
-      return true;
+  public void clearTrackingPoints() {
+    TrackingAnalysisController controller = trackingAnalysisController;
+    if (controller != null) {
+      controller.clear();
     }
-    return false;
-  }
-
-  public void destroyTrackingEngine() {
-    TrackingEngine te;
-    synchronized (trackedCoords) {
-      te = trackingEngine;
-      trackingEngine = null;
-      lastTrackingPonderNode = null;
-    }
-    if (te != null) {
-      new Thread(
-              () -> {
-                try {
-                  te.shutdown();
-                } catch (Throwable t) {
-                  t.printStackTrace();
-                }
-              })
-          .start();
-    }
-  }
-
-  public void destroyTrackingEngineSync() {
-    TrackingEngine te;
-    synchronized (trackedCoords) {
-      te = trackingEngine;
-      trackingEngine = null;
-      lastTrackingPonderNode = null;
-    }
-    if (te != null) {
-      try {
-        te.shutdown();
-      } catch (Throwable t) {
-        t.printStackTrace();
-      }
-    }
-  }
-
-  public void toggleTrackingConsole() {
-    SwingUtilities.invokeLater(
-        () -> {
-          if (trackingConsolePane == null || !trackingConsolePane.isDisplayable()) {
-            trackingConsolePane = new TrackingConsolePane();
-            TrackingEngine te = trackingEngine;
-            if (te != null) te.setConsolePane(trackingConsolePane);
-          }
-          trackingConsolePane.setVisible(!trackingConsolePane.isVisible());
-        });
-  }
-
-  public void clearTrackedCoords() {
-    synchronized (trackedCoords) {
-      trackedCoords.clear();
-      isKeepTracking = false;
-      lastTrackingPonderNode = null;
-    }
-    TrackingEngine te = trackingEngine;
-    if (te != null) te.clearTrackedMoves();
     refresh();
   }
 
-  public void triggerTrackingAnalysis() {
-    if (Lizzie.board == null) return;
-    BoardHistoryNode node = Lizzie.board.getHistory().getCurrentHistoryNode();
-    TrackingEngine teSnapshot;
-    Set<String> snapshot;
-    synchronized (trackedCoords) {
-      lastTrackingPonderNode = node;
-      teSnapshot = trackingEngine;
-      if (teSnapshot == null || !teSnapshot.isLoaded()) return;
-      if (trackedCoords.isEmpty()) return;
-      snapshot = new java.util.LinkedHashSet<>(trackedCoords);
-    }
-    teSnapshot.sendTrackingRequest(node, snapshot);
+  public boolean isTrackingPoint(String coordinate) {
+    TrackingAnalysisController controller = trackingAnalysisController;
+    return controller != null && controller.snapshot().selectedPoints().contains(coordinate);
   }
 
-  private volatile BoardHistoryNode lastTrackingPonderNode;
+  public boolean hasTrackingPoints() {
+    TrackingAnalysisController controller = trackingAnalysisController;
+    return controller != null && !controller.snapshot().selectedPoints().isEmpty();
+  }
+
+  public boolean canStartTrackingAnalysis() {
+    if (Lizzie.board == null
+        || Lizzie.leelaz == null
+        || !Lizzie.leelaz.isEligibleLocalKataGoForReadBoardTracking()
+        || Lizzie.board.getHistory() == null) {
+      return false;
+    }
+    BoardHistoryNode currentNode = Lizzie.board.getHistory().getCurrentHistoryNode();
+    if (currentNode == null || getDisplayNode() != currentNode) {
+      return false;
+    }
+    if (readBoard == null) {
+      return true;
+    }
+    ReadBoardTrackingEligibilityAdapter.Snapshot snapshot = readBoard.snapshot();
+    return snapshot.stable() && snapshot.nodeIdentity() == currentNode;
+  }
+
+  public TrackingAnalysisController.DisplaySnapshot trackingDisplaySnapshot() {
+    return trackingAnalysisController().snapshot();
+  }
+
+  public boolean isTrackingDisplayCurrent(
+      TrackingAnalysisController.DisplaySnapshot displaySnapshot) {
+    if (displaySnapshot == null
+        || displaySnapshot.context() == null
+        || Lizzie.board == null
+        || Lizzie.board.getHistory() == null) {
+      return false;
+    }
+    BoardHistoryList history = Lizzie.board.getHistory();
+    BoardHistoryNode currentNode = history.getCurrentHistoryNode();
+    return displaySnapshot.context().historyIdentity() == history
+        && displaySnapshot.context().displayNodeIdentity() == currentNode
+        && getDisplayNode() == currentNode;
+  }
+
+  private TrackingAnalysisController.Context currentTrackingContext() {
+    if (Lizzie.config == null || !canStartTrackingAnalysis()) {
+      return null;
+    }
+    BoardHistoryList history = Lizzie.board.getHistory();
+    if (history == null) {
+      return null;
+    }
+    BoardHistoryNode node = history.getCurrentHistoryNode();
+    if (node == null || getDisplayNode() != node) {
+      return null;
+    }
+    TrackingAnalysisController.ReadBoardContext readBoardContext = null;
+    if (readBoard != null) {
+      ReadBoardTrackingEligibilityAdapter.Snapshot readBoardSnapshot = readBoard.snapshot();
+      if (!readBoardSnapshot.stable() || readBoardSnapshot.nodeIdentity() != node) {
+        return null;
+      }
+      readBoardContext =
+          new TrackingAnalysisController.ReadBoardContext(
+              readBoardSnapshot.identity(),
+              readBoardSnapshot.revision(),
+              readBoardSnapshot.nodeIdentity(),
+              readBoardSnapshot.boardRevision());
+    }
+    BoardData data = node.getData();
+    return new TrackingAnalysisController.Context(
+        history,
+        node,
+        Board.boardWidth,
+        Board.boardHeight,
+        java.util.Arrays.toString(data.stones),
+        data.blackToPlay,
+        Lizzie.config.currentKataGoRules == null ? "" : Lizzie.config.currentKataGoRules,
+        history.getGameInfo().getKomi(),
+        Lizzie.leelaz,
+        Lizzie.leelaz.trackingStreamIncarnation(),
+        new TrackingAnalysisController.Parameters(
+            Math.max(1, Lizzie.config.analyzeUpdateIntervalCentisec),
+            Math.max(1, Lizzie.config.trackingAnalysisMaxVisits)),
+        readBoardContext);
+  }
 
   public void onMainEnginePonder() {
-    if (Lizzie.board == null) return;
-    BoardHistoryNode currentNode = Lizzie.board.getHistory().getCurrentHistoryNode();
-    boolean shouldTrigger = false;
-    boolean shouldClearAndRefresh = false;
-    Set<String> snapshot = null;
-    TrackingEngine teSnapshot = null;
-    synchronized (trackedCoords) {
-      if (trackedCoords.isEmpty()) {
-        lastTrackingPonderNode = null;
-        return;
-      }
-      if (currentNode == lastTrackingPonderNode) return;
-      lastTrackingPonderNode = currentNode;
-      if (isKeepTracking) {
-        teSnapshot = trackingEngine;
-        if (teSnapshot == null || !teSnapshot.isLoaded()) {
-          lastTrackingPonderNode = null;
-          return;
-        }
-        snapshot = new java.util.LinkedHashSet<>(trackedCoords);
-        shouldTrigger = true;
-      } else {
-        trackedCoords.clear();
-        teSnapshot = trackingEngine;
-        shouldClearAndRefresh = true;
-      }
+    TrackingAnalysisController controller = trackingAnalysisController;
+    if (controller == null) {
+      return;
     }
-    if (shouldTrigger) {
-      teSnapshot.sendTrackingRequest(currentNode, snapshot);
-    } else if (shouldClearAndRefresh) {
-      if (teSnapshot != null) teSnapshot.clearTrackedMoves();
-      refresh();
+    TrackingAnalysisController.Context context = currentTrackingContext();
+    if (context == null) {
+      controller.clear();
+    } else {
+      controller.contextChanged(context);
     }
   }
 
