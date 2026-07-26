@@ -13,6 +13,7 @@ import featurecat.lizzie.gui.GtpConsolePane;
 import featurecat.lizzie.gui.LizzieFrame;
 import featurecat.lizzie.gui.Menu;
 import featurecat.lizzie.rules.Board;
+import featurecat.lizzie.rules.Stone;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -1725,6 +1726,37 @@ class LeelazTrackingStreamLeaseTest {
   }
 
   @Test
+  void navigationAfterTrackingQueuesPonderForTheNewPosition() throws Exception {
+    Board previousBoard = Lizzie.board;
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      Lizzie.board = new Board();
+      Lizzie.frame = allocate(PonderTrackingFrame.class);
+      Lizzie.config.analyzeBlack = true;
+      Lizzie.config.analyzeWhite = true;
+      Lizzie.config.analyzeUpdateIntervalCentisec = 10;
+      state.engine.Pondering();
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(acquisition.lease().send("kata-analyze 10 allow B D4 1 allow W D4 1"));
+      assertTrue(dispatch(state.engine, "=800000001"));
+      assertTrue(dispatch(state.engine, "info move D4 visits 1"));
+      assertTrue(dispatch(state.engine, ""));
+
+      state.engine.playMove(Stone.BLACK, "D4", true, false);
+
+      assertTrue(state.engine.isPondering());
+      assertTrue(dispatch(state.engine, "=800000002"));
+      assertTrue(dispatch(state.engine, ""));
+      String output = state.output.toString(StandardCharsets.UTF_8);
+      assertTrue(output.lastIndexOf("kata-analyze") > output.lastIndexOf("play B D4"), output);
+    } finally {
+      Lizzie.board = previousBoard;
+    }
+  }
+
+  @Test
   void pendingTypedHandoffRejectsStatefulOrdinaryRequestsWithoutStateOrBytes() throws Exception {
     try (TestState state = TestState.open(reusableLocalKatago())) {
       state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
@@ -2842,6 +2874,14 @@ class LeelazTrackingStreamLeaseTest {
     void showExclusiveGtpConflictMessage() {
       feedbackCount.incrementAndGet();
     }
+  }
+
+  private static final class PonderTrackingFrame extends LizzieFrame {
+    @Override
+    public void clearSelectImage() {}
+
+    @Override
+    public void onMainEnginePonder() {}
   }
 
   private static final class FailingMirrorLeelaz extends Leelaz {

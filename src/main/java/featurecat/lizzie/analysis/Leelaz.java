@@ -3525,6 +3525,16 @@ public class Leelaz {
     }
   }
 
+  private boolean wasPonderingBeforeCurrentTracking() {
+    synchronized (engineArbitrationLock()) {
+      return exclusiveGtpSession != null
+          && exclusiveGtpSession.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY
+          && exclusiveGtpSession.owner instanceof TrackingStreamLease
+          && !exclusiveGtpSession.closedCallbackRun
+          && exclusiveGtpSession.wasPondering;
+    }
+  }
+
   private boolean sendStatefulOrdinaryCommand(String command) {
     boolean accepted =
         sendCommand(
@@ -8270,6 +8280,7 @@ public class Leelaz {
         //          throw new IllegalArgumentException(
         //              "The stone color must be B or W, but was " + color.toString());
     }
+    boolean continuePonderAfterMove = isPondering || wasPonderingBeforeCurrentTracking();
     sendCommand("play " + colorString + " " + move);
     bestMoves = new ArrayList<>();
     currentTotalPlayouts = 0;
@@ -8278,7 +8289,7 @@ public class Leelaz {
     if (Lizzie.frame.isAnaPlayingAgainstLeelaz
         && !Lizzie.frame.bothSync
         && Lizzie.frame.playerIsBlack == blackToPlay) return;
-    if ((stopByLimit || isPondering) && !Lizzie.frame.isPlayingAgainstLeelaz)
+    if ((stopByLimit || continuePonderAfterMove) && !Lizzie.frame.isPlayingAgainstLeelaz)
       if (Lizzie.config.isAutoAna
           || ((Lizzie.config.analyzeBlack && color == Stone.WHITE)
               || (Lizzie.config.analyzeWhite && color == Stone.BLACK)))
