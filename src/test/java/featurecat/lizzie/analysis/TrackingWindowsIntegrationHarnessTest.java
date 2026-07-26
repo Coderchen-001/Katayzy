@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import featurecat.lizzie.Config;
 import featurecat.lizzie.ExtraMode;
 import featurecat.lizzie.Lizzie;
+import featurecat.lizzie.gui.GtpConsolePane;
 import featurecat.lizzie.util.Utils;
 import java.awt.AWTEvent;
 import java.awt.EventQueue;
@@ -372,6 +373,7 @@ class TrackingWindowsIntegrationHarnessTest {
   private static final class RealKataGoTransport implements AutoCloseable {
     private final Leelaz previousEngine;
     private final Config previousConfig;
+    private final GtpConsolePane previousGtpConsole;
     private final boolean previousEmpty;
     private final boolean previousEngineGame;
     private final Leelaz engine;
@@ -384,6 +386,7 @@ class TrackingWindowsIntegrationHarnessTest {
     private RealKataGoTransport(
         Leelaz previousEngine,
         Config previousConfig,
+        GtpConsolePane previousGtpConsole,
         boolean previousEmpty,
         boolean previousEngineGame,
         Leelaz engine,
@@ -394,6 +397,7 @@ class TrackingWindowsIntegrationHarnessTest {
         Thread stderrThread) {
       this.previousEngine = previousEngine;
       this.previousConfig = previousConfig;
+      this.previousGtpConsole = previousGtpConsole;
       this.previousEmpty = previousEmpty;
       this.previousEngineGame = previousEngineGame;
       this.engine = engine;
@@ -408,12 +412,14 @@ class TrackingWindowsIntegrationHarnessTest {
         throws Exception {
       Leelaz previousEngine = Lizzie.leelaz;
       Config previousConfig = Lizzie.config;
+      GtpConsolePane previousGtpConsole = Lizzie.gtpConsole;
       boolean previousEmpty = EngineManager.isEmpty;
       boolean previousEngineGame = EngineManager.isEngineGame;
       Config config = allocate(Config.class);
       config.extraMode = ExtraMode.Normal;
       config.autoCheckEngineAlive = false;
       Lizzie.config = config;
+      Lizzie.gtpConsole = allocate(SilentGtpConsole.class);
       EngineManager.isEmpty = false;
       EngineManager.isEngineGame = false;
 
@@ -456,6 +462,7 @@ class TrackingWindowsIntegrationHarnessTest {
       return new RealKataGoTransport(
           previousEngine,
           previousConfig,
+          previousGtpConsole,
           previousEmpty,
           previousEngineGame,
           engine,
@@ -555,6 +562,7 @@ class TrackingWindowsIntegrationHarnessTest {
       } finally {
         Lizzie.leelaz = previousEngine;
         Lizzie.config = previousConfig;
+        Lizzie.gtpConsole = previousGtpConsole;
         EngineManager.isEmpty = previousEmpty;
         EngineManager.isEngineGame = previousEngineGame;
       }
@@ -596,6 +604,17 @@ class TrackingWindowsIntegrationHarnessTest {
       } catch (IOException failure) {
         throw new RuntimeException(failure);
       }
+    }
+  }
+
+  private static final class SilentGtpConsole extends GtpConsolePane {
+    private SilentGtpConsole() {
+      super(null);
+    }
+
+    @Override
+    public boolean isVisible() {
+      return false;
     }
   }
 
