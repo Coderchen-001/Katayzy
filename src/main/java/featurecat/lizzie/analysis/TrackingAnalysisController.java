@@ -311,7 +311,6 @@ public final class TrackingAnalysisController {
     private final long generation;
     private final String coordinate;
     private Leelaz.TrackingStreamLease lease;
-    private Leelaz.TrackingStreamLeaseReceipt receipt;
     private Cancellable timeout;
     private long timeoutToken;
     private PointResult result;
@@ -460,7 +459,6 @@ public final class TrackingAnalysisController {
       return AddResult.LEASE_UNAVAILABLE;
     }
     attempt.lease = acquisition.lease();
-    attempt.receipt = acquisition.receipt();
     if (initialReceipt == null) {
       initialReceipt = acquisition.receipt();
     }
