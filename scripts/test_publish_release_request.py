@@ -54,6 +54,8 @@ def all_asset_names() -> list[str]:
 
 
 class FakeClient:
+    repository = "wimi321/lizzieyzy-next"
+
     def __init__(
         self,
         failed_workflow: str | None = None,
@@ -383,7 +385,46 @@ class ReleasePublisherTest(unittest.TestCase):
         )
 
     def release_notes(self) -> str:
-        return RELEASE_TAG + "\n" + "\n".join(PUBLISH.LOCALIZED_NOTE_HEADINGS)
+        blocks: list[str] = [f"# LizzieYzy Next {RELEASE_TAG}"]
+        for heading in PUBLISH.LOCALIZED_NOTE_HEADINGS:
+            rows = [
+                (
+                    f"| Test platform | [`{DATE_TAG}-{suffix}`]"
+                    f"(https://github.com/wimi321/lizzieyzy-next/releases/download/"
+                    f"{RELEASE_TAG}/{DATE_TAG}-{suffix}) |"
+                )
+                for suffix in PUBLISH.DIRECT_DOWNLOAD_SUFFIXES
+            ]
+            blocks.append(
+                "\n".join(
+                    [
+                        heading,
+                        "",
+                        "### Updates",
+                        "",
+                        "- Reviewed",
+                        "",
+                        "### Before Downloading",
+                        "",
+                        "- Choose the matching platform",
+                        "",
+                        "### Download Guide",
+                        "",
+                        "| Platform | Direct download |",
+                        "| --- | --- |",
+                        *rows,
+                        "",
+                        "### Why",
+                        "",
+                        "- Stable",
+                        "",
+                        "### Contact",
+                        "",
+                        "- Community",
+                    ]
+                )
+            )
+        return "\n\n---\n\n".join(blocks)
 
     def publisher(self, client: FakeClient) -> PUBLISH.ReleasePublisher:
         return PUBLISH.ReleasePublisher(
@@ -548,6 +589,51 @@ class ReleasePublisherTest(unittest.TestCase):
             )
 
         self.assertIsNone(client.tag_sha)
+
+    def test_rejects_reference_style_download_labels(self) -> None:
+        client = FakeClient()
+        notes = self.release_notes().replace(
+            f"[`{DATE_TAG}-windows64.opencl.portable.zip`]"
+            f"(https://github.com/wimi321/lizzieyzy-next/releases/download/"
+            f"{RELEASE_TAG}/{DATE_TAG}-windows64.opencl.portable.zip)",
+            "[portable][win-opencl-portable]",
+        )
+
+        with self.assertRaisesRegex(
+            PUBLISH.PublishError,
+            "must directly link the full filename",
+        ):
+            PUBLISH.ReleasePublisher(
+                client,
+                self.request(),
+                TARGET_SHA,
+                notes,
+            )
+
+    def test_rejects_two_regular_assets_on_one_row(self) -> None:
+        client = FakeClient()
+        first = (
+            f"[`{DATE_TAG}-windows64.opencl.portable.zip`]"
+            f"(https://github.com/wimi321/lizzieyzy-next/releases/download/"
+            f"{RELEASE_TAG}/{DATE_TAG}-windows64.opencl.portable.zip)"
+        )
+        second = (
+            f"[`{DATE_TAG}-windows64.core-update.zip`]"
+            f"(https://github.com/wimi321/lizzieyzy-next/releases/download/"
+            f"{RELEASE_TAG}/{DATE_TAG}-windows64.core-update.zip)"
+        )
+        notes = self.release_notes().replace(
+            f"| Test platform | {first} |\n| Test platform | {second} |",
+            f"| Test platform | {first} / {second} |",
+        )
+
+        with self.assertRaisesRegex(PUBLISH.PublishError, "on its own row"):
+            PUBLISH.ReleasePublisher(
+                client,
+                self.request(),
+                TARGET_SHA,
+                notes,
+            )
 
 
 if __name__ == "__main__":
