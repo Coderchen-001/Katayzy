@@ -30,9 +30,19 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class LeelazExclusiveRemoteGtpSessionTest {
+  private static final List<Leelaz> createdEngines = new ArrayList<>();
+
+  @AfterEach
+  void closeCreatedExclusiveSessions() throws Exception {
+    for (Leelaz engine : createdEngines) {
+      closeExclusiveSessionForTest(engine);
+    }
+    createdEngines.clear();
+  }
 
   @Test
   void exclusiveRemoteSessionWaitsForStopThenRoutesOnlyQuickCurveTraffic() throws Exception {
@@ -1561,6 +1571,7 @@ class LeelazExclusiveRemoteGtpSessionTest {
             "set_position",
             "kata-analyze"));
     setCapabilityDiscoveryComplete(engine, true);
+    createdEngines.add(engine);
     return engine;
   }
 
@@ -1581,6 +1592,7 @@ class LeelazExclusiveRemoteGtpSessionTest {
             "set_position",
             "kata-analyze"));
     setCapabilityDiscoveryComplete(engine, true);
+    createdEngines.add(engine);
     return engine;
   }
 
@@ -1713,6 +1725,26 @@ class LeelazExclusiveRemoteGtpSessionTest {
     Method method = Leelaz.class.getDeclaredMethod("processCommandResponseLine", String.class);
     method.setAccessible(true);
     method.invoke(engine, line);
+  }
+
+  private static void closeExclusiveSessionForTest(Leelaz engine) throws Exception {
+    Field field = Leelaz.class.getDeclaredField("exclusiveGtpSession");
+    field.setAccessible(true);
+    Object session = field.get(engine);
+    if (session == null) {
+      return;
+    }
+    Method cancelInitial =
+        Leelaz.class.getDeclaredMethod("cancelExclusiveGtpInitialStopTimeout", session.getClass());
+    cancelInitial.setAccessible(true);
+    cancelInitial.invoke(engine, session);
+    Method cancelRelease =
+        Leelaz.class.getDeclaredMethod("cancelExclusiveGtpReleaseStopTimeout", session.getClass());
+    cancelRelease.setAccessible(true);
+    cancelRelease.invoke(engine, session);
+    Method close = Leelaz.class.getDeclaredMethod("closeExclusiveGtpSession", session.getClass());
+    close.setAccessible(true);
+    close.invoke(engine, session);
   }
 
   private static void completeForegroundRestore(Leelaz engine) throws Exception {

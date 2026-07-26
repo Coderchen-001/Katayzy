@@ -91,6 +91,8 @@ class LeelazReaderIncarnationTest {
       assertEquals("new-stdout", currentReader(engine, "inputStream").readLine());
       assertEquals("new-stderr", currentReader(engine, "errorStream").readLine());
       assertFalse(recentLines(engine, "recentStdoutLines").contains(""));
+      processCommandResponse(engine, "=800000000");
+      assertTrue(dispatchExclusiveLine(engine, ""));
       engine.endExclusiveGtpSession();
     }
   }
@@ -347,6 +349,18 @@ class LeelazReaderIncarnationTest {
     Field field = binding.getClass().getDeclaredField("linesInProgress");
     field.setAccessible(true);
     return field.getInt(binding);
+  }
+
+  private static void processCommandResponse(Leelaz engine, String line) throws Exception {
+    Method method = Leelaz.class.getDeclaredMethod("processCommandResponseLine", String.class);
+    method.setAccessible(true);
+    method.invoke(engine, line);
+  }
+
+  private static boolean dispatchExclusiveLine(Leelaz engine, String line) throws Exception {
+    Method method = Leelaz.class.getDeclaredMethod("dispatchExclusiveGtpLine", String.class);
+    method.setAccessible(true);
+    return (boolean) method.invoke(engine, line);
   }
 
   @SuppressWarnings("unchecked")

@@ -198,6 +198,26 @@ class TrackingProductionCutoverTest {
     return false;
   }
 
+  private static void closeExclusiveSessionForTest(Leelaz engine) throws Exception {
+    Field field = Leelaz.class.getDeclaredField("exclusiveGtpSession");
+    field.setAccessible(true);
+    Object session = field.get(engine);
+    if (session == null) {
+      return;
+    }
+    Method cancelInitial =
+        Leelaz.class.getDeclaredMethod("cancelExclusiveGtpInitialStopTimeout", session.getClass());
+    cancelInitial.setAccessible(true);
+    cancelInitial.invoke(engine, session);
+    Method cancelRelease =
+        Leelaz.class.getDeclaredMethod("cancelExclusiveGtpReleaseStopTimeout", session.getClass());
+    cancelRelease.setAccessible(true);
+    cancelRelease.invoke(engine, session);
+    Method close = Leelaz.class.getDeclaredMethod("closeExclusiveGtpSession", session.getClass());
+    close.setAccessible(true);
+    close.invoke(engine, session);
+  }
+
   private static final class TestEnvironment implements AutoCloseable {
     private final Leelaz previousEngine;
     private final Board previousBoard;
@@ -338,7 +358,8 @@ class TrackingProductionCutoverTest {
     }
 
     @Override
-    public void close() {
+    public void close() throws Exception {
+      closeExclusiveSessionForTest(engine);
       Lizzie.leelaz = previousEngine;
       Lizzie.board = previousBoard;
       Lizzie.config = previousConfig;

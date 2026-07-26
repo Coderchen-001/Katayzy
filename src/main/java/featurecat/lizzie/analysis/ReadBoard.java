@@ -2885,7 +2885,7 @@ public class ReadBoard implements ReadBoardTrackingEligibilityAdapter.Eligibilit
   private void lastMoveWithoutTracking() {
     runWithoutTrackingLocalHistoryNavigation(
         () -> {
-          if (Lizzie.frame != null) {
+          if (Lizzie.frame != null && Lizzie.board != null) {
             Lizzie.frame.lastMove();
           }
         });

@@ -42,10 +42,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class AnalysisEngineRequestTest {
   private static final int BOARD_SIZE = 3;
+  private final List<Leelaz> createdForegroundEngines = new ArrayList<>();
+
+  @AfterEach
+  void closeCreatedForegroundSessions() throws Exception {
+    for (Leelaz engine : createdForegroundEngines) {
+      closeExclusiveSessionForTest(engine);
+    }
+    createdForegroundEngines.clear();
+  }
   private static final int BOARD_AREA = BOARD_SIZE * BOARD_SIZE;
 
   @Test
@@ -299,6 +309,37 @@ class AnalysisEngineRequestTest {
           output.toString(StandardCharsets.UTF_8).contains("kata-get-rules\n"),
           output.toString(StandardCharsets.UTF_8));
       closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
+  void missingMainlineCompletesWhenTrackingFillsLastRequestBeforeActivation() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      BoardHistoryNode requestedNode = singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+      AtomicInteger completions = new AtomicInteger();
+      engine.setCompletionCallback(completions::incrementAndGet);
+
+      assertEquals(1, engine.startRequestMissingMainline(false));
+      requestedNode.getData().setPlayouts(120);
+
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000004"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      completeForegroundRestore(foreground);
+      javax.swing.SwingUtilities.invokeAndWait(() -> {});
+
+      assertEquals(1, completions.get(), output.toString(StandardCharsets.UTF_8));
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
     }
   }
 
@@ -2496,7 +2537,7 @@ class AnalysisEngineRequestTest {
     }
   }
 
-  private static Leelaz reusableForegroundEngine(boolean katago) throws Exception {
+  private Leelaz reusableForegroundEngine(boolean katago) throws Exception {
     Leelaz engine = new Leelaz("");
     engine.isLoaded = true;
     engine.started = true;
@@ -2518,6 +2559,7 @@ class AnalysisEngineRequestTest {
     Field capabilityDiscovery = Leelaz.class.getDeclaredField("endGetCommandList");
     capabilityDiscovery.setAccessible(true);
     capabilityDiscovery.set(engine, true);
+    createdForegroundEngines.add(engine);
     return engine;
   }
 
@@ -2560,13 +2602,33 @@ class AnalysisEngineRequestTest {
   }
 
   private static void closeExclusiveSessionForTest(Leelaz engine) throws Exception {
+    if (engine == null) {
+      return;
+    }
     Field field = Leelaz.class.getDeclaredField("exclusiveGtpSession");
     field.setAccessible(true);
     Object session = field.get(engine);
     if (session == null) {
       return;
     }
+    Method cancelInitial =
+        Leelaz.class.getDeclaredMethod("cancelExclusiveGtpInitialStopTimeout", session.getClass());
+    cancelInitial.setAccessible(true);
+    cancelInitial.invoke(engine, session);
+    Method cancelRelease =
+        Leelaz.class.getDeclaredMethod("cancelExclusiveGtpReleaseStopTimeout", session.getClass());
+    cancelRelease.setAccessible(true);
+    cancelRelease.invoke(engine, session);
     Method method = Leelaz.class.getDeclaredMethod("closeExclusiveGtpSession", session.getClass());
+    method.setAccessible(true);
+    method.invoke(engine, session);
+  }
+
+  private static void completeForegroundRestore(Leelaz engine) throws Exception {
+    Field sessionField = Leelaz.class.getDeclaredField("foregroundRestoreSession");
+    sessionField.setAccessible(true);
+    Object session = sessionField.get(engine);
+    Method method = Leelaz.class.getDeclaredMethod("completeForegroundRestore", session.getClass());
     method.setAccessible(true);
     method.invoke(engine, session);
   }
@@ -2643,7 +2705,8 @@ class AnalysisEngineRequestTest {
     }
 
     @Override
-    public void close() {
+    public void close() throws Exception {
+      closeExclusiveSessionForTest(Lizzie.leelaz);
       Board.boardWidth = previousBoardWidth;
       Board.boardHeight = previousBoardHeight;
       Zobrist.init();

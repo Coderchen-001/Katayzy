@@ -31,12 +31,22 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import sun.misc.Unsafe;
 
 class LeelazTrackingStreamLeaseTest {
+  private final List<Leelaz> createdEngines = new ArrayList<>();
+
+  @AfterEach
+  void closeCreatedExclusiveSessions() throws Exception {
+    for (Leelaz engine : createdEngines) {
+      closeExclusiveSessionForTest(engine);
+    }
+    createdEngines.clear();
+  }
 
   @Test
   void trackingLeaseOwnsOnlyItsStreamAndReleasesWithoutBoardRestoreOrPonder() throws Exception {
@@ -2195,15 +2205,17 @@ class LeelazTrackingStreamLeaseTest {
     }
   }
 
-  private static Leelaz reusableLocalKatago() throws Exception {
+  private Leelaz reusableLocalKatago() throws Exception {
     Leelaz engine = new Leelaz("");
     configureLocalKatago(engine);
+    createdEngines.add(engine);
     return engine;
   }
 
-  private static TimeoutLeelaz reusableTimeoutKatago() throws Exception {
+  private TimeoutLeelaz reusableTimeoutKatago() throws Exception {
     TimeoutLeelaz engine = new TimeoutLeelaz();
     configureLocalKatago(engine);
+    createdEngines.add(engine);
     return engine;
   }
 
@@ -2295,6 +2307,26 @@ class LeelazTrackingStreamLeaseTest {
     } catch (ReflectiveOperationException failure) {
       throw new AssertionError(failure);
     }
+  }
+
+  private static void closeExclusiveSessionForTest(Leelaz engine) throws Exception {
+    Field field = Leelaz.class.getDeclaredField("exclusiveGtpSession");
+    field.setAccessible(true);
+    Object session = field.get(engine);
+    if (session == null) {
+      return;
+    }
+    Method cancelInitial =
+        Leelaz.class.getDeclaredMethod("cancelExclusiveGtpInitialStopTimeout", session.getClass());
+    cancelInitial.setAccessible(true);
+    cancelInitial.invoke(engine, session);
+    Method cancelRelease =
+        Leelaz.class.getDeclaredMethod("cancelExclusiveGtpReleaseStopTimeout", session.getClass());
+    cancelRelease.setAccessible(true);
+    cancelRelease.invoke(engine, session);
+    Method close = Leelaz.class.getDeclaredMethod("closeExclusiveGtpSession", session.getClass());
+    close.setAccessible(true);
+    close.invoke(engine, session);
   }
 
   private static void ensureReaderStreamBinding(Leelaz engine) {
@@ -2870,7 +2902,8 @@ class LeelazTrackingStreamLeaseTest {
     }
 
     @Override
-    public void close() {
+    public void close() throws Exception {
+      closeExclusiveSessionForTest(engine);
       Lizzie.leelaz = previousEngine;
       Lizzie.frame = previousFrame;
       Lizzie.config = previousConfig;

@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.json.JSONObject;
@@ -56,6 +57,15 @@ import org.json.JSONObject;
 class LizzieFrameRegressionTest {
   private static final int BOARD_SIZE = 2;
   private static final int BOARD_AREA = BOARD_SIZE * BOARD_SIZE;
+  private final List<Leelaz> createdTrackingEngines = new ArrayList<>();
+
+  @AfterEach
+  void closeCreatedTrackingSessions() throws Exception {
+    for (Leelaz engine : createdTrackingEngines) {
+      closeExclusiveSessionForTest(engine);
+    }
+    createdTrackingEngines.clear();
+  }
 
   @Test
   void autoSaveFilesUseConfiguredWorkDirectoryInsteadOfProcessCwd(@TempDir Path workDir) {
@@ -1125,6 +1135,54 @@ class LizzieFrameRegressionTest {
   }
 
   @Test
+  void winrateGraphNavigationResumesForegroundAnalysisAfterAsyncHandoffFailure() throws Exception {
+    TestEnvironment env = TestEnvironment.open();
+    try {
+      Lizzie.config = configWithAutoQuickAnalyze();
+      Lizzie.board = boardWith(historyWithUnanalyzedMove());
+      TrackingLeelaz leelaz = allocate(TrackingLeelaz.class);
+      Lizzie.leelaz = leelaz;
+      EngineManager.isEmpty = false;
+      EngineManager.isEngineGame = false;
+      EngineManager.isPreEngineGame = false;
+      QuickAnalysisResumeFrame frame = allocate(QuickAnalysisResumeFrame.class);
+      NavigationQuickAnalysisEngine engine = allocate(NavigationQuickAnalysisEngine.class);
+      frame.analysisEngine = engine;
+      Lizzie.frame = frame;
+
+      SwingUtilities.invokeAndWait(frame::continueQuickAnalysisAfterHistoryNavigationWhenIdle);
+      assertTrue(engine.failureCallback != null);
+      SwingUtilities.invokeAndWait(engine.failureCallback);
+
+      assertEquals(1, leelaz.ponderCount);
+    } finally {
+      env.close();
+    }
+  }
+
+  @Test
+  void yikeCurveCompletionRegistersAsyncHandoffFailure() throws Exception {
+    TestEnvironment env = TestEnvironment.open();
+    try {
+      Lizzie.config = configWithAutoQuickAnalyze();
+      Lizzie.board = boardWith(historyWithUnanalyzedMove());
+      LizzieFrame frame = allocate(LizzieFrame.class);
+      NavigationQuickAnalysisEngine engine = allocate(NavigationQuickAnalysisEngine.class);
+      Lizzie.frame = frame;
+
+      Method method =
+          LizzieFrame.class.getDeclaredMethod(
+              "startYikeCurveCompletionRequests", AnalysisEngine.class, String.class);
+      method.setAccessible(true);
+      method.invoke(frame, engine, "test-status");
+
+      assertTrue(engine.failureCallback != null);
+    } finally {
+      env.close();
+    }
+  }
+
+  @Test
   void quickAnalysisResumeWaitsForNewForegroundEngineWhenReuseIsEnabled() throws Exception {
     TestEnvironment env = TestEnvironment.open();
     try {
@@ -1765,7 +1823,7 @@ class LizzieFrameRegressionTest {
     field.set(target, value);
   }
 
-  private static Leelaz reusableTrackingKatago() throws Exception {
+  private Leelaz reusableTrackingKatago() throws Exception {
     Leelaz engine = new Leelaz("");
     engine.isLoaded = true;
     engine.started = true;
@@ -1782,6 +1840,7 @@ class LizzieFrameRegressionTest {
             "set_position",
             "kata-analyze"));
     setLeelazField(engine, "endGetCommandList", true);
+    createdTrackingEngines.add(engine);
     return engine;
   }
 
@@ -1807,6 +1866,26 @@ class LizzieFrameRegressionTest {
     Method method = Leelaz.class.getDeclaredMethod("processCommandResponseLine", String.class);
     method.setAccessible(true);
     method.invoke(engine, line);
+  }
+
+  private static void closeExclusiveSessionForTest(Leelaz engine) throws Exception {
+    Field field = Leelaz.class.getDeclaredField("exclusiveGtpSession");
+    field.setAccessible(true);
+    Object session = field.get(engine);
+    if (session == null) {
+      return;
+    }
+    Method cancelInitial =
+        Leelaz.class.getDeclaredMethod("cancelExclusiveGtpInitialStopTimeout", session.getClass());
+    cancelInitial.setAccessible(true);
+    cancelInitial.invoke(engine, session);
+    Method cancelRelease =
+        Leelaz.class.getDeclaredMethod("cancelExclusiveGtpReleaseStopTimeout", session.getClass());
+    cancelRelease.setAccessible(true);
+    cancelRelease.invoke(engine, session);
+    Method close = Leelaz.class.getDeclaredMethod("closeExclusiveGtpSession", session.getClass());
+    close.setAccessible(true);
+    close.invoke(engine, session);
   }
 
   private static void setLeelazField(Leelaz engine, String name, Object value) throws Exception {
@@ -2061,6 +2140,7 @@ class LizzieFrameRegressionTest {
     private int keepAliveCount;
     private int missingMainlineRequestCount;
     private Runnable completionCallback;
+    private Runnable failureCallback;
 
     @SuppressWarnings("unused")
     private NavigationQuickAnalysisEngine() throws java.io.IOException {
@@ -2097,6 +2177,11 @@ class LizzieFrameRegressionTest {
     @Override
     public void setCompletionCallback(Runnable completionCallback) {
       this.completionCallback = completionCallback;
+    }
+
+    @Override
+    public void setFailureCallback(Runnable failureCallback) {
+      this.failureCallback = failureCallback;
     }
 
     @Override

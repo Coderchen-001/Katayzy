@@ -1086,13 +1086,23 @@ public class AnalysisEngine {
     if (target.kind == ForegroundRequestKind.ALL_BRANCHES) {
       startRequestAllBranchesNow(target.showProgressDialog);
     } else if (target.kind == ForegroundRequestKind.MISSING_MAINLINE) {
-      startRequestMissingMainlineNow(target.showProgressDialog);
+      if (startRequestMissingMainlineNow(target.showProgressDialog) == 0) {
+        finishSuccessfulEmptyForegroundRequest();
+        return;
+      }
     } else {
       startRequestNow(target.startMove, target.endMove, target.showProgressDialog);
     }
     if (!beginSharedForegroundRulesCapture()) {
       requestDispatchFailed = true;
       finishFailedRequestDispatch(target.showProgressDialog);
+    }
+  }
+
+  private void finishSuccessfulEmptyForegroundRequest() {
+    if (!releaseSharedForegroundLease(
+        this::runCompletionCallback, this::finishSharedForegroundRestoreFailure)) {
+      runCompletionCallback();
     }
   }
 

@@ -10535,15 +10535,17 @@ public class LizzieFrame extends JFrame {
         () ->
             updateYikeLiveSyncStatus(
                 statusUrl, text("YikeLiveDialog.curveUpdated", "Graph updated.")));
+    targetEngine.setFailureCallback(
+        () ->
+            updateYikeLiveSyncStatus(
+                statusUrl, text("YikeLiveDialog.curveFailed", "Failed to start graph completion")));
     int requestCount = targetEngine.startRequestMissingMainline(false);
     if (requestCount < 0) {
       targetEngine.setCompletionCallback(null);
-      updateYikeLiveSyncStatus(
-          statusUrl, text("YikeLiveDialog.curveFailed", "Failed to start graph completion"));
       return;
     }
     if (requestCount <= 0) {
-      targetEngine.setCompletionCallback(null);
+      targetEngine.clearRequestCallbacks();
       updateYikeLiveSyncStatus(
           statusUrl, text("YikeLiveDialog.curveUpToDate", "Graph is up to date."));
     }
@@ -18717,12 +18719,13 @@ public class LizzieFrame extends JFrame {
             analysisEngine.setKeepAliveAfterCurrentRequest(true);
             analysisEngine.setCompletionCallback(
                 LizzieFrame.this::resumeForegroundAnalysisAfterQuickAnalysisComplete);
+            analysisEngine.setFailureCallback(
+                LizzieFrame.this::resumeForegroundAnalysisAfterQuickAnalysisComplete);
             int requestCount = analysisEngine.startRequestMissingMainline(false);
             if (requestCount < 0) {
               analysisEngine.setCompletionCallback(null);
-              resumeForegroundAnalysisAfterQuickAnalysisComplete();
             } else if (requestCount == 0) {
-              analysisEngine.setCompletionCallback(null);
+              analysisEngine.clearRequestCallbacks();
               resumeForegroundAnalysisAfterQuickAnalysisComplete();
             }
           }
