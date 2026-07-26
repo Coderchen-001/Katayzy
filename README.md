@@ -108,8 +108,8 @@
 | Windows，高级用户，想离线测试 TensorRT 预装包 | `*windows64.nvidia.tensorrt.portable.7z.001` 起的全部分卷，先看同名 `README.txt` |
 | Windows，自己配引擎，免安装 | `*windows64.without.engine.portable.zip` |
 | Windows，自己配引擎，想安装 | `*windows64.without.engine.installer.exe` |
-| macOS Apple Silicon | `*mac-apple-silicon.with-katago.dmg` |
-| macOS Intel | `*mac-intel.with-katago.dmg` |
+| macOS Apple Silicon，打开后拖到“应用程序” | `*mac-apple-silicon.with-katago.dmg` |
+| macOS Intel，打开后拖到“应用程序” | `*mac-intel.with-katago.dmg` |
 | Linux | `*linux64.with-katago.zip` |
 
 Windows `portable.zip` 是真正的免安装模式：配置、日志、保存棋谱、下载权重和软件内安装的 TensorRT 加速文件都会保存在解压出来的同一个文件夹里，主要位置是 `user-data/`。如果想彻底清理这个免安装版，删除整个解压文件夹即可；如果想保留设置，升级前把旧文件夹里的 `user-data/` 复制到新文件夹。
@@ -209,7 +209,7 @@ Windows `portable.zip` 是真正的免安装模式：配置、日志、保存棋
 
 ### Mac 第一次打不开怎么办？
 
-当前 macOS 包还没有做签名和公证。第一次被系统拦住时，按 [安装说明](docs/INSTALL.md) 里的步骤点“仍要打开”即可。
+先确认下载的芯片版本正确，再打开 DMG，按画面箭头把 `LizzieYzy Next` 拖到“应用程序”，弹出安装磁盘后从 Finder 的“应用程序”启动。当前官方 release 流程会完成签名和公证；如果系统仍拦截，请按 [安装说明](docs/INSTALL.md) 排查。
 
 ## 用户文档
 

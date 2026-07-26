@@ -135,8 +135,13 @@ If you prefer the installer flow:
 ### Installation steps
 
 1. Open the correct `.dmg`.
-2. Drag `LizzieYzy Next.app` into `Applications`.
-3. Launch it from `Applications`.
+2. Confirm that the chip label in the top-right corner matches your Mac.
+3. Follow the arrow and drag `LizzieYzy Next.app` onto the `Applications` folder.
+4. Wait for the copy to finish, then eject the `LizzieYzy Next` installer disk in Finder.
+5. Open Finder's `Applications` folder and launch `LizzieYzy Next` from there.
+
+Do not launch the app directly from the installer disk. That only runs the temporary
+copy mounted from the DMG and does not install the app.
 
 ### If Gatekeeper blocks first launch
 

@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1600"
+     height="1000"
+     viewBox="0 0 800 500"
+     role="img"
+     aria-labelledby="title description">
+  <title id="title">LizzieYzy Next macOS installer background</title>
+  <desc id="description">Drag the LizzieYzy Next app to Applications to install it.</desc>
+
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffdf8"/>
+      <stop offset="0.56" stop-color="#f8f0e1"/>
+      <stop offset="1" stop-color="#efe0c6"/>
+    </linearGradient>
+    <linearGradient id="arrow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ed9b6a"/>
+      <stop offset="1" stop-color="#c85b3f"/>
+    </linearGradient>
+    <linearGradient id="footer" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#edf7f1"/>
+      <stop offset="1" stop-color="#f7fbf7"/>
+    </linearGradient>
+    <filter id="card-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="5" stdDeviation="10" flood-color="#57391d" flood-opacity="0.12"/>
+    </filter>
+    <filter id="arrow-shadow" x="-30%" y="-50%" width="160%" height="200%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#8d3b28" flood-opacity="0.22"/>
+    </filter>
+    <pattern id="board-grid" width="42" height="42" patternUnits="userSpaceOnUse">
+      <path d="M 42 0 L 0 0 0 42" fill="none" stroke="#9d7344" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="800" height="500" fill="url(#page)"/>
+  <rect width="800" height="500" fill="url(#board-grid)" opacity="0.075"/>
+
+  <path d="M0 0h800v118c-98 18-187 12-269-13-97-30-174-28-253 3C184 145 91 144 0 119Z"
+        fill="#fffaf0"
+        opacity="0.82"/>
+
+  <g transform="translate(42 30)">
+    <rect x="0" y="0" width="50" height="50" rx="14" fill="#ead4ad"/>
+    <path d="M10 13h30M10 25h30M10 37h30M13 10v30M25 10v30M37 10v30"
+          fill="none"
+          stroke="#4a3425"
+          stroke-width="2"/>
+    <circle cx="13" cy="25" r="7.5" fill="#1e1c1d"/>
+    <circle cx="37" cy="25" r="7.5" fill="#fffdf8" stroke="#c9b99f" stroke-width="1.5"/>
+    <path d="M6 11c13-13 31-9 39 2" fill="none" stroke="#e78955" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <text x="110"
+        y="51"
+        fill="#2f241d"
+        font-family="PingFang SC, Hiragino Sans GB, Helvetica Neue, sans-serif"
+        font-size="28"
+        font-weight="700"
+        letter-spacing="0.3">LizzieYzy Next</text>
+  <text x="111"
+        y="78"
+        fill="#7b6b5c"
+        font-family="PingFang SC, Hiragino Sans GB, Helvetica Neue, sans-serif"
+        font-size="14"
+        font-weight="500">围棋复盘与 KataGo 分析</text>
+
+  <g transform="translate(632 31)">
+    <rect x="0" y="0" width="126" height="34" rx="17" fill="#f1dfc0" stroke="#d8b982"/>
+    <circle cx="19" cy="17" r="5" fill="#2f7d67"/>
+    <text x="34"
+          y="22"
+          fill="#63472f"
+          font-family="Helvetica Neue, PingFang SC, sans-serif"
+          font-size="13"
+          font-weight="700">__ARCH_LABEL__</text>
+  </g>
+
+  <text x="400"
+        y="137"
+        text-anchor="middle"
+        fill="#352820"
+        font-family="PingFang SC, Hiragino Sans GB, Helvetica Neue, sans-serif"
+        font-size="22"
+        font-weight="700">拖到“应用程序”完成安装</text>
+  <text x="400"
+        y="162"
+        text-anchor="middle"
+        fill="#7b6b5c"
+        font-family="Helvetica Neue, PingFang SC, sans-serif"
+        font-size="13"
+        font-weight="500"
+        letter-spacing="0.4">Drag to Applications to install</text>
+
+  <g filter="url(#card-shadow)">
+    <rect x="62" y="190" width="246" height="206" rx="26" fill="#fffdf8" stroke="#decbae" stroke-width="1.5"/>
+    <rect x="492" y="190" width="246" height="206" rx="26" fill="#fffdf8" stroke="#decbae" stroke-width="1.5"/>
+  </g>
+
+  <circle cx="87" cy="214" r="13" fill="#f1dfc0"/>
+  <text x="87"
+        y="219"
+        text-anchor="middle"
+        fill="#76512f"
+        font-family="Helvetica Neue, sans-serif"
+        font-size="13"
+        font-weight="700">1</text>
+  <text x="108"
+        y="219"
+        fill="#685647"
+        font-family="PingFang SC, Hiragino Sans GB, Helvetica Neue, sans-serif"
+        font-size="13"
+        font-weight="600">拖动应用</text>
+
+  <circle cx="517" cy="214" r="13" fill="#dceee5"/>
+  <text x="517"
+        y="219"
+        text-anchor="middle"
+        fill="#276b59"
+        font-family="Helvetica Neue, sans-serif"
+        font-size="13"
+        font-weight="700">2</text>
+  <text x="538"
+        y="219"
+        fill="#685647"
+        font-family="PingFang SC, Hiragino Sans GB, Helvetica Neue, sans-serif"
+        font-size="13"
+        font-weight="600">完成安装</text>
+
+  <g filter="url(#arrow-shadow)">
+    <path d="M333 286h88v-22l48 38-48 38v-22h-88c-10 0-18-7-18-16s8-16 18-16Z"
+          fill="url(#arrow)"/>
+  </g>
+  <text x="400"
+        y="365"
+        text-anchor="middle"
+        fill="#9b5139"
+        font-family="PingFang SC, Hiragino Sans GB, Helvetica Neue, sans-serif"
+        font-size="13"
+        font-weight="700">按住图标并拖到右侧</text>
+
+  <rect x="62" y="423" width="676" height="50" rx="17" fill="url(#footer)" stroke="#b9dbc9"/>
+  <circle cx="90" cy="448" r="12" fill="#2f7d67"/>
+  <path d="M84.5 448.2l3.6 3.7 7.4-8" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="113"
+        y="453"
+        fill="#315d50"
+        font-family="PingFang SC, Hiragino Sans GB, Helvetica Neue, sans-serif"
+        font-size="15"
+        font-weight="600">安装后请弹出此磁盘，并从“应用程序”打开</text>
+  <text x="695"
+        y="453"
+        text-anchor="end"
+        fill="#6f8c82"
+        font-family="Helvetica Neue, PingFang SC, sans-serif"
+        font-size="12"
+        font-weight="500">Open from Applications after installation</text>
+</svg>

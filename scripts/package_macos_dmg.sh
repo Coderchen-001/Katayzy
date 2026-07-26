@@ -57,6 +57,11 @@ if [[ ! -x "$DRAG_DMG_SCRIPT" ]]; then
   echo "Missing executable DMG layout helper: $DRAG_DMG_SCRIPT"
   exit 1
 fi
+DMG_VALIDATE_SCRIPT="$ROOT_DIR/scripts/validate_macos_dmg_layout.sh"
+if [[ ! -x "$DMG_VALIDATE_SCRIPT" ]]; then
+  echo "Missing executable DMG layout validator: $DMG_VALIDATE_SCRIPT"
+  exit 1
+fi
 
 if [[ ! -f "$JAR_PATH" ]]; then
   echo "Jar not found: $JAR_PATH"
@@ -68,12 +73,14 @@ ARCH="$(uname -m)"
 if [[ "$ARCH" == "arm64" ]]; then
   ARCH_TAG="mac-arm64"
   PUBLIC_ARCH_TAG="mac-apple-silicon"
+  DMG_ARCH_LABEL="Apple Silicon"
   ENGINE_PLATFORM_DIR="macos-arm64"
   JCEF_PLATFORM="macosx-arm64"
   JCEF_ASSET_SHA256="1746a503e38614ea3e4fe7986e22443ab48a3a245ba1f4b17575aaccab5e7994"
 else
   ARCH_TAG="mac-amd64"
   PUBLIC_ARCH_TAG="mac-intel"
+  DMG_ARCH_LABEL="Intel"
   ENGINE_PLATFORM_DIR="macos-amd64"
   JCEF_PLATFORM="macosx-amd64"
   JCEF_ASSET_SHA256="36ed38af450dff481513c352a92a88aaa73ec34a399edadc7a4a947c7d1ddaed"
@@ -222,7 +229,12 @@ INSTALL_NOTE="$META_DIR/${DATE_TAG}-${PUBLIC_ARCH_TAG}-install.txt"
 SHA256_FILE="$META_DIR/${DATE_TAG}-${PUBLIC_ARCH_TAG}-sha256.txt"
 
 mkdir -p "$ROOT_DIR/dist/release"
-"$DRAG_DMG_SCRIPT" "$APP_NAME" "$APP_IMAGE_DIR" "$FINAL_DMG"
+"$DRAG_DMG_SCRIPT" \
+  "$APP_NAME - $DMG_ARCH_LABEL" \
+  "$APP_IMAGE_DIR" \
+  "$FINAL_DMG" \
+  "$DMG_ARCH_LABEL"
+"$DMG_VALIDATE_SCRIPT" "$FINAL_DMG" "$DMG_ARCH_LABEL"
 
 cat >"$INSTALL_NOTE" <<EOF
 Package type: unsigned macOS app + dmg
