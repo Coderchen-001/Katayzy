@@ -1589,6 +1589,31 @@ class LeelazTrackingStreamLeaseTest {
   }
 
   @Test
+  void textKomiQueuesBehindOrdinaryTrackingReleaseWithoutReportingBusy() throws Exception {
+    Board previousBoard = Lizzie.board;
+    FeedbackRecordingLeelaz engine = new FeedbackRecordingLeelaz();
+    configureLocalKatago(engine);
+    try (TestState state = TestState.open(engine)) {
+      Lizzie.board = new Board();
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      state.engine.sendCommand("clear_board");
+      state.engine.komiNoMenu(7.5);
+
+      assertEquals(0, engine.feedbackCount.get());
+      assertTrue(dispatch(state.engine, "=800000001"));
+      assertTrue(dispatch(state.engine, ""));
+      assertTrue(
+          state.output.toString(StandardCharsets.UTF_8).endsWith("clear_board\nkomi 7.5\n"),
+          state.output.toString(StandardCharsets.UTF_8));
+    } finally {
+      Lizzie.board = previousBoard;
+    }
+  }
+
+  @Test
   void boardSizeQueuesBehindOrdinaryTrackingReleaseWithoutReportingBusy() throws Exception {
     Board previousBoard = Lizzie.board;
     FeedbackRecordingLeelaz engine = new FeedbackRecordingLeelaz();
@@ -1612,6 +1637,47 @@ class LeelazTrackingStreamLeaseTest {
       assertTrue(
           state.output.toString(StandardCharsets.UTF_8).endsWith("clear_board\nboardsize 13\n"),
           state.output.toString(StandardCharsets.UTF_8));
+    } finally {
+      Lizzie.board = previousBoard;
+    }
+  }
+
+  @Test
+  void lifecycleWinnerKeepsKomiAndBoardSizeBusyWhileTrackingSettles() throws Exception {
+    Board previousBoard = Lizzie.board;
+    FeedbackRecordingLeelaz engine = new FeedbackRecordingLeelaz();
+    configureLocalKatago(engine);
+    try (TestState state = TestState.open(engine)) {
+      Lizzie.board =
+          new Board() {
+            @Override
+            public void reopen(int width, int height) {}
+          };
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+      float originalKomi = state.engine.komi;
+      int originalWidth = state.engine.width;
+      int originalHeight = state.engine.height;
+
+      Leelaz.ExclusiveGtpLifecycleReservation reservation =
+          state.engine.beginExclusiveGtpLifecycleReservation();
+      assertTrue(reservation != null);
+      try {
+        state.engine.komi(5.5);
+        state.engine.komiNoMenu(6.5);
+        state.engine.boardSize(13, 13);
+      } finally {
+        reservation.close();
+      }
+
+      assertEquals(3, engine.feedbackCount.get());
+      assertEquals(originalKomi, state.engine.komi);
+      assertEquals(originalWidth, state.engine.width);
+      assertEquals(originalHeight, state.engine.height);
+      assertFalse(state.output.toString(StandardCharsets.UTF_8).contains("komi 5.5\n"));
+      assertFalse(state.output.toString(StandardCharsets.UTF_8).contains("komi 6.5\n"));
+      assertFalse(state.output.toString(StandardCharsets.UTF_8).contains("boardsize 13\n"));
     } finally {
       Lizzie.board = previousBoard;
     }

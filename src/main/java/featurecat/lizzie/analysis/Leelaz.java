@@ -3082,7 +3082,8 @@ public class Leelaz {
   }
 
   public void boardSize(int width, int height) {
-    if (!hasTrackingStreamSession() && rejectNewExclusiveWorkDuringGtpLease()) return;
+    if (!canAdmitStatefulOrdinaryDuringTracking()
+        && rejectNewExclusiveWorkDuringGtpLease()) return;
     boardSize(width, height, true);
   }
 
@@ -3133,7 +3134,8 @@ public class Leelaz {
 
   public void komi(double komi) {
     synchronized (this) {
-      if (!hasTrackingStreamSession() && rejectNewExclusiveWorkDuringGtpLease()) return;
+      if (!canAdmitStatefulOrdinaryDuringTracking()
+          && rejectNewExclusiveWorkDuringGtpLease()) return;
       this.komi = (float) komi;
       sendCommand("komi " + (komi == 0.0 ? "0" : komi));
       Lizzie.board.getHistory().getGameInfo().setKomi(komi);
@@ -3145,7 +3147,8 @@ public class Leelaz {
 
   public void komiNoMenu(double komi) {
     synchronized (this) {
-      if (rejectNewExclusiveWorkDuringGtpLease()) return;
+      if (!canAdmitStatefulOrdinaryDuringTracking()
+          && rejectNewExclusiveWorkDuringGtpLease()) return;
       this.komi = (float) komi;
       sendCommand("komi " + (komi == 0.0 ? "0" : komi));
       Lizzie.board.getHistory().getGameInfo().setKomiNoMenu(komi);
@@ -3517,6 +3520,17 @@ public class Leelaz {
   private boolean hasTrackingStreamSession() {
     synchronized (engineArbitrationLock()) {
       return isTrackingStreamSession(exclusiveGtpSession);
+    }
+  }
+
+  private boolean canAdmitStatefulOrdinaryDuringTracking() {
+    synchronized (engineArbitrationLock()) {
+      return isTrackingStreamSession(exclusiveGtpSession)
+          && trackingHandoffGate == null
+          && !foregroundRestoreInProgress
+          && !exclusiveGtpLifecycleTransition
+          && readBoardGmaReservation == null
+          && !engineStateUnrestored;
     }
   }
 
