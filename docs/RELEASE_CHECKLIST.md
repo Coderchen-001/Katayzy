@@ -201,6 +201,13 @@ gh workflow run update-release-notes.yml \
 
 现在可以直接用 `scripts/generate_release_notes.py` 生成这份多语言正文，再更新到 GitHub release。
 
+六种语言的下载表统一沿用 `next-2026-07-19.1` 的直接格式：
+
+- 每个普通资产单独一行，显示带日期的完整文件名，并直接链接到该 release 的真实下载 URL。
+- 不把免安装包和安装器压缩成同一行，也不使用 `portable / installer` 这类需要用户猜测的短标签。
+- TensorRT 的 `.7z.001` 与 `.7z.002` 是同一套分卷，可以在同一行连续列出，但必须同时显示完整文件名和直链。
+- `publish_release_request.py` 会检查六种语言的下载表；任何语言缺少完整文件名直链都不能发布。
+
 ## 七、上传前自查
 
 至少逐项确认：

@@ -31,11 +31,94 @@ LOCALIZED_NOTE_HEADINGS = (
     "## 한국어",
     "## ภาษาไทย",
 )
+DIRECT_DOWNLOAD_SUFFIXES = (
+    "windows64.opencl.portable.zip",
+    "windows64.core-update.zip",
+    "windows64.opencl.installer.exe",
+    "windows64.with-katago.portable.zip",
+    "windows64.with-katago.installer.exe",
+    "windows64.nvidia.portable.zip",
+    "windows64.nvidia.installer.exe",
+    "windows64.nvidia50.cuda.portable.zip",
+    "windows64.nvidia.tensorrt.portable.7z.001",
+    "windows64.nvidia.tensorrt.portable.7z.002",
+    "windows64.nvidia50.cuda.installer.exe",
+    "windows64.without.engine.portable.zip",
+    "windows64.without.engine.installer.exe",
+    "mac-apple-silicon.with-katago.dmg",
+    "mac-intel.with-katago.dmg",
+    "linux64.with-katago.zip",
+    "linux64.opencl.zip",
+    "linux64.nvidia.zip",
+)
 ACTIVE_RUN_STATUSES = {"queued", "in_progress", "waiting", "requested", "pending"}
 
 
 class PublishError(RuntimeError):
     """A release invariant or GitHub API operation failed."""
+
+
+def _localized_note_sections(body: str) -> dict[str, str]:
+    matches: list[tuple[str, re.Match[str]]] = []
+    for heading in LOCALIZED_NOTE_HEADINGS:
+        match = re.search(rf"^{re.escape(heading)}\s*$", body, re.MULTILINE)
+        if match is None:
+            raise PublishError(f"Reviewed release notes are missing {heading}")
+        matches.append((heading, match))
+    matches.sort(key=lambda item: item[1].start())
+
+    sections: dict[str, str] = {}
+    for index, (heading, match) in enumerate(matches):
+        end = matches[index + 1][1].start() if index + 1 < len(matches) else len(body)
+        sections[heading] = body[match.start():end]
+    return sections
+
+
+def validate_direct_download_tables(
+    body: str,
+    date_tag: str,
+    release_tag: str,
+    repository: str,
+) -> None:
+    """Require the user-facing 7/19-style direct asset table in every language."""
+
+    for language, section in _localized_note_sections(body).items():
+        subsections = list(re.finditer(r"^### .+$", section, re.MULTILINE))
+        if len(subsections) < 4:
+            raise PublishError(
+                f"{language} must keep the standard updates/before/download/why/contact structure"
+            )
+        download_start = subsections[2].start()
+        download_end = subsections[3].start()
+        download_section = section[download_start:download_end]
+        lines = download_section.splitlines()
+        expected_names = [
+            f"{date_tag}-{suffix}" for suffix in DIRECT_DOWNLOAD_SUFFIXES
+        ]
+
+        for filename in expected_names:
+            url = (
+                f"https://github.com/{repository}/releases/download/"
+                f"{release_tag}/{filename}"
+            )
+            direct_link = re.compile(
+                rf"\[(?:`)?{re.escape(filename)}(?:`)?\]\({re.escape(url)}\)"
+            )
+            matching_lines = [line for line in lines if direct_link.search(line)]
+            if len(matching_lines) != 1:
+                raise PublishError(
+                    f"{language} download guide must directly link the full filename {filename}"
+                )
+
+            if ".tensorrt.portable.7z." not in filename:
+                linked_assets = sum(
+                    expected_name in matching_lines[0]
+                    for expected_name in expected_names
+                )
+                if linked_assets != 1:
+                    raise PublishError(
+                        f"{language} download guide must put {filename} on its own row"
+                    )
 
 
 @dataclass(frozen=True)
@@ -390,6 +473,12 @@ class ReleasePublisher:
             raise PublishError("Reviewed release notes are missing the tag or a language section")
         if "{{" in release_notes or "}}" in release_notes:
             raise PublishError("Reviewed release notes contain an unresolved template token")
+        validate_direct_download_tables(
+            release_notes,
+            request.date_tag,
+            request.release_tag,
+            client.repository,
+        )
 
     def _ensure_tag(self) -> None:
         existing = self.client.get_tag_sha(self.request.release_tag)
