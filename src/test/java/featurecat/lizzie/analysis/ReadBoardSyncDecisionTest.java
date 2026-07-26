@@ -420,8 +420,7 @@ class ReadBoardSyncDecisionTest {
     Stone[] target = stones(placement(0, 0, Stone.WHITE));
     SyncSnapshotClassifier.SnapshotDelta snapshotDelta =
         new SyncSnapshotClassifier(BOARD_SIZE, BOARD_SIZE)
-            .summarizeDelta(
-                syncStartNode.getData().stones, snapshot(target, Optional.empty(), Stone.EMPTY));
+            .summarizeDelta(syncStartNode.getData().stones, snapshot(target, Optional.empty(), Stone.EMPTY));
     ReadBoard readBoard = allocate(ReadBoard.class);
 
     assertTrue(
@@ -1091,7 +1090,8 @@ class ReadBoardSyncDecisionTest {
   }
 
   @Test
-  void sameBoardMarkerlessFoxMetadataDoesNotOverrideRiskySnapshotSideToPlay() throws Exception {
+  void sameBoardMarkerlessFoxMetadataDoesNotOverrideRiskySnapshotSideToPlay()
+      throws Exception {
     Stone[] target =
         stones(
             placement(0, 0, Stone.WHITE),
@@ -1101,8 +1101,7 @@ class ReadBoardSyncDecisionTest {
     try (SyncHarness harness =
         SyncHarness.create(
             false,
-            rootHistory(
-                target, Optional.empty(), Stone.EMPTY, false, 57, BoardNodeKind.SNAPSHOT))) {
+            rootHistory(target, Optional.empty(), Stone.EMPTY, false, 57, BoardNodeKind.SNAPSHOT))) {
       BoardHistoryNode originalMainEnd = harness.board.getHistory().getMainEnd();
 
       armFoxMoveNumber(harness.readBoard, 58);
@@ -2785,6 +2784,37 @@ class ReadBoardSyncDecisionTest {
     }
   }
 
+  @Test
+  void localNavigationAndHistoryOverwriteInvalidateStableEligibilityRevision() throws Exception {
+    try (SyncHarness harness = SyncHarness.create(false, emptyHistory())) {
+      harness.leelaz.enableReadBoardGmaSupport();
+      harness.sync(snapshot(stones(), Optional.empty(), Stone.EMPTY));
+      ReadBoardTrackingEligibilityAdapter.Snapshot first = harness.readBoard.snapshot();
+      AtomicInteger invalidations = new AtomicInteger();
+      harness.readBoard.observeInvalidation(first.identity(), invalidations::incrementAndGet);
+      setField(
+          harness.readBoard, "localNavigationTracker", new SyncLocalNavigationTracker(() -> true));
+
+      harness.readBoard.onLocalHistoryNavigation();
+
+      ReadBoardTrackingEligibilityAdapter.Snapshot navigated = harness.readBoard.snapshot();
+      assertEquals(ReadBoardTrackingEligibilityAdapter.Reason.NODE_MISMATCH, navigated.reason());
+      assertTrue(navigated.revision() > first.revision());
+      assertEquals(1, invalidations.get());
+
+      harness.sync(snapshot(stones(), Optional.empty(), Stone.EMPTY));
+      ReadBoardTrackingEligibilityAdapter.Snapshot second = harness.readBoard.snapshot();
+      harness.readBoard.observeInvalidation(second.identity(), invalidations::incrementAndGet);
+
+      harness.readBoard.onHistoryOverwritten();
+
+      ReadBoardTrackingEligibilityAdapter.Snapshot overwritten = harness.readBoard.snapshot();
+      assertEquals(ReadBoardTrackingEligibilityAdapter.Reason.NODE_MISMATCH, overwritten.reason());
+      assertTrue(overwritten.revision() > second.revision());
+      assertEquals(2, invalidations.get());
+    }
+  }
+
   private static void armFoxMoveNumber(ReadBoard readBoard, int moveNumber) {
     readBoard.parseLine("syncPlatform fox");
     readBoard.parseLine("foxMoveNumber " + moveNumber);
@@ -3160,8 +3190,7 @@ class ReadBoardSyncDecisionTest {
     return (SyncRemoteContext) getField(readBoard, "pendingRemoteContext");
   }
 
-  private static void setPendingSnapshot(ReadBoard readBoard, int[] snapshotCodes)
-      throws Exception {
+  private static void setPendingSnapshot(ReadBoard readBoard, int[] snapshotCodes) throws Exception {
     ArrayList<Integer> counts = new ArrayList<>(snapshotCodes.length);
     for (int code : snapshotCodes) {
       counts.add(code);

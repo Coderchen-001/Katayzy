@@ -23,6 +23,7 @@ class SnapshotTrackingLeelaz extends Leelaz {
   int togglePonderCount;
   int nameCmdCount;
   int genmoveCount;
+  int readBoardGmaAttemptCount;
   int readBoardGmaCount;
   boolean rejectReadBoardGma;
   String lastGenmoveColor;
@@ -48,6 +49,7 @@ class SnapshotTrackingLeelaz extends Leelaz {
     leelaz.togglePonderCount = 0;
     leelaz.nameCmdCount = 0;
     leelaz.genmoveCount = 0;
+    leelaz.readBoardGmaAttemptCount = 0;
     leelaz.readBoardGmaCount = 0;
     leelaz.lastGenmoveColor = null;
     leelaz.lastReadBoardGmaColor = null;
@@ -147,6 +149,7 @@ class SnapshotTrackingLeelaz extends Leelaz {
   @Override
   public boolean genmoveAnalyzeForReadBoard(
       String color, int maxTimeSeconds, int maxVisits, boolean ponder) {
+    readBoardGmaAttemptCount++;
     if (rejectReadBoardGma) {
       return false;
     }
