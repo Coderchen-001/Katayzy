@@ -205,6 +205,10 @@ public class Leelaz {
     boolean activateForegroundAnalysis(Consumer<String> lineConsumer, Runnable onClosed);
 
     boolean completeRetainedEngineMode();
+
+    default EngineModeReservation beginRetainedEngineModeReservation() {
+      return null;
+    }
   }
 
   // private static final long MINUTE = 60 * 1000; // number of milliseconds in a minute
@@ -7122,6 +7126,28 @@ public class Leelaz {
     return true;
   }
 
+  private EngineModeReservation beginRetainedTrackingHandoffReservation(
+      TrackingHandoffClaim claim) {
+    synchronized (engineArbitrationLock()) {
+      if (trackingHandoffGate != claim
+          || claim.kind != TrackingHandoffKind.RETAINED_ENGINE_MODE
+          || exclusiveGtpSession != null
+          || exclusiveGtpLifecycleTransition
+          || engineStateUnrestored
+          || readBoardGmaReservation != null
+          || !claim.state.compareAndSet(
+              TrackingHandoffState.ACTIVATING, TrackingHandoffState.ACTIVE)) {
+        return null;
+      }
+      Object owner = Thread.currentThread();
+      trackingHandoffGate = null;
+      exclusiveGtpLifecycleTransition = true;
+      exclusiveGtpLifecycleOwner = owner;
+      exclusiveGtpLifecycleDepth = 1;
+      return new EngineModeReservation(this, owner);
+    }
+  }
+
   private boolean activateForegroundTrackingHandoff(
       TrackingHandoffClaim claim, Consumer<String> lineConsumer, Runnable onClosed) {
     synchronized (engineArbitrationLock()) {
@@ -7242,6 +7268,11 @@ public class Leelaz {
     @Override
     public boolean completeRetainedEngineMode() {
       return completeRetainedTrackingHandoff(claim);
+    }
+
+    @Override
+    public EngineModeReservation beginRetainedEngineModeReservation() {
+      return beginRetainedTrackingHandoffReservation(claim);
     }
   }
 

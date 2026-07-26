@@ -13775,14 +13775,21 @@ public class LizzieFrame extends JFrame {
             if (!isCurrent()) {
               return false;
             }
-            runAction();
+            Leelaz.EngineModeReservation reservation =
+                activation.beginRetainedEngineModeReservation();
+            if (reservation == null) {
+              return false;
+            }
+            try {
+              runAction();
+            } finally {
+              reservation.close();
+            }
             return true;
           })) {
         return;
       }
-      if (activation.completeRetainedEngineMode()) {
-        settled.compareAndSet(false, true);
-      }
+      settled.compareAndSet(false, true);
     }
 
     @Override

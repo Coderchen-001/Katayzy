@@ -363,6 +363,7 @@ class LizzieFrameRegressionTest {
         assertTrue(dispatchExclusiveLine(engine, ""));
         assertEquals(1, frame.activations);
         assertEquals(newGame ? "new-game" : "analyze-game", frame.lastAction);
+        assertTrue(frame.modeReservationAvailableDuringAction);
         assertEquals(0, frame.conflicts);
         assertEquals(0, frame.activationFailures);
       }
@@ -2357,15 +2358,18 @@ class LizzieFrameRegressionTest {
     private int conflicts;
     private int activationFailures;
     private String lastAction;
+    private boolean modeReservationAvailableDuringAction;
 
     @Override
     protected void startNewGameReserved() {
+      probeModeReservation();
       activations++;
       lastAction = "new-game";
     }
 
     @Override
     protected void startAnalyzeGameDialogReserved() {
+      probeModeReservation();
       activations++;
       lastAction = "analyze-game";
     }
@@ -2376,6 +2380,14 @@ class LizzieFrameRegressionTest {
       activations++;
       lastAction = "continue";
       isPlayingAgainstLeelaz = true;
+    }
+
+    private void probeModeReservation() {
+      Leelaz.EngineModeReservation reservation = Lizzie.leelaz.beginEngineModeReservation();
+      modeReservationAvailableDuringAction = reservation != null;
+      if (reservation != null) {
+        reservation.close();
+      }
     }
 
     @Override
