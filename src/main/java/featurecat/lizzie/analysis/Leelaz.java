@@ -3537,7 +3537,7 @@ public class Leelaz {
         true);
   }
 
-  private boolean hasTrackingStreamSession() {
+  boolean hasTrackingStreamSession() {
     synchronized (engineArbitrationLock()) {
       return isTrackingStreamSession(exclusiveGtpSession);
     }

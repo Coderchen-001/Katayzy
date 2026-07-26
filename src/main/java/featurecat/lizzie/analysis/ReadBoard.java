@@ -5010,7 +5010,7 @@ public class ReadBoard implements ReadBoardTrackingEligibilityAdapter.Eligibilit
               + isReadBoardAnalysisEngineAvailable());
       return false;
     }
-    if (Lizzie.leelaz.isPondering()) {
+    if (Lizzie.leelaz.isPondering() && !Lizzie.leelaz.hasTrackingStreamSession()) {
       if ("rebuild".equals(reason)) {
         localMoveSyncDebug(
             "resume auto-play analysis already pondering reason="

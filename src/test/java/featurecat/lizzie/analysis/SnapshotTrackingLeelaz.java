@@ -44,8 +44,7 @@ class SnapshotTrackingLeelaz extends Leelaz {
   }
 
   static SnapshotTrackingLeelaz create() throws Exception {
-    SnapshotTrackingLeelaz leelaz =
-        (SnapshotTrackingLeelaz) UnsafeHolder.UNSAFE.allocateInstance(SnapshotTrackingLeelaz.class);
+    SnapshotTrackingLeelaz leelaz = new SnapshotTrackingLeelaz();
     leelaz.clearCount = 0;
     leelaz.ponderCount = 0;
     leelaz.togglePonderCount = 0;
