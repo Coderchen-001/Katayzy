@@ -124,7 +124,7 @@ class TrackingAnalysisControllerTest {
   }
 
   @Test
-  void naturalCompletionHandsInitialPonderBackExactlyOnce() throws Exception {
+  void multiPointNaturalCompletionHandsInitialPonderBackExactlyOnce() throws Exception {
     RecordingPonderLeelaz engine = new RecordingPonderLeelaz();
     try (TestState state = TestState.open(engine)) {
       engine.Pondering();
@@ -134,11 +134,17 @@ class TrackingAnalysisControllerTest {
       assertEquals(
           TrackingAnalysisController.AddResult.ADDED, controller.addPoint("D4", state.context()));
       completeInitialFence(engine, 800000000);
+      assertEquals(
+          TrackingAnalysisController.AddResult.ADDED, controller.addPoint("E5", state.context()));
       assertTrue(dispatch(engine, "info move D4 visits 100 winrate 0.55 pv D4"));
       completeFinalFence(engine, 800000002);
+      completeInitialFence(engine, 800000003);
+      assertTrue(dispatch(engine, "info move E5 visits 100 winrate 0.56 pv E5"));
+      completeFinalFence(engine, 800000005);
 
       assertEquals(1, engine.ponderCount.get());
       assertEquals(100, controller.snapshot().results().get("D4").visits());
+      assertEquals(100, controller.snapshot().results().get("E5").visits());
       assertFalse(controller.snapshot().active());
     }
   }
@@ -162,6 +168,10 @@ class TrackingAnalysisControllerTest {
       assertFalse(controller.snapshot().active());
       assertEquals(List.of("D4"), new ArrayList<>(controller.snapshot().selectedPoints()));
       assertEquals(40, controller.snapshot().results().get("D4").visits());
+      assertEquals(
+          TrackingAnalysisController.AddResult.LEASE_UNAVAILABLE,
+          controller.addPoint("F6", context));
+      assertEquals(List.of("D4"), new ArrayList<>(controller.snapshot().selectedPoints()));
 
       state.engine.sendCommand("boardsize 19");
 
@@ -174,6 +184,39 @@ class TrackingAnalysisControllerTest {
       assertTrue(controller.snapshot().selectedPoints().isEmpty());
       assertTrue(controller.snapshot().results().isEmpty());
       assertEquals(0, engine.ponderCount.get());
+    }
+  }
+
+  @Test
+  void ponderHandbackRejectsStaleIncarnationLifecycleAndOrdinaryCompetition() throws Exception {
+    RecordingPonderLeelaz engine = new RecordingPonderLeelaz();
+    try (TestState state = TestState.open(engine)) {
+      Leelaz.TrackingStreamLeaseReceipt staleReceipt =
+          trackingReceipt(engine, engine.trackingStreamIncarnation() + 1L, true);
+      Leelaz.TrackingStreamLeaseReceipt currentReceipt =
+          trackingReceipt(engine, engine.trackingStreamIncarnation(), true);
+
+      assertFalse(engine.restorePonderAfterTracking(staleReceipt));
+      setField(engine, "exclusiveGtpLifecycleTransition", true);
+      assertFalse(engine.restorePonderAfterTracking(currentReceipt));
+      setField(engine, "exclusiveGtpLifecycleTransition", false);
+      setField(engine, "normalCommandSendInProgress", true);
+      assertFalse(engine.restorePonderAfterTracking(currentReceipt));
+      setField(engine, "normalCommandSendInProgress", false);
+
+      assertEquals(0, engine.ponderCount.get());
+    }
+  }
+
+  @Test
+  void ponderHandbackFailureReturnsFalseWithoutEscaping() throws Exception {
+    ThrowingPonderLeelaz engine = new ThrowingPonderLeelaz();
+    try (TestState state = TestState.open(engine)) {
+      Leelaz.TrackingStreamLeaseReceipt receipt =
+          trackingReceipt(engine, engine.trackingStreamIncarnation(), true);
+
+      assertFalse(engine.restorePonderAfterTracking(receipt));
+      assertEquals(1, engine.ponderCount.get());
     }
   }
 
@@ -318,14 +361,13 @@ class TrackingAnalysisControllerTest {
       assertSame(context, snapshot.context());
       assertTrue(snapshot.generation() > 0L);
       assertSame(context.displayNodeIdentity(), snapshot.context().displayNodeIdentity());
-      assertEquals(List.of("D4", "Q16"), snapshot.results().get("D4").variation());
+      assertEquals(40, snapshot.results().get("D4").visits());
+      assertEquals(51.0, snapshot.results().get("D4").winrate());
+      assertEquals(2.5, snapshot.results().get("D4").scoreLead());
       assertFalse(snapshot.results().get("D4").completed());
       assertThrows(
           UnsupportedOperationException.class, () -> snapshot.selectedPoints().remove("D4"));
       assertThrows(UnsupportedOperationException.class, () -> snapshot.results().clear());
-      assertThrows(
-          UnsupportedOperationException.class,
-          () -> snapshot.results().get("D4").variation().add("E5"));
     }
   }
 
@@ -529,6 +571,21 @@ class TrackingAnalysisControllerTest {
     method.invoke(engine, line);
   }
 
+  private static Leelaz.TrackingStreamLeaseReceipt trackingReceipt(
+      Leelaz engine, long incarnation, boolean wasPondering) throws Exception {
+    java.lang.reflect.Constructor<Leelaz.TrackingStreamLeaseReceipt> constructor =
+        Leelaz.TrackingStreamLeaseReceipt.class.getDeclaredConstructor(
+            Leelaz.class, long.class, boolean.class);
+    constructor.setAccessible(true);
+    return constructor.newInstance(engine, incarnation, wasPondering);
+  }
+
+  private static void setField(Object target, String name, Object value) throws Exception {
+    Field field = Leelaz.class.getDeclaredField(name);
+    field.setAccessible(true);
+    field.set(target, value);
+  }
+
   private static final class ManualTimeoutScheduler
       implements TrackingAnalysisController.TimeoutScheduler {
     private final List<ManualTimeout> pending = new ArrayList<>();
@@ -703,6 +760,20 @@ class TrackingAnalysisControllerTest {
     public void ponder() {
       ponderCount.incrementAndGet();
       Pondering();
+    }
+  }
+
+  private static final class ThrowingPonderLeelaz extends Leelaz {
+    private final AtomicInteger ponderCount = new AtomicInteger();
+
+    private ThrowingPonderLeelaz() throws Exception {
+      super("");
+    }
+
+    @Override
+    public void ponder() {
+      ponderCount.incrementAndGet();
+      throw new IllegalStateException("controlled ponder failure");
     }
   }
 

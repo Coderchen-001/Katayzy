@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -265,9 +264,6 @@ public final class TrackingAnalysisController {
     private final int visits;
     private final double winrate;
     private final double scoreLead;
-    private final double policy;
-    private final double lcb;
-    private final List<String> variation;
     private final boolean completed;
 
     private PointResult(MoveData move) {
@@ -275,10 +271,6 @@ public final class TrackingAnalysisController {
       this.visits = move.playouts;
       this.winrate = move.winrate;
       this.scoreLead = move.scoreMean;
-      this.policy = move.policy;
-      this.lcb = move.lcb;
-      this.variation =
-          move.variation == null ? Collections.emptyList() : List.copyOf(move.variation);
       this.completed = false;
     }
 
@@ -287,9 +279,6 @@ public final class TrackingAnalysisController {
       this.visits = source.visits;
       this.winrate = source.winrate;
       this.scoreLead = source.scoreLead;
-      this.policy = source.policy;
-      this.lcb = source.lcb;
-      this.variation = source.variation;
       this.completed = completed;
     }
 
@@ -307,18 +296,6 @@ public final class TrackingAnalysisController {
 
     public double scoreLead() {
       return scoreLead;
-    }
-
-    public double policy() {
-      return policy;
-    }
-
-    public double lcb() {
-      return lcb;
-    }
-
-    public List<String> variation() {
-      return variation;
     }
 
     public boolean completed() {
@@ -355,6 +332,7 @@ public final class TrackingAnalysisController {
   private Context context;
   private long generation;
   private PointAttempt current;
+  private Leelaz.TrackingStreamLeaseReceipt initialReceipt;
   private volatile DisplaySnapshot snapshot = DisplaySnapshot.EMPTY;
 
   public TrackingAnalysisController() {
@@ -374,10 +352,14 @@ public final class TrackingAnalysisController {
     if (context != null && !context.matches(requestedContext)) {
       return AddResult.CONTEXT_MISMATCH;
     }
+    if (current != null && current.disposition != Leelaz.TrackingReleaseDisposition.ACTIVE) {
+      return AddResult.LEASE_UNAVAILABLE;
+    }
     if (current == null && snapshot.frozen()) {
       selectedPoints.clear();
       pendingPoints.clear();
       results.clear();
+      initialReceipt = null;
       snapshot = DisplaySnapshot.EMPTY;
     }
     if (selectedPoints.contains(normalized)) {
@@ -441,6 +423,7 @@ public final class TrackingAnalysisController {
     selectedPoints.clear();
     results.clear();
     context = null;
+    initialReceipt = null;
     snapshot = DisplaySnapshot.EMPTY;
     if (attempt != null && attempt.lease != null) {
       attempt.lease.release();
@@ -472,11 +455,15 @@ public final class TrackingAnalysisController {
       selectedPoints.clear();
       results.clear();
       context = null;
+      initialReceipt = null;
       snapshot = DisplaySnapshot.EMPTY;
       return AddResult.LEASE_UNAVAILABLE;
     }
     attempt.lease = acquisition.lease();
     attempt.receipt = acquisition.receipt();
+    if (initialReceipt == null) {
+      initialReceipt = acquisition.receipt();
+    }
     return AddResult.ADDED;
   }
 
@@ -572,11 +559,14 @@ public final class TrackingAnalysisController {
       startPoint(next);
     } else {
       publishSnapshot(false, false);
+      Leelaz.TrackingStreamLeaseReceipt handbackReceipt = initialReceipt;
+      initialReceipt = null;
       if (completed
           && lease.disposition() == Leelaz.TrackingReleaseDisposition.ACTIVE
-          && context.engine == attempt.receipt.engine()
-          && context.engineIncarnation == attempt.receipt.engineIncarnation()) {
-        context.engine.restorePonderAfterTracking(attempt.receipt);
+          && handbackReceipt != null
+          && context.engine == handbackReceipt.engine()
+          && context.engineIncarnation == handbackReceipt.engineIncarnation()) {
+        context.engine.restorePonderAfterTracking(handbackReceipt);
       }
       if (selectedPoints.isEmpty()) {
         context = null;
@@ -613,6 +603,7 @@ public final class TrackingAnalysisController {
       return;
     }
     attempt.disposition = disposition;
+    initialReceipt = null;
     cancelTimeout(attempt);
     pendingPoints.clear();
     if (disposition == Leelaz.TrackingReleaseDisposition.FROZEN_BY_SAFE) {
