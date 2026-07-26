@@ -435,7 +435,8 @@ class TrackingAnalysisControllerTest {
         "rules",
         "komi",
         "engine",
-        "parameters",
+        "interval",
+        "visits",
         "readboard"
       })
   void everyContextComponentInvalidatesCurrentTracking(String component) throws Exception {
@@ -798,9 +799,8 @@ class TrackingAnalysisControllerTest {
               ? contextEngine.trackingStreamIncarnation()
               : engine.trackingStreamIncarnation();
       TrackingAnalysisController.Parameters parameters =
-          component.equals("parameters")
-              ? new TrackingAnalysisController.Parameters(20, 200)
-              : new TrackingAnalysisController.Parameters(10, 100);
+          new TrackingAnalysisController.Parameters(
+              component.equals("interval") ? 20 : 10, component.equals("visits") ? 200 : 100);
       TrackingAnalysisController.ReadBoardContext readBoard =
           component.equals("readboard")
               ? new TrackingAnalysisController.ReadBoardContext(new Object(), 1L, new Object())

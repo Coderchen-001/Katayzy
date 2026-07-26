@@ -5885,6 +5885,8 @@ public class ConfigDialog2 extends JDialog {
       Lizzie.config.loadEstimateEngine = chkAutoLoadEstimate.isSelected();
       Lizzie.config.uiConfig.put("load-estimate-engine", Lizzie.config.loadEstimateEngine);
       int previousTrackingAnalysisMaxVisits = Lizzie.config.trackingAnalysisMaxVisits;
+      int previousAnalyzeUpdateIntervalCentisec =
+          Lizzie.config.analyzeUpdateIntervalCentisec;
       Lizzie.config.trackingAnalysisMaxVisits =
           Utils.parseTextToInt(
               txtTrackingAnalysisMaxVisits, Lizzie.config.trackingAnalysisMaxVisits);
@@ -5892,10 +5894,6 @@ public class ConfigDialog2 extends JDialog {
         Lizzie.config.trackingAnalysisMaxVisits = 500;
       Lizzie.config.uiConfig.put(
           "tracking-analysis-max-visits", Lizzie.config.trackingAnalysisMaxVisits);
-      if (Lizzie.config.trackingAnalysisMaxVisits != previousTrackingAnalysisMaxVisits
-          && Lizzie.frame != null) {
-        Lizzie.frame.clearTrackingPoints();
-      }
       Lizzie.config.loadSgfLast = chkSgfLoadLast.isSelected();
       Lizzie.config.uiConfig.put("load-sgf-last", Lizzie.config.loadSgfLast);
       Lizzie.config.autoQuickAnalyzeOnLoad = chkAutoQuickAnalyzeOnLoad.isSelected();
@@ -5967,6 +5965,12 @@ public class ConfigDialog2 extends JDialog {
           "analyze-update-interval-centisec", Lizzie.config.analyzeUpdateIntervalCentisec);
       leelazConfig.putOpt(
           "analyze-update-interval-centisecssh", Lizzie.config.analyzeUpdateIntervalCentisecSSH);
+      if ((Lizzie.config.trackingAnalysisMaxVisits != previousTrackingAnalysisMaxVisits
+              || Lizzie.config.analyzeUpdateIntervalCentisec
+                  != previousAnalyzeUpdateIntervalCentisec)
+          && Lizzie.frame != null) {
+        Lizzie.frame.clearTrackingPoints();
+      }
 
       int[] size = getBoardSize();
       if (size[0] == size[1]) {

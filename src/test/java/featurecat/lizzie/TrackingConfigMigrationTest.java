@@ -40,11 +40,15 @@ class TrackingConfigMigrationTest {
   }
 
   @Test
-  void changingVisitsAtTheProductionSettingsEntryClearsTheOldContext() throws Exception {
+  void changingEitherTrackingParameterAtTheProductionSettingsEntryClearsTheOldContext()
+      throws Exception {
     String dialog =
         Files.readString(Path.of("src/main/java/featurecat/lizzie/gui/ConfigDialog2.java"));
 
     assertTrue(dialog.contains("previousTrackingAnalysisMaxVisits"));
+    assertTrue(dialog.contains("previousAnalyzeUpdateIntervalCentisec"));
+    assertTrue(dialog.contains("Lizzie.config.analyzeUpdateIntervalCentisec"));
+    assertTrue(dialog.contains("!= previousAnalyzeUpdateIntervalCentisec"));
     assertTrue(dialog.contains("Lizzie.frame.clearTrackingPoints()"));
   }
 }
