@@ -10,12 +10,17 @@ import featurecat.lizzie.gui.LizzieFrame;
 import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardData;
 import featurecat.lizzie.rules.BoardHistoryList;
+import featurecat.lizzie.rules.BoardHistoryNode;
+import featurecat.lizzie.rules.Stone;
 import featurecat.lizzie.rules.Zobrist;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
@@ -77,6 +82,113 @@ class WholeGameAnalysisSessionTest {
   }
 
   @Test
+  void pauseClosesTheActiveEngineAndKeepsTheSessionResumable() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      SessionFixture fixture = SessionFixture.create();
+      setField(fixture.session, "state", WholeGameAnalysisSession.State.BASELINE);
+      setField(fixture.session, "engine", fixture.engine);
+      setField(fixture.session, "activeDispatchGeneration", 1);
+
+      fixture.session.pause();
+
+      assertTrue(fixture.engine.shutdownRequested);
+      assertTrue(fixture.engine.callbacksCleared);
+      assertTrue(fixture.engine.quitCalled.await(2, TimeUnit.SECONDS));
+      drainEdt();
+      assertEquals(WholeGameAnalysisSession.State.PAUSED, fixture.session.state());
+      assertTrue(fixture.session.isActive());
+      assertTrue(fixture.session.isPaused());
+      assertFalse(fixture.session.isTerminal());
+    }
+  }
+
+  @Test
+  void pauseWhilePreparingInvalidatesThePendingEngineStart() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      SessionFixture fixture = SessionFixture.create();
+      setField(fixture.session, "state", WholeGameAnalysisSession.State.PREPARING);
+      setField(fixture.session, "engineStartGeneration", 3);
+
+      fixture.session.pause();
+
+      assertEquals(WholeGameAnalysisSession.State.PAUSED, fixture.session.state());
+      assertEquals(4, getIntField(fixture.session, "engineStartGeneration"));
+    }
+  }
+
+  @Test
+  void engineCreatedBeforePauseCannotAttachAfterTheSessionIsPaused() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      SessionFixture fixture = SessionFixture.create();
+      setField(fixture.session, "state", WholeGameAnalysisSession.State.PREPARING);
+      setField(fixture.session, "engineStartGeneration", 3);
+
+      fixture.session.pause();
+      invokeAcceptEngine(
+          fixture.session, fixture.engine, 3, WholeGameAnalysisSession.State.BASELINE);
+
+      assertTrue(fixture.engine.quitCalled.await(2, TimeUnit.SECONDS));
+      assertEquals(WholeGameAnalysisSession.State.PAUSED, fixture.session.state());
+      assertFalse(fixture.session.isTerminal());
+    }
+  }
+
+  @Test
+  void resumeCreatesAFreshEngineAndContinuesTheInterruptedStage() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      AtomicInteger creations = new AtomicInteger();
+      SessionFixture fixture =
+          SessionFixture.createWithFactory(
+              () -> {
+                creations.incrementAndGet();
+                return SessionFixture.newEngine();
+              });
+      setField(fixture.session, "state", WholeGameAnalysisSession.State.PAUSED);
+      setField(fixture.session, "resumeStage", WholeGameAnalysisSession.State.BASELINE);
+
+      fixture.session.resume();
+
+      waitForState(fixture.session, WholeGameAnalysisSession.State.BASELINE);
+      assertEquals(1, creations.get());
+      assertTrue(fixture.session.isActive());
+      fixture.session.cancel();
+      drainEdt();
+    }
+  }
+
+  @Test
+  void resumedDeepStageDispatchesOnlyPositionsWithoutCompletedResults() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      BoardHistoryList history = new BoardHistoryList(BoardData.empty(BOARD_SIZE, BOARD_SIZE));
+      BoardHistoryNode root = history.getStart();
+      BoardHistoryNode first = root.add(new BoardHistoryNode(passData(Stone.BLACK, 1)));
+      BoardHistoryNode second = first.add(new BoardHistoryNode(passData(Stone.WHITE, 2)));
+      installCompleteAnalysis(root.getData(), 500);
+      installCompleteAnalysis(first.getData(), 500);
+      Board board = allocate(Board.class);
+      board.setHistory(history);
+      Lizzie.board = board;
+      TrackingFrame frame = allocate(TrackingFrame.class);
+      Lizzie.frame = frame;
+      WholeGameAnalysisPlan plan = WholeGameAnalysisPlan.create(root, 32, 500);
+      SessionAnalysisEngine resumedEngine = SessionFixture.newEngine();
+      WholeGameAnalysisSession session =
+          new WholeGameAnalysisSession(frame, plan, snapshot -> {}, () -> resumedEngine);
+      setField(session, "state", WholeGameAnalysisSession.State.PAUSED);
+      setField(session, "resumeStage", WholeGameAnalysisSession.State.DEEP);
+
+      session.resume();
+
+      waitForState(session, WholeGameAnalysisSession.State.DEEP);
+      waitForRequest(resumedEngine);
+      assertEquals(List.of(second), resumedEngine.requestedNodes);
+      assertEquals(500, resumedEngine.requestedVisits);
+      session.cancel();
+      drainEdt();
+    }
+  }
+
+  @Test
   void komiChangeInvalidatesTheSessionSemanticSnapshot() throws Exception {
     try (TestEnvironment env = TestEnvironment.open()) {
       SessionFixture fixture = SessionFixture.create();
@@ -103,8 +215,7 @@ class WholeGameAnalysisSessionTest {
 
   private static void invokeEngineFailure(WholeGameAnalysisSession session, int generation)
       throws Exception {
-    Method method =
-        WholeGameAnalysisSession.class.getDeclaredMethod("onEngineFailure", int.class);
+    Method method = WholeGameAnalysisSession.class.getDeclaredMethod("onEngineFailure", int.class);
     method.setAccessible(true);
     method.invoke(session, generation);
   }
@@ -116,10 +227,80 @@ class WholeGameAnalysisSessionTest {
     return (boolean) method.invoke(session);
   }
 
+  private static void invokeAcceptEngine(
+      WholeGameAnalysisSession session,
+      AnalysisEngine engine,
+      int generation,
+      WholeGameAnalysisSession.State stage)
+      throws Exception {
+    Method method =
+        WholeGameAnalysisSession.class.getDeclaredMethod(
+            "acceptEngine", AnalysisEngine.class, int.class, WholeGameAnalysisSession.State.class);
+    method.setAccessible(true);
+    method.invoke(session, engine, generation, stage);
+  }
+
   private static void setField(Object target, String name, Object value) throws Exception {
     Field field = WholeGameAnalysisSession.class.getDeclaredField(name);
     field.setAccessible(true);
     field.set(target, value);
+  }
+
+  private static int getIntField(Object target, String name) throws Exception {
+    Field field = WholeGameAnalysisSession.class.getDeclaredField(name);
+    field.setAccessible(true);
+    return field.getInt(target);
+  }
+
+  private static void waitForState(
+      WholeGameAnalysisSession session, WholeGameAnalysisSession.State expected) throws Exception {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+    while (System.nanoTime() < deadline) {
+      drainEdt();
+      if (session.state() == expected) {
+        return;
+      }
+      Thread.sleep(10L);
+    }
+    assertEquals(expected, session.state());
+  }
+
+  private static void waitForRequest(SessionAnalysisEngine engine) throws Exception {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+    while (System.nanoTime() < deadline) {
+      if (engine.requestedNodes != null) {
+        return;
+      }
+      Thread.sleep(10L);
+    }
+    assertTrue(engine.requestedNodes != null, "Expected a whole-game request");
+  }
+
+  private static BoardData passData(Stone color, int moveNumber) {
+    Stone[] stones = new Stone[BOARD_SIZE * BOARD_SIZE];
+    Arrays.fill(stones, Stone.EMPTY);
+    return BoardData.pass(
+        stones,
+        color,
+        color == Stone.WHITE,
+        new Zobrist(),
+        moveNumber,
+        new int[BOARD_SIZE * BOARD_SIZE],
+        0,
+        0,
+        50.0,
+        0);
+  }
+
+  private static void installCompleteAnalysis(BoardData data, int visits) {
+    MoveData move = new MoveData();
+    move.coordinate = "B2";
+    move.playouts = visits;
+    move.winrate = 50.0;
+    move.order = 0;
+    move.variation = List.of("B2");
+    data.setPlayouts(visits);
+    data.bestMoves = List.of(move);
   }
 
   private static void drainEdt() throws Exception {
@@ -135,27 +316,40 @@ class WholeGameAnalysisSessionTest {
     private final WholeGameAnalysisSession session;
     private final SessionAnalysisEngine engine;
 
-    private SessionFixture(
-        WholeGameAnalysisSession session, SessionAnalysisEngine engine) {
+    private SessionFixture(WholeGameAnalysisSession session, SessionAnalysisEngine engine) {
       this.session = session;
       this.engine = engine;
     }
 
     private static SessionFixture create() throws Exception {
-      BoardHistoryList history =
-          new BoardHistoryList(BoardData.empty(BOARD_SIZE, BOARD_SIZE));
+      return createWithFactory(null);
+    }
+
+    private static SessionFixture createWithFactory(WholeGameAnalysisSession.EngineFactory factory)
+        throws Exception {
+      BoardHistoryList history = new BoardHistoryList(BoardData.empty(BOARD_SIZE, BOARD_SIZE));
       Board board = allocate(Board.class);
       board.setHistory(history);
       Lizzie.board = board;
       TrackingFrame frame = allocate(TrackingFrame.class);
       Lizzie.frame = frame;
-      WholeGameAnalysisPlan plan =
-          WholeGameAnalysisPlan.create(history.getStart(), 32, 500);
+      WholeGameAnalysisPlan plan = WholeGameAnalysisPlan.create(history.getStart(), 32, 500);
+      SessionAnalysisEngine engine = newEngine();
       WholeGameAnalysisSession session =
-          new WholeGameAnalysisSession(frame, plan, snapshot -> {});
-      SessionAnalysisEngine engine = allocate(SessionAnalysisEngine.class);
-      engine.quitCalled = new CountDownLatch(1);
+          factory == null
+              ? new WholeGameAnalysisSession(frame, plan, snapshot -> {})
+              : new WholeGameAnalysisSession(frame, plan, snapshot -> {}, factory);
       return new SessionFixture(session, engine);
+    }
+
+    private static SessionAnalysisEngine newEngine() {
+      try {
+        SessionAnalysisEngine engine = allocate(SessionAnalysisEngine.class);
+        engine.quitCalled = new CountDownLatch(1);
+        return engine;
+      } catch (Exception ex) {
+        throw new IllegalStateException(ex);
+      }
     }
   }
 
@@ -164,6 +358,8 @@ class WholeGameAnalysisSessionTest {
     private boolean shutdownRequested;
     private boolean callbacksCleared;
     private CountDownLatch quitCalled;
+    private volatile List<BoardHistoryNode> requestedNodes;
+    private volatile int requestedVisits;
 
     private SessionAnalysisEngine() throws IOException {
       super(true);
@@ -183,6 +379,20 @@ class WholeGameAnalysisSessionTest {
     public void normalQuit() {
       quitCalled.countDown();
     }
+
+    @Override
+    public boolean isLoaded() {
+      return true;
+    }
+
+    @Override
+    public int startWholeGameRequest(
+        List<BoardHistoryNode> requestedNodes, int targetVisits, boolean includeOwnership) {
+      requestCount++;
+      this.requestedNodes = List.copyOf(requestedNodes);
+      requestedVisits = targetVisits;
+      return requestedNodes.size();
+    }
   }
 
   private static final class TrackingFrame extends LizzieFrame {
@@ -193,6 +403,10 @@ class WholeGameAnalysisSessionTest {
         WholeGameAnalysisSession session,
         AnalysisEngine completedEngine,
         boolean resumeForegroundAnalysis) {}
+
+    @Override
+    public void attachWholeGameAnalysisEngine(
+        WholeGameAnalysisSession session, AnalysisEngine engine) {}
   }
 
   private static final class TestEnvironment implements AutoCloseable {
@@ -218,11 +432,7 @@ class WholeGameAnalysisSessionTest {
     private static TestEnvironment open() {
       TestEnvironment environment =
           new TestEnvironment(
-              Board.boardWidth,
-              Board.boardHeight,
-              Lizzie.config,
-              Lizzie.board,
-              Lizzie.frame);
+              Board.boardWidth, Board.boardHeight, Lizzie.config, Lizzie.board, Lizzie.frame);
       Board.boardWidth = BOARD_SIZE;
       Board.boardHeight = BOARD_SIZE;
       Zobrist.init();

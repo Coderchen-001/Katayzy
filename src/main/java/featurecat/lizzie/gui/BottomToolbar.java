@@ -1221,10 +1221,7 @@ public class BottomToolbar extends JPanel {
     batchOpen.addActionListener(
         new ActionListener() {
           public void actionPerformed(ActionEvent e) {
-            autoAnalyzePopup.show(
-                buttonPane,
-                batchOpen.getX(),
-                batchOpen.getY() - autoAnalyzePopup.getPreferredSize().height);
+            AutoAnalyzeMenu.showAbove(autoAnalyzePopup, batchOpen);
           }
         });
 

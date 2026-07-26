@@ -6,6 +6,7 @@ import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardHistoryNode;
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
@@ -16,9 +17,16 @@ public final class WholeGameAnalysisSession {
     PREPARING,
     BASELINE,
     DEEP,
+    PAUSING,
+    PAUSED,
     COMPLETE,
     CANCELLED,
     FAILED
+  }
+
+  @FunctionalInterface
+  interface EngineFactory {
+    AnalysisEngine create() throws IOException;
   }
 
   @FunctionalInterface
@@ -67,6 +75,7 @@ public final class WholeGameAnalysisSession {
   private final int boardHeight;
   private final double gameKomi;
   private final String analysisRulesSignature;
+  private final EngineFactory engineFactory;
   private volatile State state = State.IDLE;
   private volatile boolean terminal;
   private AnalysisEngine engine;
@@ -80,6 +89,8 @@ public final class WholeGameAnalysisSession {
   private int baselineAttemptCount;
   private int deepAttemptCount;
   private boolean deepOwnershipRequested;
+  private State resumeStage = State.BASELINE;
+  private int engineStartGeneration;
   private int nextDispatchGeneration;
   private volatile int activeDispatchGeneration;
   private long stageStartedAtMillis;
@@ -87,9 +98,22 @@ public final class WholeGameAnalysisSession {
 
   public WholeGameAnalysisSession(
       LizzieFrame frame, WholeGameAnalysisPlan plan, Listener listener) {
+    this(
+        frame,
+        plan,
+        listener,
+        () -> new AnalysisEngine(true, AnalysisEngine.Workload.WHOLE_GAME, plan.deepVisits()));
+  }
+
+  WholeGameAnalysisSession(
+      LizzieFrame frame,
+      WholeGameAnalysisPlan plan,
+      Listener listener,
+      EngineFactory engineFactory) {
     this.frame = frame;
     this.plan = plan;
     this.listener = listener;
+    this.engineFactory = Objects.requireNonNull(engineFactory);
     boardWidth = Board.boardWidth;
     boardHeight = Board.boardHeight;
     gameKomi =
@@ -109,26 +133,51 @@ public final class WholeGameAnalysisSession {
         return;
       }
       state = State.PREPARING;
+      resumeStage = State.BASELINE;
     }
+    startGameGuard();
     publish("WholeGameAnalysis.preparing", 0, 0, -1L);
+    startEngineAsync(State.BASELINE);
+  }
+
+  public void publishReady() {
+    if (state() != State.IDLE) {
+      return;
+    }
+    publish(
+        "WholeGameAnalysis.ready",
+        plan.completedAtLeast(plan.deepVisits()),
+        plan.deepVisits(),
+        -1L);
+  }
+
+  private void startEngineAsync(State stageToResume) {
+    final int generation;
+    synchronized (this) {
+      if (terminal || state != State.PREPARING) {
+        return;
+      }
+      generation = ++engineStartGeneration;
+    }
     Thread starter =
         new Thread(
             () -> {
               try {
-                if (!awaitForegroundLeaseHandoff()) {
+                if (!awaitForegroundLeaseHandoff(generation)) {
                   return;
                 }
-                AnalysisEngine created =
-                    new AnalysisEngine(true, AnalysisEngine.Workload.WHOLE_GAME, plan.deepVisits());
-                SwingUtilities.invokeLater(() -> acceptEngine(created));
+                AnalysisEngine created = engineFactory.create();
+                SwingUtilities.invokeLater(() -> acceptEngine(created, generation, stageToResume));
               } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
-                if (!isTerminal()) {
+                if (isEngineStartCurrent(generation)) {
                   fail("WholeGameAnalysis.error.engine");
                 }
               } catch (IOException | RuntimeException ex) {
                 ex.printStackTrace();
-                fail("WholeGameAnalysis.error.engine");
+                if (isEngineStartCurrent(generation)) {
+                  fail("WholeGameAnalysis.error.engine");
+                }
               }
             },
             "whole-game-analysis-engine-starter");
@@ -136,15 +185,15 @@ public final class WholeGameAnalysisSession {
     starter.start();
   }
 
-  private boolean awaitForegroundLeaseHandoff() throws InterruptedException {
-    while (!isTerminal()
+  private boolean awaitForegroundLeaseHandoff(int generation) throws InterruptedException {
+    while (isEngineStartCurrent(generation)
         && Lizzie.config != null
         && Lizzie.config.analysisReuseCurrentEngine
         && Lizzie.leelaz != null
         && Lizzie.leelaz.hasExclusiveGtpWorkInProgress()) {
       Thread.sleep(50L);
     }
-    return !isTerminal();
+    return isEngineStartCurrent(generation);
   }
 
   public synchronized State state() {
@@ -153,15 +202,92 @@ public final class WholeGameAnalysisSession {
 
   public synchronized boolean isRunning() {
     return !terminal
-        && (state == State.PREPARING || state == State.BASELINE || state == State.DEEP);
+        && (state == State.PREPARING
+            || state == State.BASELINE
+            || state == State.DEEP
+            || state == State.PAUSING);
+  }
+
+  public synchronized boolean isActive() {
+    return isRunning() || state == State.PAUSED;
+  }
+
+  public synchronized boolean isPaused() {
+    return !terminal && state == State.PAUSED;
+  }
+
+  public synchronized boolean isTerminal() {
+    return terminal;
+  }
+
+  public boolean matchesCurrentGame() {
+    return currentGameMatches();
   }
 
   public void cancel() {
     finish(State.CANCELLED, "WholeGameAnalysis.cancelled");
   }
 
-  private void acceptEngine(AnalysisEngine created) {
-    if (isTerminal()) {
+  public void pause() {
+    AnalysisEngine engineToClose;
+    synchronized (this) {
+      if (terminal
+          || (state != State.PREPARING && state != State.BASELINE && state != State.DEEP)) {
+        return;
+      }
+      if (state == State.DEEP) {
+        resumeStage = State.DEEP;
+      } else {
+        resumeStage = State.BASELINE;
+      }
+      state = State.PAUSING;
+      engineStartGeneration++;
+      activeDispatchGeneration = 0;
+      engineToClose = engine;
+      engine = null;
+    }
+    refreshCompletedCounts();
+    publish("WholeGameAnalysis.pausing", completedForCurrentStage(), currentTargetVisits(), -1L);
+    if (engineToClose == null) {
+      markPaused();
+      return;
+    }
+    engineToClose.requestShutdown();
+    engineToClose.clearRequestCallbacks();
+    closeEngine(engineToClose, this::markPaused);
+  }
+
+  public void resume() {
+    State stageToResume;
+    synchronized (this) {
+      if (terminal || state != State.PAUSED) {
+        return;
+      }
+      if (!currentGameMatches()) {
+        fail("WholeGameAnalysis.error.gameChanged");
+        return;
+      }
+      stageToResume = resumeStage;
+      state = State.PREPARING;
+    }
+    publish("WholeGameAnalysis.preparing", completedForCurrentStage(), currentTargetVisits(), -1L);
+    startEngineAsync(stageToResume);
+  }
+
+  private void markPaused() {
+    synchronized (this) {
+      if (terminal || state != State.PAUSING) {
+        return;
+      }
+      state = State.PAUSED;
+    }
+    // Capture a final payload that may have completed while the engine was shutting down.
+    refreshCompletedCounts();
+    publish("WholeGameAnalysis.paused", completedForCurrentStage(), currentTargetVisits(), -1L);
+  }
+
+  private void acceptEngine(AnalysisEngine created, int generation, State stageToResume) {
+    if (!isEngineStartCurrent(generation)) {
       closeEngine(created);
       return;
     }
@@ -175,7 +301,13 @@ public final class WholeGameAnalysisSession {
       fail("WholeGameAnalysis.error.engine");
       return;
     }
-    engine = created;
+    synchronized (this) {
+      if (!isEngineStartCurrent(generation)) {
+        closeEngine(created);
+        return;
+      }
+      engine = created;
+    }
     remoteBackend = created.usesRemoteBackend();
     frame.attachWholeGameAnalysisEngine(this, created);
     if (!created.usesSharedForegroundEngine()
@@ -185,8 +317,11 @@ public final class WholeGameAnalysisSession {
       Lizzie.leelaz.nameCmd();
       resumeForegroundAnalysis = true;
     }
-    startGameGuard();
-    beginBaselineStage();
+    if (stageToResume == State.DEEP) {
+      beginDeepStage();
+    } else {
+      beginBaselineStage();
+    }
   }
 
   private void beginBaselineStage() {
@@ -364,6 +499,7 @@ public final class WholeGameAnalysisSession {
         return;
       }
       terminal = true;
+      engineStartGeneration++;
       activeDispatchGeneration = 0;
       previousState = state;
       state = terminalState;
@@ -381,7 +517,9 @@ public final class WholeGameAnalysisSession {
       baselineCompleted = plan.positionCount();
       deepCompleted = plan.positionCount();
       completedForSnapshot = plan.positionCount();
-    } else if (previousState == State.BASELINE) {
+    } else if (previousState == State.BASELINE
+        || ((previousState == State.PAUSING || previousState == State.PAUSED)
+            && resumeStage == State.BASELINE)) {
       completedForSnapshot = baselineCompleted;
     } else {
       completedForSnapshot = deepCompleted;
@@ -392,7 +530,14 @@ public final class WholeGameAnalysisSession {
   }
 
   private void closeEngine(AnalysisEngine engineToClose) {
+    closeEngine(engineToClose, null);
+  }
+
+  private void closeEngine(AnalysisEngine engineToClose, Runnable completion) {
     if (engineToClose == null) {
+      if (completion != null) {
+        SwingUtilities.invokeLater(completion);
+      }
       return;
     }
     Thread closer =
@@ -402,6 +547,10 @@ public final class WholeGameAnalysisSession {
                 engineToClose.normalQuit();
               } catch (RuntimeException ex) {
                 ex.printStackTrace();
+              } finally {
+                if (completion != null) {
+                  SwingUtilities.invokeLater(completion);
+                }
               }
             },
             "whole-game-analysis-engine-closer");
@@ -446,21 +595,33 @@ public final class WholeGameAnalysisSession {
         && Board.boardHeight == boardHeight
         && (Double.isNaN(gameKomi)
             || (Lizzie.board.getHistory().getGameInfo() != null
-                && Double.compare(
-                        Lizzie.board.getHistory().getGameInfo().getKomi(), gameKomi)
+                && Double.compare(Lizzie.board.getHistory().getGameInfo().getKomi(), gameKomi)
                     == 0))
         && analysisRulesSignature.equals(AnalysisEngine.currentAnalysisRulesSignature());
-  }
-
-  private synchronized boolean isTerminal() {
-    return terminal;
   }
 
   private int currentTargetVisits() {
     if (state == State.BASELINE) {
       return plan.baselineVisits();
     }
+    if ((state == State.PREPARING || state == State.PAUSING || state == State.PAUSED)
+        && resumeStage == State.BASELINE) {
+      return plan.baselineVisits();
+    }
     return plan.deepVisits();
+  }
+
+  private int completedForCurrentStage() {
+    return resumeStage == State.BASELINE ? baselineCompleted : deepCompleted;
+  }
+
+  private void refreshCompletedCounts() {
+    baselineCompleted = plan.completedAtLeast(plan.baselineVisits());
+    deepCompleted = plan.completedAtLeast(plan.deepVisits(), deepOwnershipRequested);
+  }
+
+  private synchronized boolean isEngineStartCurrent(int generation) {
+    return !terminal && state == State.PREPARING && generation == engineStartGeneration;
   }
 
   private String stageDetailKey() {
