@@ -1388,6 +1388,47 @@ public class Leelaz {
     }
   }
 
+  public long trackingStreamIncarnation() {
+    return currentReaderStreamBinding().incarnation;
+  }
+
+  public boolean restorePonderAfterTracking(TrackingStreamLeaseReceipt receipt) {
+    boolean claimed = false;
+    boolean restored = false;
+    try {
+      synchronized (engineArbitrationLock()) {
+        synchronized (commandQueue()) {
+          if (receipt == null
+              || receipt.engine() != this
+              || !receipt.wasPondering()
+              || Lizzie.leelaz != this
+              || !isLoaded()
+              || !isStarted()
+              || currentReaderStreamBinding().incarnation != receipt.engineIncarnation()
+              || exclusiveGtpSession != null
+              || trackingHandoffGate != null
+              || exclusiveGtpLifecycleTransition
+              || foregroundRestoreInProgress
+              || normalCommandSendInProgress
+              || !commandQueue().isEmpty()
+              || !foregroundRestoreCommandQueue().isEmpty()) {
+            return false;
+          }
+          claimed = true;
+          ponder();
+          restored = true;
+        }
+      }
+    } catch (Throwable ignored) {
+      // A failed ponder handback cannot own recovery or strand the ordinary writer.
+    } finally {
+      if (claimed) {
+        trySendCommandFromQueue();
+      }
+    }
+    return restored;
+  }
+
   private boolean isCurrentReaderStreamBinding(ReaderStreamBinding binding) {
     ReaderStreamBinding current = readerStreamBinding;
     return current == binding && !binding.terminated;
