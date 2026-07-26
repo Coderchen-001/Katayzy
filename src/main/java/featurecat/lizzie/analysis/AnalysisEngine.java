@@ -1090,6 +1090,13 @@ public class AnalysisEngine {
         finishSuccessfulEmptyForegroundRequest();
         return;
       }
+    } else if (target.kind == ForegroundRequestKind.WHOLE_GAME) {
+      if (startWholeGameRequestNow(
+              target.requestedNodes, target.targetVisits, target.includeOwnership)
+          == 0) {
+        finishSuccessfulEmptyForegroundRequest();
+        return;
+      }
     } else {
       startRequestNow(target.startMove, target.endMove, target.showProgressDialog);
     }
@@ -1184,6 +1191,21 @@ public class AnalysisEngine {
   public int startWholeGameRequest(
       List<BoardHistoryNode> requestedNodes, int targetVisits, boolean includeOwnership) {
     if (!isLoaded) return -1;
+    List<BoardHistoryNode> pendingNodes =
+        collectWholeGameRequestNodes(requestedNodes, targetVisits);
+    if (!pendingNodes.isEmpty()) {
+      ForegroundRequestTarget target =
+          ForegroundRequestTarget.wholeGame(
+              this, pendingNodes, targetVisits, includeOwnership);
+      if (tryClaimForegroundTrackingHandoff(target)) {
+        return target.failed ? -1 : pendingNodes.size();
+      }
+    }
+    return startWholeGameRequestNow(pendingNodes, targetVisits, includeOwnership);
+  }
+
+  private int startWholeGameRequestNow(
+      List<BoardHistoryNode> requestedNodes, int targetVisits, boolean includeOwnership) {
     prepareRequestState(false);
     preserveExistingAnalysis = true;
     preserveBoardPositionOnCompletion = true;
@@ -1226,6 +1248,22 @@ public class AnalysisEngine {
     boolean dispatchFailed = requestDispatchFailed;
     showRequestProgressOrContinueBatch(false);
     return dispatchFailed ? -1 : requestCount;
+  }
+
+  private static List<BoardHistoryNode> collectWholeGameRequestNodes(
+      List<BoardHistoryNode> requestedNodes, int targetVisits) {
+    int normalizedTargetVisits = Math.max(1, targetVisits);
+    Set<BoardHistoryNode> uniqueNodes = new LinkedHashSet<BoardHistoryNode>();
+    if (requestedNodes != null) {
+      for (BoardHistoryNode node : requestedNodes) {
+        if (node != null
+            && node.getData() != null
+            && node.getData().getPlayouts() < normalizedTargetVisits) {
+          uniqueNodes.add(node);
+        }
+      }
+    }
+    return new ArrayList<BoardHistoryNode>(uniqueNodes);
   }
 
   private void prepareRequestState(boolean showProgressDialog) {
@@ -2065,7 +2103,8 @@ public class AnalysisEngine {
   private enum ForegroundRequestKind {
     MAINLINE,
     ALL_BRANCHES,
-    MISSING_MAINLINE
+    MISSING_MAINLINE,
+    WHOLE_GAME
   }
 
   private static final class ForegroundRequestTarget implements Leelaz.TrackingHandoffTarget {
@@ -2079,6 +2118,9 @@ public class AnalysisEngine {
     private final int startMove;
     private final int endMove;
     private final boolean showProgressDialog;
+    private final List<BoardHistoryNode> requestedNodes;
+    private final int targetVisits;
+    private final boolean includeOwnership;
     private final java.util.concurrent.atomic.AtomicBoolean activationStarted =
         new java.util.concurrent.atomic.AtomicBoolean(false);
     private final java.util.concurrent.atomic.AtomicBoolean settled =
@@ -2093,6 +2135,18 @@ public class AnalysisEngine {
         int startMove,
         int endMove,
         boolean showProgressDialog) {
+      this(owner, kind, startMove, endMove, showProgressDialog, null, -1, false);
+    }
+
+    private ForegroundRequestTarget(
+        AnalysisEngine owner,
+        ForegroundRequestKind kind,
+        int startMove,
+        int endMove,
+        boolean showProgressDialog,
+        List<BoardHistoryNode> requestedNodes,
+        int targetVisits,
+        boolean includeOwnership) {
       this.owner = owner;
       BoardHistoryList history = Lizzie.board == null ? null : Lizzie.board.getHistory();
       this.historyRoot = history == null ? null : history.getStart();
@@ -2104,6 +2158,9 @@ public class AnalysisEngine {
       this.startMove = startMove;
       this.endMove = endMove;
       this.showProgressDialog = showProgressDialog;
+      this.requestedNodes = requestedNodes;
+      this.targetVisits = targetVisits;
+      this.includeOwnership = includeOwnership;
     }
 
     private static ForegroundRequestTarget mainline(
@@ -2124,6 +2181,22 @@ public class AnalysisEngine {
           owner, ForegroundRequestKind.MISSING_MAINLINE, -1, -1, showProgressDialog);
     }
 
+    private static ForegroundRequestTarget wholeGame(
+        AnalysisEngine owner,
+        List<BoardHistoryNode> requestedNodes,
+        int targetVisits,
+        boolean includeOwnership) {
+      return new ForegroundRequestTarget(
+          owner,
+          ForegroundRequestKind.WHOLE_GAME,
+          -1,
+          -1,
+          false,
+          List.copyOf(requestedNodes),
+          Math.max(1, targetVisits),
+          includeOwnership);
+    }
+
     @Override
     public Leelaz.TrackingHandoffKind kind() {
       return Leelaz.TrackingHandoffKind.FOREGROUND_ANALYSIS;
@@ -2139,10 +2212,11 @@ public class AnalysisEngine {
             && Lizzie.board != null
             && Lizzie.board.getHistory() != null
             && Lizzie.board.getHistory().getStart() == historyRoot
-            && Lizzie.board.getHistory().getCurrentHistoryNode() == historyNode
-            && Lizzie.board.getHistory().getZobrist().equals(boardPosition)
-            && Lizzie.board.getHistory().isBlacksTurn() == blackToPlay
-            && Lizzie.board.getContextRevision() == contextRevision;
+            && (kind == ForegroundRequestKind.WHOLE_GAME
+                || (Lizzie.board.getHistory().getCurrentHistoryNode() == historyNode
+                    && Lizzie.board.getHistory().getZobrist().equals(boardPosition)
+                    && Lizzie.board.getHistory().isBlacksTurn() == blackToPlay
+                    && Lizzie.board.getContextRevision() == contextRevision));
       }
     }
 

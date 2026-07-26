@@ -313,6 +313,63 @@ class AnalysisEngineRequestTest {
   }
 
   @Test
+  void reuseModeClaimsActiveTrackingBeforeStartingWholeGameRequest() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      BoardHistoryNode requestedNode = singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(foreground);
+      AnalysisEngine engine =
+          new AnalysisEngine(false, AnalysisEngine.Workload.WHOLE_GAME, 500);
+
+      assertEquals(1, engine.startWholeGameRequest(List.of(requestedNode), 500, false));
+      assertEquals(
+          "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
+          output.toString(StandardCharsets.UTF_8));
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+
+      assertTrue(Lizzie.board.getHistory().previous().isPresent());
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(Lizzie.board.getHistory().next().isPresent());
+
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).contains("kata-get-rules\n"),
+          output.toString(StandardCharsets.UTF_8));
+      closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
+  void wholeGameTrackingHandoffReportsFinalFenceFailureOnce() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      BoardHistoryNode requestedNode = singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      activateTracking(foreground);
+      AnalysisEngine engine =
+          new AnalysisEngine(false, AnalysisEngine.Workload.WHOLE_GAME, 500);
+      AtomicInteger failures = new AtomicInteger();
+      engine.setFailureCallback(failures::incrementAndGet);
+
+      assertEquals(1, engine.startWholeGameRequest(List.of(requestedNode), 500, false));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "?800000002 simulated final stop failure"));
+      javax.swing.SwingUtilities.invokeAndWait(() -> {});
+
+      assertEquals(1, failures.get());
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
+    }
+  }
+
+  @Test
   void missingMainlineCompletesWhenAcquiringTrackingFillsLastRequestBeforeInitialFence()
       throws Exception {
     try (TestEnvironment env = TestEnvironment.open()) {
