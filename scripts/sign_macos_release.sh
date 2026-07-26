@@ -12,13 +12,14 @@
 #   APPLE_TEAM_ID          10-character Developer Team ID
 #   APPLE_SIGN_IDENTITY    Optional override, e.g. "Developer ID Application: Name (TEAMID)"
 #
-# Usage: sign_macos_release.sh <release-dir> <mac-arch>
+# Usage: sign_macos_release.sh <release-dir> <mac-arch> [release-tag]
 #        release-dir contains the public *.dmg asset
 #        mac-arch is either "mac-arm64" or "mac-amd64"
 set -euo pipefail
 
 release_dir="${1:-dist/release}"
 mac_arch="${2:-mac-arm64}"
+release_tag="${3:-}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 entitlements_path="$ROOT_DIR/packaging/macos-entitlements.plist"
 drag_dmg_script="$ROOT_DIR/scripts/create_macos_drag_dmg.sh"
@@ -424,7 +425,7 @@ PY
   fi
 
   xcrun stapler staple "$signed_dmg"
-  "$validate_dmg_script" "$signed_dmg" "$dmg_arch_label"
+  "$validate_dmg_script" "$signed_dmg" "$dmg_arch_label" "$release_tag"
   spctl --assess --type open --context context:primary-signature -vvv "$signed_dmg" || true
 
   mv "$signed_dmg" "$dmg"

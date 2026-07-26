@@ -4,10 +4,11 @@ set -euo pipefail
 PLATFORM="${1:-}"
 RELEASE_DIR="${2:-dist/release}"
 DATE_TAG="${3:-}"
+RELEASE_TAG="${4:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ -z "$PLATFORM" || -z "$DATE_TAG" ]]; then
-  echo "Usage: $0 <windows|mac-arm64|mac-amd64|linux> [release_dir] <date_tag>"
+  echo "Usage: $0 <windows|mac-arm64|mac-amd64|linux> [release_dir] <date_tag> [release_tag]"
   exit 1
 fi
 
@@ -198,7 +199,10 @@ PY
     ;;
   mac-arm64|mac-amd64)
     if command -v hdiutil >/dev/null 2>&1; then
-      "$SCRIPT_DIR/validate_macos_dmg_layout.sh" "$RELEASE_DIR/${expected[0]}"
+      "$SCRIPT_DIR/validate_macos_dmg_layout.sh" \
+        "$RELEASE_DIR/${expected[0]}" \
+        "" \
+        "$RELEASE_TAG"
     else
       echo "Skipping macOS DMG layout validation because hdiutil is unavailable."
     fi

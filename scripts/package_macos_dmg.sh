@@ -6,7 +6,7 @@ cd "$ROOT_DIR"
 source "$ROOT_DIR/scripts/release_metadata.sh"
 
 DATE_TAG="${1:-$(date +%F)}"
-APP_VERSION="${2:-1.0.0}"
+APP_VERSION_FALLBACK="${2:-1.0.0}"
 JAR_PATH="${3:-target/lizzie-yzy2.5.3-shaded.jar}"
 APP_DISPLAY_VERSION="${LIZZIE_NEXT_VERSION:-${4:-next-dev}}"
 
@@ -25,6 +25,7 @@ PYTHON_BIN=""
 RUNTIME_TOOLS_SCRIPT="$ROOT_DIR/scripts/package_runtime_tools.py"
 JCEF_BUNDLE_PREPARE_SCRIPT="$ROOT_DIR/scripts/prepare_bundled_jcef.py"
 KATAGO_BUNDLE_SCRIPT="$ROOT_DIR/scripts/macos_katago_bundle.py"
+MACOS_BUNDLE_VERSION_SCRIPT="$ROOT_DIR/scripts/macos_bundle_version.py"
 JCEF_RELEASE_TAG="jcef-99c2f7a+cef-127.3.1+g6cbb30e+chromium-127.0.6533.100"
 JCEF_JAVA_OPTIONS=(
   "--add-exports=java.desktop/sun.awt=ALL-UNNAMED"
@@ -66,6 +67,10 @@ fi
 if [[ ! -f "$JAR_PATH" ]]; then
   echo "Jar not found: $JAR_PATH"
   echo "Build first: mvn -DskipTests package"
+  exit 1
+fi
+if [[ ! -f "$MACOS_BUNDLE_VERSION_SCRIPT" ]]; then
+  echo "Missing macOS bundle version helper: $MACOS_BUNDLE_VERSION_SCRIPT"
   exit 1
 fi
 
@@ -188,6 +193,15 @@ IDENTIFIER="com.wimi321.lizzieyzy.next"
 
 prepare_custom_runtime
 
+resolve_python_bin
+APP_VERSION="$(
+  "$PYTHON_BIN" "$MACOS_BUNDLE_VERSION_SCRIPT" \
+    --release-tag "$APP_DISPLAY_VERSION" \
+    --date-tag "$DATE_TAG" \
+    --fallback "$APP_VERSION_FALLBACK" \
+    --field build
+)"
+
 jpackage \
   --type app-image \
   --name "$APP_NAME" \
@@ -234,13 +248,14 @@ mkdir -p "$ROOT_DIR/dist/release"
   "$APP_IMAGE_DIR" \
   "$FINAL_DMG" \
   "$DMG_ARCH_LABEL"
-"$DMG_VALIDATE_SCRIPT" "$FINAL_DMG" "$DMG_ARCH_LABEL"
+"$DMG_VALIDATE_SCRIPT" "$FINAL_DMG" "$DMG_ARCH_LABEL" "$APP_DISPLAY_VERSION"
 
 cat >"$INSTALL_NOTE" <<EOF
 Package type: unsigned macOS app + dmg
 Build architecture: $ARCH
 Generated on: $DATE_TAG
 Release display version: $APP_DISPLAY_VERSION
+macOS bundle version: $APP_VERSION
 Main asset: $(basename "$FINAL_DMG")
 Engine: $PACKAGE_NOTE
 Browser: Bundled JCEF $JCEF_RELEASE_TAG ($JCEF_PLATFORM)

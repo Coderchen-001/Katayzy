@@ -150,13 +150,15 @@ LEGACY_WINDOWS32_ZIP=1 LEGACY_OTHER_SYSTEMS_ZIP=1 ./scripts/package_release.sh 2
 
 ```bash
 ./scripts/package_macos_dmg.sh 2026-04-24 1.0.0 target/lizzie-yzy2.5.3-shaded.jar next-2026-04-24.2
-./scripts/validate_release_assets.sh mac-arm64 dist/release 2026-04-24
+./scripts/validate_release_assets.sh mac-arm64 dist/release 2026-04-24 next-2026-04-24.2
 ```
 
 macOS 校验不是只看 DMG 布局：打包脚本会在 App image 中运行内置 KataGo，
 `validate_release_assets.sh` 还会挂载最终 DMG，再检查一次动态库闭包并运行
 `katago version`。DMG 布局校验还必须确认 Applications 链接、800×500 与
-1600×1000 两档安装背景、芯片标识、卷名和 Finder 元数据完整。任一步失败都不能上传该资产。
+1600×1000 两档安装背景、芯片标识、卷名、Finder 元数据以及由 release tag 生成的唯一
+`CFBundleVersion` 完整。每次发布都必须递增 bundle 版本，避免 Spotlight 的“应用”
+视图继续引用旧 DMG 中的同名 App。任一步失败都不能上传该资产。
 
 上传前需要在真实 Mac 上打开最终签名 DMG 截图复核：App 和 Applications 图标必须分别位于
 左右卡片，箭头、双语安装说明和芯片标识完整显示；完成拖拽并弹出 DMG 后，只从
