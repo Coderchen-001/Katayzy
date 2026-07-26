@@ -318,6 +318,64 @@ public class KataGoRuntimeHelperTest {
   }
 
   @Test
+  void tensorRtUnderSpacedPortablePathUsesSeparateRuntimeDirectory() throws Exception {
+    withOsName(
+        WINDOWS_OS_NAME,
+        () -> {
+          Path tempRoot = Files.createTempDirectory("katago-helper-separated-tensorrt");
+          Path portableRoot =
+              Files.createDirectories(tempRoot.resolve("LizzieYzy Next CUDA portable"));
+          Path runtimeWorkDirectory =
+              Files.createDirectories(portableRoot.resolve("user-data").resolve("runtime"));
+          Path engineDir =
+              Files.createDirectories(
+                  runtimeWorkDirectory
+                      .resolve("engines")
+                      .resolve("katago")
+                      .resolve("windows-x64-nvidia-tensorrt"));
+          Path enginePath = touch(engineDir.resolve("katago.exe"));
+          Files.writeString(
+              engineDir.resolve("lizzieyzy-next-engine-backend.txt"), "nvidia-tensorrt");
+          Path runtimeDir =
+              Files.createDirectories(runtimeWorkDirectory.resolve("nvidia-runtime"));
+          touchRequiredCuda12_8Dlls(runtimeDir);
+          touch(runtimeDir.resolve("nvinfer_10.dll"));
+          touch(runtimeDir.resolve("nvinfer_plugin_10.dll"));
+          Path originalDirectory = Files.createDirectories(portableRoot.resolve("app"));
+          ProcessBuilder processBuilder =
+              createProcessBuilder(
+                  originalDirectory, String.join(PATH_SEPARATOR, Arrays.asList("alpha", "beta")));
+
+          withConfig(
+              runtimeWorkDirectory,
+              () -> {
+                KataGoRuntimeHelper.NvidiaRuntimeStatus status =
+                    KataGoRuntimeHelper.inspectNvidiaRuntime(enginePath);
+                KataGoRuntimeHelper.configureBundledProcessBuilder(processBuilder, enginePath);
+
+                assertTrue(
+                    status.ready,
+                    "TensorRT should be ready when its engine and runtime are stored separately.");
+                assertEquals(
+                    normalize(runtimeWorkDirectory),
+                    normalize(processBuilder.directory().toPath()),
+                    "The TensorRT process should keep all mutable state in user-data/runtime.");
+                assertEquals(
+                    normalize(runtimeDir),
+                    firstPathEntry(processBuilder.environment().get("PATH")),
+                    "The separately installed NVIDIA runtime must be first on PATH.");
+                assertEquals(
+                    normalize(engineDir),
+                    secondPathEntry(processBuilder.environment().get("PATH")),
+                    "The TensorRT engine directory should follow its runtime on PATH.");
+                assertFalse(
+                    Files.isRegularFile(engineDir.resolve("cudnn64_9.dll")),
+                    "Runtime DLLs should not need to be duplicated into the engine directory.");
+              });
+        });
+  }
+
+  @Test
   void nvidia50CudaRuntimeAcceptsCudnn9() throws Exception {
     withOsName(
         WINDOWS_OS_NAME,
