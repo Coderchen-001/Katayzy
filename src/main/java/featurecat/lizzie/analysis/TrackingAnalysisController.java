@@ -70,11 +70,18 @@ public final class TrackingAnalysisController {
     private final Object identity;
     private final long revision;
     private final Object nodeIdentity;
+    private final long boardRevision;
 
     public ReadBoardContext(Object identity, long revision, Object nodeIdentity) {
+      this(identity, revision, nodeIdentity, 0L);
+    }
+
+    public ReadBoardContext(
+        Object identity, long revision, Object nodeIdentity, long boardRevision) {
       this.identity = Objects.requireNonNull(identity, "identity");
       this.revision = revision;
       this.nodeIdentity = Objects.requireNonNull(nodeIdentity, "nodeIdentity");
+      this.boardRevision = boardRevision;
     }
 
     public Object identity() {
@@ -89,11 +96,16 @@ public final class TrackingAnalysisController {
       return nodeIdentity;
     }
 
+    public long boardRevision() {
+      return boardRevision;
+    }
+
     private boolean matches(ReadBoardContext other) {
       return other != null
           && identity == other.identity
           && revision == other.revision
-          && nodeIdentity == other.nodeIdentity;
+          && nodeIdentity == other.nodeIdentity
+          && boardRevision == other.boardRevision;
     }
   }
 
@@ -315,6 +327,9 @@ public final class TrackingAnalysisController {
     private long timeoutToken;
     private PointResult result;
     private boolean cancelled;
+    private boolean acquisitionValidated;
+    private boolean ready;
+    private boolean requestSent;
     private Leelaz.TrackingReleaseDisposition disposition =
         Leelaz.TrackingReleaseDisposition.ACTIVE;
 
@@ -343,6 +358,11 @@ public final class TrackingAnalysisController {
   }
 
   public synchronized AddResult addPoint(String coordinate, Context requestedContext) {
+    return addPoint(coordinate, requestedContext, null);
+  }
+
+  synchronized AddResult addPoint(
+      String coordinate, Context requestedContext, java.util.function.BooleanSupplier validator) {
     Objects.requireNonNull(requestedContext, "requestedContext");
     String normalized = normalizeCoordinate(coordinate, requestedContext);
     if (normalized == null) {
@@ -372,7 +392,7 @@ public final class TrackingAnalysisController {
       publishSnapshot(true, false);
       return AddResult.ADDED;
     }
-    return startPoint(normalized);
+    return startPoint(normalized, validator);
   }
 
   public synchronized boolean removePoint(String coordinate) {
@@ -430,6 +450,11 @@ public final class TrackingAnalysisController {
   }
 
   private AddResult startPoint(String coordinate) {
+    return startPoint(coordinate, null);
+  }
+
+  private AddResult startPoint(
+      String coordinate, java.util.function.BooleanSupplier acquisitionValidator) {
     PointAttempt attempt = new PointAttempt(++generation, coordinate);
     current = attempt;
     publishSnapshot(true, false);
@@ -459,8 +484,30 @@ public final class TrackingAnalysisController {
       return AddResult.LEASE_UNAVAILABLE;
     }
     attempt.lease = acquisition.lease();
+    boolean validAfterAcquisition =
+        acquisitionValidator == null || acquisitionValidator.getAsBoolean();
+    if (!validAfterAcquisition || current != attempt) {
+      attempt.cancelled = true;
+      if (attempt.lease != null) {
+        attempt.lease.release();
+      }
+      if (current == attempt) {
+        current = null;
+        pendingPoints.clear();
+        selectedPoints.clear();
+        results.clear();
+        context = null;
+        initialReceipt = null;
+        snapshot = DisplaySnapshot.EMPTY;
+      }
+      return AddResult.LEASE_UNAVAILABLE;
+    }
+    attempt.acquisitionValidated = true;
     if (initialReceipt == null) {
       initialReceipt = acquisition.receipt();
+    }
+    if (attempt.ready) {
+      sendTrackingRequest(attempt);
     }
     return AddResult.ADDED;
   }
@@ -478,6 +525,18 @@ public final class TrackingAnalysisController {
       return;
     }
     attempt.lease = lease;
+    attempt.ready = true;
+    if (!attempt.acquisitionValidated) {
+      return;
+    }
+    sendTrackingRequest(attempt);
+  }
+
+  private void sendTrackingRequest(PointAttempt attempt) {
+    if (current != attempt || attempt.requestSent || attempt.cancelled) {
+      return;
+    }
+    attempt.requestSent = true;
     String command =
         "kata-analyze "
             + context.parameters.intervalCentiseconds()
@@ -486,7 +545,7 @@ public final class TrackingAnalysisController {
             + " 1 allow W "
             + attempt.coordinate
             + " 1";
-    if (lease.send(command) && current == attempt) {
+    if (attempt.lease.send(command) && current == attempt) {
       scheduleProgressTimeout(attempt);
     }
   }

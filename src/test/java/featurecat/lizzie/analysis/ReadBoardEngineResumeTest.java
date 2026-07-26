@@ -700,8 +700,7 @@ class ReadBoardEngineResumeTest {
       setField(harness.readBoard, "readBoardGmaAutoPlayActive", true);
 
       harness.sync(snapshot(afterCapture, Optional.of(new int[] {1, 2}), Stone.BLACK));
-      Stone engineColor =
-          harness.board.getHistory().isBlacksTurn() ? Stone.BLACK : Stone.WHITE;
+      Stone engineColor = harness.board.getHistory().isBlacksTurn() ? Stone.BLACK : Stone.WHITE;
       setField(harness.readBoard, "readBoardGmaAutoPlayColor", engineColor);
 
       assertFalse(
@@ -950,7 +949,7 @@ class ReadBoardEngineResumeTest {
   }
 
   @Test
-  void readBoardGmaActivationUsesForegroundLifecycleReservation() throws Exception {
+  void readBoardGmaActivationArmsWithoutTakingLifecycleOwnership() throws Exception {
     try (EngineResumeHarness harness =
         EngineResumeHarness.create(rootHistory(emptyStones(), true))) {
       RecordingLifecycleLeelaz foreground = new RecordingLifecycleLeelaz();
@@ -958,8 +957,9 @@ class ReadBoardEngineResumeTest {
 
       harness.readBoard.parseLine("play>white>0 0 0 gma");
 
-      assertEquals(1, foreground.beginLifecycleCount);
-      assertEquals(1, foreground.endLifecycleCount);
+      assertEquals(1, foreground.armCheckCount);
+      assertEquals(0, foreground.beginLifecycleCount);
+      assertEquals(0, foreground.endLifecycleCount);
       assertTrue(harness.readBoard.isReadBoardGmaAutoPlayActive());
     }
   }
@@ -969,7 +969,7 @@ class ReadBoardEngineResumeTest {
     try (EngineResumeHarness harness =
         EngineResumeHarness.create(rootHistory(emptyStones(), true))) {
       RecordingLifecycleLeelaz foreground = new RecordingLifecycleLeelaz();
-      foreground.allowLifecycle = false;
+      foreground.allowArm = false;
       Lizzie.leelaz = foreground;
       setField(harness.readBoard, "failedLocalMoveSuppressionActive", true);
       setField(harness.readBoard, "failedLocalMoveSuppressionX", 2);
@@ -983,7 +983,8 @@ class ReadBoardEngineResumeTest {
 
       harness.readBoard.parseLine("play>white>5 12 34 gma");
 
-      assertEquals(1, foreground.beginLifecycleCount);
+      assertEquals(1, foreground.armCheckCount);
+      assertEquals(0, foreground.beginLifecycleCount);
       assertEquals(0, foreground.endLifecycleCount);
       assertFalse(harness.readBoard.isReadBoardGmaAutoPlayActive());
       assertFalse(getBooleanField(harness.readBoard, "readBoardGmaAwaitingSyncedBoard"));
@@ -991,8 +992,7 @@ class ReadBoardEngineResumeTest {
       assertEquals(0, getIntField(harness.readBoard, "readBoardGmaMaxVisits"));
       assertTrue(getBooleanField(harness.readBoard, "failedLocalMoveSuppressionActive"));
       assertTrue(getBooleanField(harness.readBoard, "failedLocalMoveRecoveryActive"));
-      assertTrue(
-          getBooleanField(harness.readBoard, "failedLocalMoveAwaitingRemoteObservation"));
+      assertTrue(getBooleanField(harness.readBoard, "failedLocalMoveAwaitingRemoteObservation"));
       assertEquals(Stone.BLACK, getField(harness.readBoard, "failedLocalMoveRecoveryColor"));
     }
   }
@@ -1017,10 +1017,7 @@ class ReadBoardEngineResumeTest {
               "set_position",
               "kata-analyze"));
       setField(foreground, "endGetCommandList", true);
-      setField(
-          foreground,
-          "outputStream",
-          new BufferedOutputStream(new ByteArrayOutputStream()));
+      setField(foreground, "outputStream", new BufferedOutputStream(new ByteArrayOutputStream()));
       Lizzie.leelaz = foreground;
 
       harness.readBoard.parseLine("play>white>0 0 0 gma");
@@ -1071,8 +1068,7 @@ class ReadBoardEngineResumeTest {
   }
 
   @Test
-  void readBoardGmaSkipsUntrustedHeuristicTurnEvenWhenConfiguredSideMatches()
-      throws Exception {
+  void readBoardGmaSkipsUntrustedHeuristicTurnEvenWhenConfiguredSideMatches() throws Exception {
     try (EngineResumeHarness harness =
         EngineResumeHarness.create(rootHistory(emptyStones(), true))) {
       harness.frame.bothSync = true;
@@ -1228,8 +1224,7 @@ class ReadBoardEngineResumeTest {
       harness.readBoard.parseLine("foxMoveNumber 1");
       harness.readBoard.parseLine("lastMoveSource stoneCount");
 
-      Stone[] setupStones =
-          stones(placement(0, 0, Stone.BLACK), placement(2, 2, Stone.BLACK));
+      Stone[] setupStones = stones(placement(0, 0, Stone.BLACK), placement(2, 2, Stone.BLACK));
       harness.sync(snapshot(setupStones, Optional.empty(), Stone.EMPTY));
       assertEquals(0, harness.leelaz.readBoardGmaCount);
 
@@ -1251,8 +1246,7 @@ class ReadBoardEngineResumeTest {
       harness.readBoard.parseLine("play>white>0 0 0 gma");
       harness.readBoard.parseLine("lastMoveSource stoneCount");
 
-      Stone[] setupStones =
-          stones(placement(0, 0, Stone.BLACK), placement(2, 2, Stone.BLACK));
+      Stone[] setupStones = stones(placement(0, 0, Stone.BLACK), placement(2, 2, Stone.BLACK));
       harness.sync(snapshot(setupStones, Optional.empty(), Stone.EMPTY));
       assertEquals(0, harness.leelaz.readBoardGmaCount);
 
@@ -1267,8 +1261,7 @@ class ReadBoardEngineResumeTest {
   }
 
   @Test
-  void readBoardGmaStartsAfterGenericHeuristicSingleMoveSyncTrustsAcceptedMove()
-      throws Exception {
+  void readBoardGmaStartsAfterGenericHeuristicSingleMoveSyncTrustsAcceptedMove() throws Exception {
     try (EngineResumeHarness harness =
         EngineResumeHarness.create(rootHistory(emptyStones(), true))) {
       harness.frame.bothSync = true;
@@ -1287,8 +1280,7 @@ class ReadBoardEngineResumeTest {
   }
 
   @Test
-  void readBoardGmaWaitsForFailedPlaceObservationBeforeRestartingEngineDecision()
-      throws Exception {
+  void readBoardGmaWaitsForFailedPlaceObservationBeforeRestartingEngineDecision() throws Exception {
     try (EngineResumeHarness harness =
         EngineResumeHarness.create(rootHistory(emptyStones(), true))) {
       harness.frame.isAnaPlayingAgainstLeelaz = true;
@@ -1317,8 +1309,7 @@ class ReadBoardEngineResumeTest {
   }
 
   @Test
-  void readBoardGmaStartsAfterGenericHandicapSingleMoveSyncTrustsAcceptedMove()
-      throws Exception {
+  void readBoardGmaStartsAfterGenericHandicapSingleMoveSyncTrustsAcceptedMove() throws Exception {
     Stone[] setupStones = stones(placement(0, 0, Stone.BLACK), placement(2, 0, Stone.BLACK));
     try (EngineResumeHarness harness =
         EngineResumeHarness.create(rootHistory(setupStones, false))) {
@@ -1477,8 +1468,7 @@ class ReadBoardEngineResumeTest {
   }
 
   @Test
-  void closingWebsocketPonderingNoticeDoesNotStartGmaOrPromptAgainInSameSession()
-      throws Exception {
+  void closingWebsocketPonderingNoticeDoesNotStartGmaOrPromptAgainInSameSession() throws Exception {
     try (EngineResumeHarness harness =
         EngineResumeHarness.create(rootHistory(emptyStones(), true))) {
       harness.frame.bothSync = true;
@@ -1499,8 +1489,7 @@ class ReadBoardEngineResumeTest {
   }
 
   @Test
-  void websocketPonderingNoticeIsEligibleAgainAfterStopSyncStartsANewGmaSession()
-      throws Exception {
+  void websocketPonderingNoticeIsEligibleAgainAfterStopSyncStartsANewGmaSession() throws Exception {
     try (EngineResumeHarness harness =
         EngineResumeHarness.create(rootHistory(emptyStones(), true))) {
       harness.frame.bothSync = true;
@@ -1724,8 +1713,7 @@ class ReadBoardEngineResumeTest {
 
       harness.readBoard.parseLine("forceRebuild");
       harness.sync(snapshot(stones(placement(0, 0, Stone.BLACK)), Optional.empty(), Stone.EMPTY));
-      Stone engineColor =
-          harness.board.getHistory().isBlacksTurn() ? Stone.BLACK : Stone.WHITE;
+      Stone engineColor = harness.board.getHistory().isBlacksTurn() ? Stone.BLACK : Stone.WHITE;
       setField(harness.readBoard, "readBoardGmaAutoPlayColor", engineColor);
 
       assertFalse(
@@ -1978,8 +1966,9 @@ class ReadBoardEngineResumeTest {
   private static boolean waitForSentCommandPrefix(
       SnapshotTrackingLeelaz leelaz, String value, boolean exact) throws InterruptedException {
     for (int attempt = 0; attempt < 100; attempt++) {
-      if (new ArrayList<>(leelaz.sentCommands).stream()
-          .anyMatch(command -> exact ? command.equals(value) : command.startsWith(value))) {
+      if (new ArrayList<>(leelaz.sentCommands)
+          .stream()
+              .anyMatch(command -> exact ? command.equals(value) : command.startsWith(value))) {
         return true;
       }
       Thread.sleep(10);
@@ -2120,18 +2109,25 @@ class ReadBoardEngineResumeTest {
   }
 
   private static final class RecordingLifecycleLeelaz extends Leelaz {
+    private int armCheckCount;
     private int beginLifecycleCount;
     private int endLifecycleCount;
-    private boolean allowLifecycle = true;
+    private boolean allowArm = true;
 
     private RecordingLifecycleLeelaz() throws IOException {
       super("");
     }
 
     @Override
+    boolean canArmReadBoardGma() {
+      armCheckCount++;
+      return allowArm;
+    }
+
+    @Override
     public synchronized boolean beginExclusiveGtpLifecycleTransition() {
       beginLifecycleCount++;
-      return allowLifecycle;
+      return true;
     }
 
     @Override

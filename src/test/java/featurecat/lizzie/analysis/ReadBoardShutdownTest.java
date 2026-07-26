@@ -14,6 +14,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -166,6 +167,74 @@ class ReadBoardShutdownTest {
   }
 
   @Test
+  void explicitShutdownRetiresGmaAndConsumesOneLateTerminalResponse() throws Exception {
+    Leelaz previousEngine = Lizzie.leelaz;
+    LizzieFrame previousFrame = Lizzie.frame;
+    try {
+      RecordingGmaRetirementLeelaz engine = new RecordingGmaRetirementLeelaz();
+      ReadBoard readBoard = initializedReadBoardForRetirement();
+      LizzieFrame frame = allocate(LizzieFrame.class);
+      frame.readBoard = readBoard;
+      Lizzie.frame = frame;
+      Lizzie.leelaz = engine;
+      setField(readBoard, "readBoardGmaPending", true);
+      engine.bindReadBoardGmaResponseOwner(readBoard);
+
+      readBoard.shutdown();
+      readBoard.shutdown();
+
+      assertEquals(1, engine.retirementCount);
+      assertTrue(readBoard.handleReadBoardGmaEnginePlay("D4"));
+      assertFalse(readBoard.handleReadBoardGmaEnginePlay("Q16"));
+      assertFalse(getBooleanField(readBoard, "readBoardGmaPending"));
+      assertNull(frame.readBoard);
+    } finally {
+      Lizzie.leelaz = previousEngine;
+      Lizzie.frame = previousFrame;
+    }
+  }
+
+  @Test
+  void eofAndIoShutdownShareTheSameExactlyOnceRetirementPath() throws Exception {
+    Leelaz previousEngine = Lizzie.leelaz;
+    LizzieFrame previousFrame = Lizzie.frame;
+    try {
+      RecordingGmaRetirementLeelaz engine = new RecordingGmaRetirementLeelaz();
+      Lizzie.leelaz = engine;
+      LizzieFrame frame = allocate(LizzieFrame.class);
+      Lizzie.frame = frame;
+
+      ReadBoard eof = initializedReadBoardForRetirement();
+      frame.readBoard = eof;
+      eof.shutdownAfterProcessEnd();
+      eof.shutdownAfterProcessEnd();
+      assertEquals(1, engine.retirementCount);
+
+      ReadBoard io = initializedReadBoardForRetirement();
+      frame.readBoard = io;
+      setField(
+          io,
+          "inputStream",
+          new InputStreamReader(
+              new InputStream() {
+                @Override
+                public int read() throws java.io.IOException {
+                  throw new java.io.IOException("controlled helper read failure");
+                }
+              }));
+      Method read = ReadBoard.class.getDeclaredMethod("read");
+      read.setAccessible(true);
+      read.invoke(io);
+
+      assertEquals(2, engine.retirementCount);
+      assertNull(frame.readBoard);
+    } finally {
+      Lizzie.leelaz = previousEngine;
+      Lizzie.frame = previousFrame;
+    }
+  }
+
+  @Test
   void openBoardSyncDoesNotBlockEventDispatchThreadWhileRestarting() throws Exception {
     LizzieFrame previousFrame = Lizzie.frame;
     try {
@@ -217,6 +286,20 @@ class ReadBoardShutdownTest {
     Field field = target.getClass().getDeclaredField(name);
     field.setAccessible(true);
     field.set(target, value);
+  }
+
+  private static boolean getBooleanField(Object target, String name) throws Exception {
+    return (boolean) getField(target, name);
+  }
+
+  private static ReadBoard initializedReadBoardForRetirement() throws Exception {
+    ReadBoard readBoard = allocate(ReadBoard.class);
+    setField(readBoard, "conflictTracker", new SyncConflictTracker());
+    setField(readBoard, "historyJumpTracker", new SyncHistoryJumpTracker());
+    setField(readBoard, "localNavigationTracker", new SyncLocalNavigationTracker());
+    setField(readBoard, "tempcount", new ArrayList<Integer>());
+    setField(readBoard, "usePipe", true);
+    return readBoard;
   }
 
   private static final class UnsafeHolder {
@@ -279,6 +362,19 @@ class ReadBoardShutdownTest {
     @Override
     public void close() {
       closeCalled = true;
+    }
+  }
+
+  private static final class RecordingGmaRetirementLeelaz extends Leelaz {
+    private int retirementCount;
+
+    private RecordingGmaRetirementLeelaz() throws Exception {
+      super("");
+    }
+
+    @Override
+    void retireReadBoardGmaSession() {
+      retirementCount++;
     }
   }
 

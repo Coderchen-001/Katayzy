@@ -62,6 +62,52 @@ class TrackingAnalysisControllerTest {
   }
 
   @Test
+  void readBoardAdapterRevalidatesEligibilityBeforeSendingTrackingRequest() throws Exception {
+    try (TestState state = TestState.open()) {
+      TrackingAnalysisController controller =
+          new TrackingAnalysisController(new ManualTimeoutScheduler());
+      MutableEligibilitySource source =
+          new MutableEligibilitySource(state.output, 1L, state.output, 7L, true);
+      ReadBoardTrackingEligibilityAdapter adapter =
+          new ReadBoardTrackingEligibilityAdapter(controller, source);
+      TrackingAnalysisController.Context context =
+          state.contextWithReadBoard(
+              new TrackingAnalysisController.ReadBoardContext(state.output, 1L, state.output, 7L));
+
+      assertEquals(TrackingAnalysisController.AddResult.ADDED, adapter.addPoint("D4", context));
+      source.publish(state.output, 2L, state.output, 8L, false);
+      completeInitialFence(state.engine);
+
+      assertFalse(state.commands().contains("kata-analyze"));
+      assertTrue(controller.snapshot().selectedPoints().isEmpty());
+      assertFalse(controller.snapshot().active());
+    }
+  }
+
+  @Test
+  void readBoardAdapterRejectsUnstableSnapshotWithoutAcquiringOrRetrying() throws Exception {
+    try (TestState state = TestState.open()) {
+      TrackingAnalysisController controller =
+          new TrackingAnalysisController(new ManualTimeoutScheduler());
+      MutableEligibilitySource source =
+          new MutableEligibilitySource(state.output, 1L, state.output, 7L, false);
+      ReadBoardTrackingEligibilityAdapter adapter =
+          new ReadBoardTrackingEligibilityAdapter(controller, source);
+
+      assertEquals(
+          TrackingAnalysisController.AddResult.LEASE_UNAVAILABLE,
+          adapter.addPoint(
+              "D4",
+              state.contextWithReadBoard(
+                  new TrackingAnalysisController.ReadBoardContext(
+                      state.output, 1L, state.output, 7L))));
+
+      assertEquals("", state.commands());
+      assertTrue(controller.snapshot().selectedPoints().isEmpty());
+    }
+  }
+
+  @Test
   void pendingPointsRunNewestFirstAndRemovingPendingDoesNotInterruptCurrent() throws Exception {
     try (TestState state = TestState.open()) {
       ManualTimeoutScheduler scheduler = new ManualTimeoutScheduler();
@@ -434,7 +480,11 @@ class TrackingAnalysisControllerTest {
             Path.of("src/main/java/featurecat/lizzie/analysis/TrackingAnalysisController.java"),
             StandardCharsets.UTF_8);
 
-    assertTrue(productionReferences.isEmpty(), productionReferences.toString());
+    assertEquals(
+        List.of(
+            Path.of(
+                "src/main/java/featurecat/lizzie/analysis/ReadBoardTrackingEligibilityAdapter.java")),
+        productionReferences);
     assertTrue(rightClick.contains("ensureTrackingEngineWithWarning()"));
     assertTrue(rightClick.contains("triggerTrackingAnalysis()"));
     assertFalse(controllerSource.contains("AnalysisRequestBuilder"));
@@ -699,6 +749,23 @@ class TrackingAnalysisControllerTest {
           null);
     }
 
+    TrackingAnalysisController.Context contextWithReadBoard(
+        TrackingAnalysisController.ReadBoardContext readBoardContext) {
+      return new TrackingAnalysisController.Context(
+          this,
+          output,
+          19,
+          19,
+          "stones",
+          true,
+          "chinese",
+          7.5,
+          engine,
+          engine.trackingStreamIncarnation(),
+          new TrackingAnalysisController.Parameters(10, 100),
+          readBoardContext);
+    }
+
     TrackingAnalysisController.Context contextVariant(String component) throws Exception {
       Object history = component.equals("history") ? new Object() : this;
       Object node = component.equals("node") ? new Object() : output;
@@ -746,6 +813,44 @@ class TrackingAnalysisControllerTest {
       Lizzie.board = previousBoard;
       Lizzie.config = previousConfig;
       Lizzie.frame = previousFrame;
+    }
+  }
+
+  private static final class MutableEligibilitySource
+      implements ReadBoardTrackingEligibilityAdapter.EligibilitySource {
+    private ReadBoardTrackingEligibilityAdapter.Snapshot snapshot;
+    private Runnable invalidationListener;
+
+    private MutableEligibilitySource(
+        Object identity, long revision, Object node, long boardRevision, boolean stable) {
+      publish(identity, revision, node, boardRevision, stable);
+    }
+
+    private void publish(
+        Object identity, long revision, Object node, long boardRevision, boolean stable) {
+      snapshot =
+          new ReadBoardTrackingEligibilityAdapter.Snapshot(
+              identity,
+              revision,
+              node,
+              boardRevision,
+              stable
+                  ? ReadBoardTrackingEligibilityAdapter.Reason.STABLE
+                  : ReadBoardTrackingEligibilityAdapter.Reason.FRAME_PENDING);
+      Runnable listener = invalidationListener;
+      if (listener != null && !stable) {
+        listener.run();
+      }
+    }
+
+    @Override
+    public ReadBoardTrackingEligibilityAdapter.Snapshot snapshot() {
+      return snapshot;
+    }
+
+    @Override
+    public void observeInvalidation(Object identity, Runnable listener) {
+      invalidationListener = listener;
     }
   }
 

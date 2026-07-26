@@ -39,7 +39,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.swing.SwingUtilities;
 
-public class ReadBoard {
+public class ReadBoard implements ReadBoardTrackingEligibilityAdapter.EligibilitySource {
   private static final long PROCESS_EXIT_WAIT_TIMEOUT_MS = 1000L;
   private static final long PROCESS_DESTROY_WAIT_TIMEOUT_MS = 200L;
   private static final String LEGACY_NATIVE_READBOARD_EXE = "readboard.exe";
@@ -164,6 +164,10 @@ public class ReadBoard {
   private int readBoardGmaTimeSeconds = 0;
   private int readBoardGmaMaxVisits = 0;
   private volatile boolean readBoardGmaPending = false;
+  private boolean retiredReadBoardGmaTerminalPending = false;
+  private Object readBoardGmaPendingIdentity;
+  private long readBoardGmaPendingGeneration = 0L;
+  private Leelaz.TrackingHandoffClaim readBoardGmaHandoffClaim;
   private boolean readBoardGmaPendingLogicallyInvalid = false;
   private boolean readBoardGmaAwaitingSyncedBoard = false;
   private volatile boolean readBoardGmaEngineRestorePending = false;
@@ -212,6 +216,14 @@ public class ReadBoard {
   public boolean editMode = false;
   private int startupOutputLineCount = 0;
   private volatile boolean shutdownStarted = false;
+  private Object trackingEligibilityIdentity = new Object();
+  private long trackingEligibilityRevision = 0L;
+  private BoardHistoryNode trackingEligibilityNode;
+  private long trackingEligibilityBoardRevision = 0L;
+  private ReadBoardTrackingEligibilityAdapter.Reason trackingEligibilityReason =
+      ReadBoardTrackingEligibilityAdapter.Reason.NO_ACCEPTED_FRAME;
+  private Object trackingEligibilityObserverIdentity;
+  private Runnable trackingEligibilityInvalidationListener;
   private final SyncConflictTracker conflictTracker = new SyncConflictTracker();
   private final SyncHistoryJumpTracker historyJumpTracker = new SyncHistoryJumpTracker();
   private final SyncLocalNavigationTracker localNavigationTracker =
@@ -618,6 +630,9 @@ public class ReadBoard {
       }
     }
     if (line.startsWith("re=")) {
+      if (tempcount.isEmpty()) {
+        invalidateTrackingEligibility(ReadBoardTrackingEligibilityAdapter.Reason.FRAME_PENDING);
+      }
       String[] params = line.substring(3).split(",");
       if (params.length == Board.boardWidth) {
         for (int i = 0; i < params.length; i++)
@@ -727,6 +742,7 @@ public class ReadBoard {
       runOnEdtAndWait(() -> Lizzie.board.clear(false));
     }
     if (line.startsWith("start")) {
+      invalidateTrackingEligibility(ReadBoardTrackingEligibilityAdapter.Reason.FIRST_FRAME);
       clearPendingRemoteContext();
       String[] params = line.trim().split(" ");
       if (params.length >= 3) {
@@ -821,23 +837,21 @@ public class ReadBoard {
         int time = Integer.parseInt(playParams[0]);
         boolean useGma = isReadBoardGmaPlayMode(playParams);
         Leelaz currentForegroundEngine = useGma ? Lizzie.leelaz : null;
-        if (currentForegroundEngine != null
-            && !currentForegroundEngine.beginExclusiveGtpLifecycleTransition()) {
+        if (currentForegroundEngine != null && !currentForegroundEngine.canArmReadBoardGma()) {
           showForegroundEngineLeaseConflict();
           return;
         }
-        try {
-          clearFailedLocalMoveStateIfAutoPlaySideChanged(autoPlayColor);
-          if (hasFailedLocalMoveStateToPreserve()) {
-            localMoveSyncDebug(
-                "play line preserves failed local move state autoPlayColor="
-                    + autoPlayColor
-                    + " "
-                    + pendingLocalMoveState());
-          } else {
-            clearFailedLocalMoveSuppression();
-            clearFailedLocalMoveRecovery();
-          }
+        clearFailedLocalMoveStateIfAutoPlaySideChanged(autoPlayColor);
+        if (hasFailedLocalMoveStateToPreserve()) {
+          localMoveSyncDebug(
+              "play line preserves failed local move state autoPlayColor="
+                  + autoPlayColor
+                  + " "
+                  + pendingLocalMoveState());
+        } else {
+          clearFailedLocalMoveSuppression();
+          clearFailedLocalMoveRecovery();
+        }
         readBoardGmaAutoPlayActive = useGma;
         if (useGma) {
           readBoardWebSocketPonderingNoticeAcknowledged = false;
@@ -848,11 +862,6 @@ public class ReadBoard {
         readBoardGmaTimeSeconds = Math.max(0, time);
         readBoardGmaMaxVisits = Math.max(0, playouts);
         readBoardGmaAwaitingSyncedBoard = useGma;
-        } finally {
-          if (currentForegroundEngine != null) {
-            currentForegroundEngine.endExclusiveGtpLifecycleTransition();
-          }
-        }
         if (!useGma) {
           readBoardGmaAwaitingSyncedBoard = false;
           invalidateReadBoardGmaPhysicalRequestIfPending("play-mode-switch");
@@ -1045,8 +1054,7 @@ public class ReadBoard {
     SwingUtilities.invokeLater(
         () ->
             Utils.showMsg(
-                Lizzie.resourceBundle.getString(
-                    "AnalysisSettings.reuseStatus.existing_lease")));
+                Lizzie.resourceBundle.getString("AnalysisSettings.reuseStatus.existing_lease")));
   }
 
   private static boolean isPlacementFailedLine(String line) {
@@ -1596,6 +1604,7 @@ public class ReadBoard {
                 recovery, currentRemoteContext, currentSnapshotCodes, snapshotDelta);
         completeSnapshotTrace = trace;
         if (recovery.outcome == CompleteSnapshotRecoveryOutcome.HOLD) {
+          invalidateTrackingEligibility(ReadBoardTrackingEligibilityAdapter.Reason.HOLD);
           if (lastMovePlayByLizzie || failedLocalMoveSuppressionActive || diffWithoutIgnore) {
             localMoveSyncDebug(
                 "syncBoardStones recovery HOLD snapshot="
@@ -2420,6 +2429,11 @@ public class ReadBoard {
                     foxMoveNumber))
             || isMarkerlessOrdinaryFoxTurnFallback(
                 syncStartNode, snapshotDelta, lastMoveSource, foxMoveNumber);
+    BoardHistoryNode acceptedNode =
+        Lizzie.board == null || Lizzie.board.getHistory() == null
+            ? null
+            : Lizzie.board.getHistory().getCurrentHistoryNode();
+    publishAcceptedTrackingEligibility(acceptedNode);
   }
 
   private boolean isTrustedUnchangedSnapshotTurn(
@@ -2628,11 +2642,7 @@ public class ReadBoard {
       return true;
     }
     if (isTrustedFoxZeroMoveHandicapSetupTurn(
-        snapshotStones,
-        snapshotDelta,
-        remoteContext,
-        lastMoveSource,
-        foxMoveNumber)) {
+        snapshotStones, snapshotDelta, remoteContext, lastMoveSource, foxMoveNumber)) {
       return false;
     }
     if (snapshotDelta.hasMarker() && lastMoveSource.isTrustedVisualMarker()) {
@@ -2967,6 +2977,7 @@ public class ReadBoard {
   }
 
   private void startTrackingLocalMoveFromLizzie() {
+    invalidateTrackingEligibility(ReadBoardTrackingEligibilityAdapter.Reason.PENDING_LOCAL_MOVE);
     clearConfirmedLocalMove();
     capturePendingLocalMoveRecord(currentMainEndNode());
     lastMovePlayByLizzie = true;
@@ -3788,8 +3799,7 @@ public class ReadBoard {
       }
       return;
     }
-    if (Lizzie.leelaz != null
-        && Lizzie.leelaz.cancelReadBoardGmaPreparationIfPending(null, null)) {
+    if (Lizzie.leelaz != null && Lizzie.leelaz.cancelReadBoardGmaPreparationIfPending(null, null)) {
       readBoardGmaPending = false;
       readBoardGmaPendingLogicallyInvalid = false;
       localMoveSyncDebug("ReadBoard GMA cancel parameter preparation reason=" + reason);
@@ -3813,6 +3823,7 @@ public class ReadBoard {
 
   private void requestReadBoardGmaEngineRestore(
       String reason, BoardHistoryNode restoreNode, boolean flushIfReady) {
+    invalidateTrackingEligibility(ReadBoardTrackingEligibilityAdapter.Reason.GMA);
     if (restoreNode == null) {
       if (!readBoardGmaPending && Lizzie.leelaz != null && !readBoardGmaAutoPlayActive) {
         Lizzie.leelaz.restoreReadBoardGmaRuntimeSettingsIfNeeded();
@@ -4018,8 +4029,13 @@ public class ReadBoard {
           });
       return true;
     }
+    invalidateTrackingEligibility(ReadBoardTrackingEligibilityAdapter.Reason.GMA);
     readBoardGmaPending = true;
     readBoardGmaPendingLogicallyInvalid = false;
+    Object helperIdentity = trackingEligibilityIdentity;
+    long sessionGeneration = readBoardGmaSessionGeneration;
+    readBoardGmaPendingIdentity = helperIdentity;
+    readBoardGmaPendingGeneration = sessionGeneration;
     localMoveSyncDebug(
         "ReadBoard GMA start reason="
             + reason
@@ -4031,13 +4047,112 @@ public class ReadBoard {
             + readBoardGmaMaxVisits
             + " ponder="
             + ponder);
-    if (!Lizzie.leelaz.genmoveAnalyzeForReadBoard(
-        color, readBoardGmaTimeSeconds, readBoardGmaMaxVisits, ponder)) {
+    ReadBoardGmaHandoffTarget handoffTarget =
+        new ReadBoardGmaHandoffTarget(
+            helperIdentity,
+            sessionGeneration,
+            color,
+            readBoardGmaTimeSeconds,
+            readBoardGmaMaxVisits,
+            ponder);
+    Lizzie.leelaz.bindReadBoardGmaResponseOwner(this);
+    Leelaz.TrackingHandoffClaim handoff = Lizzie.leelaz.claimTrackingHandoff(handoffTarget);
+    if (handoff.availability() == Leelaz.TrackingHandoffAvailability.ACCEPTED_PENDING) {
+      readBoardGmaHandoffClaim = handoff;
+    }
+    boolean accepted =
+        handoff.availability() == Leelaz.TrackingHandoffAvailability.ACCEPTED_PENDING
+            || (handoff.availability() == Leelaz.TrackingHandoffAvailability.NOT_TRACKING
+                && Lizzie.leelaz.genmoveAnalyzeForReadBoard(
+                    color, readBoardGmaTimeSeconds, readBoardGmaMaxVisits, ponder));
+    if (!accepted) {
       readBoardGmaPending = false;
       readBoardGmaPendingLogicallyInvalid = false;
+      readBoardGmaPendingIdentity = null;
+      readBoardGmaHandoffClaim = null;
+      Lizzie.leelaz.clearReadBoardGmaResponseOwner(this);
       localMoveSyncDebug("ReadBoard GMA rejected by foreground lease reason=" + reason);
     }
     return true;
+  }
+
+  private final class ReadBoardGmaHandoffTarget implements Leelaz.TrackingHandoffTarget {
+    private final Object helperIdentity;
+    private final long sessionGeneration;
+    private final String color;
+    private final int maxTimeSeconds;
+    private final int maxVisits;
+    private final boolean ponder;
+
+    private ReadBoardGmaHandoffTarget(
+        Object helperIdentity,
+        long sessionGeneration,
+        String color,
+        int maxTimeSeconds,
+        int maxVisits,
+        boolean ponder) {
+      this.helperIdentity = helperIdentity;
+      this.sessionGeneration = sessionGeneration;
+      this.color = color;
+      this.maxTimeSeconds = maxTimeSeconds;
+      this.maxVisits = maxVisits;
+      this.ponder = ponder;
+    }
+
+    @Override
+    public Leelaz.TrackingHandoffKind kind() {
+      return Leelaz.TrackingHandoffKind.RETAINED_ENGINE_MODE;
+    }
+
+    @Override
+    public boolean isCurrent() {
+      return isCurrentReadBoardGmaTarget(helperIdentity, sessionGeneration);
+    }
+
+    @Override
+    public void activate(Leelaz.TrackingHandoffActivation activation) {
+      Leelaz engine = Lizzie.leelaz;
+      if (!isCurrent() || engine == null) {
+        return;
+      }
+      engine.activateReadBoardGmaAfterTracking(
+          this, color, maxTimeSeconds, maxVisits, ponder, activation);
+      synchronized (ReadBoard.this) {
+        readBoardGmaHandoffClaim = null;
+      }
+    }
+
+    @Override
+    public void fail(Leelaz.TrackingHandoffFailure failure) {
+      failReadBoardGmaHandoff(helperIdentity, sessionGeneration, failure);
+    }
+  }
+
+  private synchronized boolean isCurrentReadBoardGmaTarget(
+      Object helperIdentity, long sessionGeneration) {
+    return !shutdownStarted
+        && trackingEligibilityIdentity == helperIdentity
+        && readBoardGmaSessionGeneration == sessionGeneration
+        && readBoardGmaPending
+        && readBoardGmaPendingIdentity == helperIdentity
+        && readBoardGmaPendingGeneration == sessionGeneration
+        && readBoardGmaAutoPlayActive
+        && !readBoardGmaPendingLogicallyInvalid
+        && !readBoardGmaEngineRestorePending
+        && !readBoardGmaEngineRestoreInProgress;
+  }
+
+  private synchronized void failReadBoardGmaHandoff(
+      Object helperIdentity, long sessionGeneration, Leelaz.TrackingHandoffFailure failure) {
+    if (readBoardGmaPendingIdentity != helperIdentity
+        || readBoardGmaPendingGeneration != sessionGeneration) {
+      return;
+    }
+    readBoardGmaPending = false;
+    readBoardGmaPendingLogicallyInvalid = false;
+    readBoardGmaPendingIdentity = null;
+    readBoardGmaHandoffClaim = null;
+    localMoveSyncDebug("ReadBoard GMA handoff failed reason=" + failure);
   }
 
   private void showReadBoardGmaUnsupportedOnce() {
@@ -4048,9 +4163,14 @@ public class ReadBoard {
 
   public boolean handleReadBoardGmaEnginePlay(String move) {
     if (!readBoardGmaPending) {
-      return false;
+      if (!retiredReadBoardGmaTerminalPending) {
+        return false;
+      }
+      retiredReadBoardGmaTerminalPending = false;
+      return true;
     }
     readBoardGmaPending = false;
+    readBoardGmaPendingIdentity = null;
     boolean staleResult = readBoardGmaPendingLogicallyInvalid || !readBoardGmaAutoPlayActive;
     readBoardGmaPendingLogicallyInvalid = false;
     if (staleResult) {
@@ -4130,9 +4250,14 @@ public class ReadBoard {
 
   public boolean handleReadBoardGmaEngineError(String line) {
     if (!readBoardGmaPending) {
-      return false;
+      if (!retiredReadBoardGmaTerminalPending) {
+        return false;
+      }
+      retiredReadBoardGmaTerminalPending = false;
+      return true;
     }
     readBoardGmaPending = false;
+    readBoardGmaPendingIdentity = null;
     readBoardGmaPendingLogicallyInvalid = false;
     localMoveSyncDebug("ReadBoard GMA terminal error line=" + line);
     if (readBoardGmaAutoPlayActive) {
@@ -5039,6 +5164,7 @@ public class ReadBoard {
     if (!beginShutdown()) {
       return;
     }
+    retireTrackingEligibility();
     noMsg = true;
     resetActiveSyncState();
     clearResumeState();
@@ -5061,6 +5187,160 @@ public class ReadBoard {
     }
     shutdownStarted = true;
     return true;
+  }
+
+  @Override
+  public synchronized ReadBoardTrackingEligibilityAdapter.Snapshot snapshot() {
+    ensureTrackingEligibilityInitialized();
+    ReadBoardTrackingEligibilityAdapter.Reason reason = currentTrackingEligibilityReason();
+    return new ReadBoardTrackingEligibilityAdapter.Snapshot(
+        trackingEligibilityIdentity,
+        trackingEligibilityRevision,
+        trackingEligibilityNode,
+        trackingEligibilityBoardRevision,
+        reason);
+  }
+
+  @Override
+  public void observeInvalidation(Object identity, Runnable listener) {
+    boolean invalid;
+    synchronized (this) {
+      ensureTrackingEligibilityInitialized();
+      invalid = identity != trackingEligibilityIdentity || shutdownStarted;
+      if (!invalid) {
+        trackingEligibilityObserverIdentity = identity;
+        trackingEligibilityInvalidationListener = listener;
+      }
+    }
+    if (invalid) {
+      runTrackingEligibilityInvalidationListener(listener);
+    }
+  }
+
+  private synchronized void ensureTrackingEligibilityInitialized() {
+    if (trackingEligibilityIdentity == null) {
+      trackingEligibilityIdentity = new Object();
+    }
+    if (trackingEligibilityReason == null) {
+      trackingEligibilityReason = ReadBoardTrackingEligibilityAdapter.Reason.NO_ACCEPTED_FRAME;
+    }
+  }
+
+  private ReadBoardTrackingEligibilityAdapter.Reason currentTrackingEligibilityReason() {
+    if (shutdownStarted) {
+      return ReadBoardTrackingEligibilityAdapter.Reason.RETIRED;
+    }
+    if (Lizzie.frame == null || Lizzie.frame.readBoard != this) {
+      return ReadBoardTrackingEligibilityAdapter.Reason.HELPER_NOT_CURRENT;
+    }
+    if (trackingEligibilityNode == null) {
+      return trackingEligibilityReason;
+    }
+    if (awaitingFirstSyncFrame) {
+      return ReadBoardTrackingEligibilityAdapter.Reason.FIRST_FRAME;
+    }
+    if (isSyncing) {
+      return ReadBoardTrackingEligibilityAdapter.Reason.SYNCING;
+    }
+    if (isPendingLocalMoveAwaitingReadBoard()) {
+      return ReadBoardTrackingEligibilityAdapter.Reason.PENDING_LOCAL_MOVE;
+    }
+    if (isReadBoardGmaEngineBusy()) {
+      return ReadBoardTrackingEligibilityAdapter.Reason.GMA;
+    }
+    if (Lizzie.leelaz == null || Lizzie.leelaz.hasUnrestoredReadBoardGmaState()) {
+      return ReadBoardTrackingEligibilityAdapter.Reason.ENGINE_UNRESTORED;
+    }
+    if (!Lizzie.leelaz.isEligibleLocalKataGoForReadBoardTracking()) {
+      return ReadBoardTrackingEligibilityAdapter.Reason.ENGINE_UNAVAILABLE;
+    }
+    if (Lizzie.board == null
+        || Lizzie.board.getHistory() == null
+        || Lizzie.board.getHistory().getCurrentHistoryNode() != trackingEligibilityNode
+        || Lizzie.board.getContextRevision() != trackingEligibilityBoardRevision) {
+      return ReadBoardTrackingEligibilityAdapter.Reason.NODE_MISMATCH;
+    }
+    return trackingEligibilityReason;
+  }
+
+  private void publishAcceptedTrackingEligibility(BoardHistoryNode acceptedNode) {
+    if (acceptedNode == null || Lizzie.board == null) {
+      return;
+    }
+    Runnable listener;
+    synchronized (this) {
+      ensureTrackingEligibilityInitialized();
+      trackingEligibilityRevision++;
+      trackingEligibilityNode = acceptedNode;
+      trackingEligibilityBoardRevision = Lizzie.board.getContextRevision();
+      trackingEligibilityReason = ReadBoardTrackingEligibilityAdapter.Reason.STABLE;
+      listener = takeTrackingEligibilityInvalidationListener();
+    }
+    runTrackingEligibilityInvalidationListener(listener);
+  }
+
+  private void invalidateTrackingEligibility(ReadBoardTrackingEligibilityAdapter.Reason reason) {
+    Runnable listener;
+    synchronized (this) {
+      ensureTrackingEligibilityInitialized();
+      trackingEligibilityRevision++;
+      trackingEligibilityReason = reason;
+      listener = takeTrackingEligibilityInvalidationListener();
+    }
+    runTrackingEligibilityInvalidationListener(listener);
+  }
+
+  private void retireTrackingEligibility() {
+    Runnable listener;
+    Leelaz.TrackingHandoffClaim handoff;
+    synchronized (this) {
+      ensureTrackingEligibilityInitialized();
+      listener = takeTrackingEligibilityInvalidationListener();
+      trackingEligibilityRevision++;
+      trackingEligibilityIdentity = new Object();
+      trackingEligibilityNode = null;
+      trackingEligibilityBoardRevision = 0L;
+      trackingEligibilityReason = ReadBoardTrackingEligibilityAdapter.Reason.RETIRED;
+      retiredReadBoardGmaTerminalPending = readBoardGmaPending;
+      readBoardGmaSessionGeneration++;
+      readBoardGmaAutoPlayActive = false;
+      readBoardGmaPending = false;
+      readBoardGmaPendingLogicallyInvalid = false;
+      readBoardGmaPendingIdentity = null;
+      readBoardGmaEngineRestorePending = false;
+      readBoardGmaEngineRestoreInProgress = false;
+      readBoardGmaDeferredRestoreNode = null;
+      handoff = readBoardGmaHandoffClaim;
+      readBoardGmaHandoffClaim = null;
+    }
+    runTrackingEligibilityInvalidationListener(listener);
+    if (handoff != null) {
+      handoff.cancel();
+    }
+    if (Lizzie.leelaz != null) {
+      Lizzie.leelaz.retireReadBoardGmaSession();
+    }
+  }
+
+  private Runnable takeTrackingEligibilityInvalidationListener() {
+    Runnable listener =
+        trackingEligibilityObserverIdentity == trackingEligibilityIdentity
+            ? trackingEligibilityInvalidationListener
+            : null;
+    trackingEligibilityObserverIdentity = null;
+    trackingEligibilityInvalidationListener = null;
+    return listener;
+  }
+
+  private static void runTrackingEligibilityInvalidationListener(Runnable listener) {
+    if (listener == null) {
+      return;
+    }
+    try {
+      listener.run();
+    } catch (Throwable ignored) {
+      // Eligibility observation cannot interrupt the ReadBoard owner.
+    }
   }
 
   private boolean shouldSendQuitToHostedProcess() {

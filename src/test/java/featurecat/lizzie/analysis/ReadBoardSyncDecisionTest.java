@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -419,7 +420,8 @@ class ReadBoardSyncDecisionTest {
     Stone[] target = stones(placement(0, 0, Stone.WHITE));
     SyncSnapshotClassifier.SnapshotDelta snapshotDelta =
         new SyncSnapshotClassifier(BOARD_SIZE, BOARD_SIZE)
-            .summarizeDelta(syncStartNode.getData().stones, snapshot(target, Optional.empty(), Stone.EMPTY));
+            .summarizeDelta(
+                syncStartNode.getData().stones, snapshot(target, Optional.empty(), Stone.EMPTY));
     ReadBoard readBoard = allocate(ReadBoard.class);
 
     assertTrue(
@@ -1089,8 +1091,7 @@ class ReadBoardSyncDecisionTest {
   }
 
   @Test
-  void sameBoardMarkerlessFoxMetadataDoesNotOverrideRiskySnapshotSideToPlay()
-      throws Exception {
+  void sameBoardMarkerlessFoxMetadataDoesNotOverrideRiskySnapshotSideToPlay() throws Exception {
     Stone[] target =
         stones(
             placement(0, 0, Stone.WHITE),
@@ -1100,7 +1101,8 @@ class ReadBoardSyncDecisionTest {
     try (SyncHarness harness =
         SyncHarness.create(
             false,
-            rootHistory(target, Optional.empty(), Stone.EMPTY, false, 57, BoardNodeKind.SNAPSHOT))) {
+            rootHistory(
+                target, Optional.empty(), Stone.EMPTY, false, 57, BoardNodeKind.SNAPSHOT))) {
       BoardHistoryNode originalMainEnd = harness.board.getHistory().getMainEnd();
 
       armFoxMoveNumber(harness.readBoard, 58);
@@ -2718,6 +2720,71 @@ class ReadBoardSyncDecisionTest {
         Stone.BLACK, data.stones[stoneIndex(2, 2)], "fixture data should keep 3x3 stones.");
   }
 
+  @Test
+  void acceptedCompleteFramePublishesStableTrackingEligibilityAndNextFrameInvalidatesFirst()
+      throws Exception {
+    try (SyncHarness harness = SyncHarness.create(false, emptyHistory())) {
+      harness.leelaz.enableReadBoardGmaSupport();
+      harness.sync(snapshot(stones(), Optional.empty(), Stone.EMPTY));
+      ReadBoardTrackingEligibilityAdapter.Snapshot stable = harness.readBoard.snapshot();
+      AtomicInteger invalidations = new AtomicInteger();
+      harness.readBoard.observeInvalidation(stable.identity(), invalidations::incrementAndGet);
+
+      assertEquals(ReadBoardTrackingEligibilityAdapter.Reason.STABLE, stable.reason());
+      assertSame(harness.board.getHistory().getCurrentHistoryNode(), stable.nodeIdentity());
+      assertEquals(harness.board.getContextRevision(), stable.boardRevision());
+
+      setField(harness.readBoard, "tempcount", new ArrayList<Integer>());
+      harness.readBoard.parseLine("re=0,0,0");
+      ReadBoardTrackingEligibilityAdapter.Snapshot pending = harness.readBoard.snapshot();
+
+      assertEquals(ReadBoardTrackingEligibilityAdapter.Reason.FRAME_PENDING, pending.reason());
+      assertTrue(pending.revision() > stable.revision());
+      assertEquals(1, invalidations.get());
+    }
+  }
+
+  @Test
+  void trackingEligibilityExplainsFirstFramePendingLocalGmaRestoreAndNodeMismatch()
+      throws Exception {
+    try (SyncHarness harness = SyncHarness.create(false, emptyHistory())) {
+      harness.leelaz.enableReadBoardGmaSupport();
+      harness.sync(snapshot(stones(), Optional.empty(), Stone.EMPTY));
+      assertEquals(
+          ReadBoardTrackingEligibilityAdapter.Reason.STABLE, harness.readBoard.snapshot().reason());
+
+      setField(harness.readBoard, "awaitingFirstSyncFrame", true);
+      assertEquals(
+          ReadBoardTrackingEligibilityAdapter.Reason.FIRST_FRAME,
+          harness.readBoard.snapshot().reason());
+      setField(harness.readBoard, "awaitingFirstSyncFrame", false);
+
+      harness.readBoard.lastMovePlayByLizzie = true;
+      setField(harness.readBoard, "waitingForReadBoardLocalMoveAck", true);
+      assertEquals(
+          ReadBoardTrackingEligibilityAdapter.Reason.PENDING_LOCAL_MOVE,
+          harness.readBoard.snapshot().reason());
+      harness.readBoard.lastMovePlayByLizzie = false;
+      setField(harness.readBoard, "waitingForReadBoardLocalMoveAck", false);
+
+      setField(harness.readBoard, "readBoardGmaPending", true);
+      assertEquals(
+          ReadBoardTrackingEligibilityAdapter.Reason.GMA, harness.readBoard.snapshot().reason());
+      setField(harness.readBoard, "readBoardGmaPending", false);
+
+      setField(harness.leelaz, "engineStateUnrestored", true);
+      assertEquals(
+          ReadBoardTrackingEligibilityAdapter.Reason.ENGINE_UNRESTORED,
+          harness.readBoard.snapshot().reason());
+      setField(harness.leelaz, "engineStateUnrestored", false);
+
+      setField(harness.board, "contextRevision", harness.board.getContextRevision() + 1L);
+      assertEquals(
+          ReadBoardTrackingEligibilityAdapter.Reason.NODE_MISMATCH,
+          harness.readBoard.snapshot().reason());
+    }
+  }
+
   private static void armFoxMoveNumber(ReadBoard readBoard, int moveNumber) {
     readBoard.parseLine("syncPlatform fox");
     readBoard.parseLine("foxMoveNumber " + moveNumber);
@@ -3093,7 +3160,8 @@ class ReadBoardSyncDecisionTest {
     return (SyncRemoteContext) getField(readBoard, "pendingRemoteContext");
   }
 
-  private static void setPendingSnapshot(ReadBoard readBoard, int[] snapshotCodes) throws Exception {
+  private static void setPendingSnapshot(ReadBoard readBoard, int[] snapshotCodes)
+      throws Exception {
     ArrayList<Integer> counts = new ArrayList<>(snapshotCodes.length);
     for (int code : snapshotCodes) {
       counts.add(code);
