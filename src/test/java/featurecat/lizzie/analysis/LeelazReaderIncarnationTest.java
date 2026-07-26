@@ -8,7 +8,10 @@ import featurecat.lizzie.Config;
 import featurecat.lizzie.ConfigTestHelper;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.gui.GtpConsolePane;
+import featurecat.lizzie.gui.HtmlMessage;
+import featurecat.lizzie.gui.LizzieFrame;
 import featurecat.lizzie.rules.Board;
+import java.awt.Window;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -218,6 +221,9 @@ class LeelazReaderIncarnationTest {
       invokeTerminal(engine, binding);
       assertEquals(1, process.destroyCount);
       SwingUtilities.invokeAndWait(() -> {});
+      assertFalse(
+          java.util.Arrays.stream(Window.getWindows())
+              .anyMatch(window -> window instanceof HtmlMessage && window.isDisplayable()));
     }
   }
 
@@ -393,6 +399,7 @@ class LeelazReaderIncarnationTest {
     private final Leelaz previousLeelaz;
     private final GtpConsolePane previousGtpConsole;
     private final Board previousBoard;
+    private final LizzieFrame previousFrame;
     private final boolean previousEngineGame;
     private final EngineGameInfo previousEngineGameInfo;
 
@@ -401,12 +408,14 @@ class LeelazReaderIncarnationTest {
         Leelaz previousLeelaz,
         GtpConsolePane previousGtpConsole,
         Board previousBoard,
+        LizzieFrame previousFrame,
         boolean previousEngineGame,
         EngineGameInfo previousEngineGameInfo) {
       this.previousConfig = previousConfig;
       this.previousLeelaz = previousLeelaz;
       this.previousGtpConsole = previousGtpConsole;
       this.previousBoard = previousBoard;
+      this.previousFrame = previousFrame;
       this.previousEngineGame = previousEngineGame;
       this.previousEngineGameInfo = previousEngineGameInfo;
     }
@@ -418,11 +427,13 @@ class LeelazReaderIncarnationTest {
               Lizzie.leelaz,
               Lizzie.gtpConsole,
               Lizzie.board,
+              Lizzie.frame,
               EngineManager.isEngineGame,
               EngineManager.engineGameInfo);
       Lizzie.config =
           ConfigTestHelper.createForTests(Files.createTempDirectory("leelaz-reader-incarnation"));
       Lizzie.gtpConsole = allocate(SilentGtpConsole.class);
+      Lizzie.frame = null;
       EngineManager.isEngineGame = false;
       return state;
     }
@@ -433,6 +444,7 @@ class LeelazReaderIncarnationTest {
       Lizzie.leelaz = previousLeelaz;
       Lizzie.gtpConsole = previousGtpConsole;
       Lizzie.board = previousBoard;
+      Lizzie.frame = previousFrame;
       EngineManager.isEngineGame = previousEngineGame;
       EngineManager.engineGameInfo = previousEngineGameInfo;
     }

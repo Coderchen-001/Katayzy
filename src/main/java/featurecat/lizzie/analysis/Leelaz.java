@@ -3278,15 +3278,17 @@ public class Leelaz {
       }
       if (line.startsWith("info") && isLoaded) {
         isLoaded = false;
-        SwingUtilities.invokeLater(
-            new Runnable() {
-              public void run() {
-                Utils.showHtmlMessage(
-                    Lizzie.resourceBundle.getString("Message.title"),
-                    Lizzie.resourceBundle.getString("Leelaz.updateZenGtp"),
-                    Lizzie.frame);
-              }
-            });
+        if (Lizzie.frame != null && Lizzie.frame.isDisplayable()) {
+          SwingUtilities.invokeLater(
+              new Runnable() {
+                public void run() {
+                  Utils.showHtmlMessage(
+                      Lizzie.resourceBundle.getString("Message.title"),
+                      Lizzie.resourceBundle.getString("Leelaz.updateZenGtp"),
+                      Lizzie.frame);
+                }
+              });
+        }
         terminateReaderIncarnation(binding, null);
         return;
       }
