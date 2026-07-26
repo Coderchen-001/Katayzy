@@ -102,8 +102,8 @@ All downloads are on [Releases](https://github.com/wimi321/lizzieyzy-next/releas
 | Windows, RTX 20/30/40/50, optional TensorRT acceleration | Download the matching NVIDIA package first (`*windows64.nvidia50.cuda.portable.zip` for RTX 50), then install TensorRT from `KataGo Auto Setup` |
 | Windows, bring your own engine, no installer | `*windows64.without.engine.portable.zip` |
 | Windows, bring your own engine, installer option | `*windows64.without.engine.installer.exe` |
-| macOS Apple Silicon | `*mac-apple-silicon.with-katago.dmg` |
-| macOS Intel | `*mac-intel.with-katago.dmg` |
+| macOS Apple Silicon, then drag the app to Applications | `*mac-apple-silicon.with-katago.dmg` |
+| macOS Intel, then drag the app to Applications | `*mac-intel.with-katago.dmg` |
 | Linux | `*linux64.with-katago.zip` |
 
 Quick rule:
@@ -194,7 +194,7 @@ Usually no. The app now supports fast full-game analysis, so the main graph and 
 
 ### What if macOS blocks the app on first launch?
 
-The current macOS builds are still unsigned and not notarized. If macOS blocks the app the first time, follow the steps in [Installation Guide](docs/INSTALL_EN.md).
+Choose the package for your Mac, open the DMG, drag `LizzieYzy Next` to Applications, eject the installer disk, and launch it from Finder's Applications folder. Official releases go through signing and notarization; if macOS still blocks the app, follow the [Installation Guide](docs/INSTALL_EN.md).
 
 ## User Docs
 

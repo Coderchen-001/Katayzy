@@ -76,8 +76,8 @@
 | `windows64.core-update.zip` | 否 | 依赖旧免安装目录 | 解压到旧免安装目录覆盖，用于日常升级主程序和启动器配置 |
 | `windows64.without.engine.portable.zip` | 是 | 否 | 解压后运行 `LizzieYzy Next.exe` |
 | `windows64.without.engine.installer.exe` | 是 | 否 | 安装后从开始菜单或桌面打开 |
-| `mac-apple-silicon.with-katago.dmg` | App 自带 | 是 | 拖到 Applications |
-| `mac-intel.with-katago.dmg` | App 自带 | 是 | 拖到 Applications |
+| `mac-apple-silicon.with-katago.dmg` | App 自带 | 是 | 按安装画面拖到 Applications，弹出 DMG 后启动 |
+| `mac-intel.with-katago.dmg` | App 自带 | 是 | 按安装画面拖到 Applications，弹出 DMG 后启动 |
 | `linux64.with-katago.zip` | 是 | 是 | 运行 `start-linux64.sh` |
 | `linux64.opencl.zip` | 是 | 是 | 运行 `start-linux64.sh` |
 | `linux64.nvidia.zip` | 是 | 是 | 运行 `start-linux64.sh` |

@@ -22,6 +22,7 @@ mac_arch="${2:-mac-arm64}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 entitlements_path="$ROOT_DIR/packaging/macos-entitlements.plist"
 drag_dmg_script="$ROOT_DIR/scripts/create_macos_drag_dmg.sh"
+validate_dmg_script="$ROOT_DIR/scripts/validate_macos_dmg_layout.sh"
 
 if [[ -z "${APPLE_CERT_P12:-}" || -z "${APPLE_TEAM_ID:-}" ]]; then
   echo "Apple Developer credentials not configured; skipping sign/notarize."
@@ -40,6 +41,10 @@ fi
 
 if [[ ! -x "$drag_dmg_script" ]]; then
   echo "Missing executable DMG layout helper: $drag_dmg_script" >&2
+  exit 1
+fi
+if [[ ! -x "$validate_dmg_script" ]]; then
+  echo "Missing executable DMG layout validator: $validate_dmg_script" >&2
   exit 1
 fi
 
@@ -107,11 +112,16 @@ create_dmg_with_retry() {
   local volume_name="$1"
   local source_folder="$2"
   local output_dmg="$3"
+  local architecture_label="$4"
   local attempt
 
   rm -f "$output_dmg"
   for attempt in 1 2 3 4 5; do
-    if "$drag_dmg_script" "$volume_name" "$source_folder" "$output_dmg"; then
+    if "$drag_dmg_script" \
+      "$volume_name" \
+      "$source_folder" \
+      "$output_dmg" \
+      "$architecture_label"; then
       return 0
     fi
     rm -f "$output_dmg"
@@ -119,7 +129,11 @@ create_dmg_with_retry() {
     sleep "$attempt"
   done
 
-  "$drag_dmg_script" "$volume_name" "$source_folder" "$output_dmg"
+  "$drag_dmg_script" \
+    "$volume_name" \
+    "$source_folder" \
+    "$output_dmg" \
+    "$architecture_label"
 }
 
 sign_embedded_jar_natives() {
@@ -277,12 +291,15 @@ submit_for_notarization_with_retry() {
 case "$mac_arch" in
   mac-arm64)
     dmg_pattern="*mac-apple-silicon*.dmg"
+    dmg_arch_label="Apple Silicon"
     ;;
   mac-amd64)
     dmg_pattern="*mac-intel*.dmg"
+    dmg_arch_label="Intel"
     ;;
   *)
-    dmg_pattern="*${mac_arch}*.dmg"
+    echo "Unsupported macOS release architecture: $mac_arch" >&2
+    exit 1
     ;;
 esac
 shopt -s nullglob
@@ -383,7 +400,11 @@ PY
 
   # Rebuild DMG from the signed app.
   signed_dmg="$work_dir/$(basename "$dmg")"
-  create_dmg_with_retry "$(basename "$staged_app" .app)" "$staging" "$signed_dmg"
+  create_dmg_with_retry \
+    "$(basename "$staged_app" .app) - $dmg_arch_label" \
+    "$staging" \
+    "$signed_dmg" \
+    "$dmg_arch_label"
   codesign --force --timestamp --keychain "$keychain" --sign "$sign_identity" "$signed_dmg"
 
   echo "Submitting $signed_dmg for notarization..."
@@ -403,6 +424,7 @@ PY
   fi
 
   xcrun stapler staple "$signed_dmg"
+  "$validate_dmg_script" "$signed_dmg" "$dmg_arch_label"
   spctl --assess --type open --context context:primary-signature -vvv "$signed_dmg" || true
 
   mv "$signed_dmg" "$dmg"

@@ -60,8 +60,8 @@ Notes:
 | `windows64.nvidia50.cuda.installer.exe` | Bundled | Bundled | Bundled | Install, then launch `LizzieYzy Next NVIDIA 50 CUDA` |
 | `windows64.without.engine.portable.zip` | Bundled | Not bundled | Not bundled | Unzip and run `LizzieYzy Next.exe` |
 | `windows64.without.engine.installer.exe` | Bundled | Not bundled | Not bundled | Install, then launch from Start Menu or desktop |
-| `mac-apple-silicon.with-katago.dmg` | App runtime | Bundled | Bundled | Drag to Applications |
-| `mac-intel.with-katago.dmg` | App runtime | Bundled | Bundled | Drag to Applications |
+| `mac-apple-silicon.with-katago.dmg` | App runtime | Bundled | Bundled | Follow the installer artwork, drag to Applications, then eject the DMG |
+| `mac-intel.with-katago.dmg` | App runtime | Bundled | Bundled | Follow the installer artwork, drag to Applications, then eject the DMG |
 | `linux64.with-katago.zip` | Bundled | Bundled | Bundled | Run `start-linux64.sh` |
 | `linux64.opencl.zip` | Bundled | Bundled | Bundled | Run `start-linux64.sh` |
 | `linux64.nvidia.zip` | Bundled | Bundled | Bundled | Run `start-linux64.sh` |
