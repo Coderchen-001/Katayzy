@@ -313,6 +313,41 @@ class AnalysisEngineRequestTest {
   }
 
   @Test
+  void missingMainlineCompletesWhenAcquiringTrackingFillsLastRequestBeforeInitialFence()
+      throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      BoardHistoryNode requestedNode = singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      Leelaz.TrackingStreamLeaseAcquisition tracking =
+          foreground.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      AnalysisEngine engine = new AnalysisEngine(false);
+      AtomicInteger completions = new AtomicInteger();
+      engine.setCompletionCallback(completions::incrementAndGet);
+
+      assertEquals(1, engine.startRequestMissingMainline(false));
+      requestedNode.getData().setPlayouts(120);
+      assertEquals("800000000 stop\n", output.toString(StandardCharsets.UTF_8));
+
+      processCommandResponse(foreground, "=800000000");
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      completeForegroundRestore(foreground);
+      javax.swing.SwingUtilities.invokeAndWait(() -> {});
+
+      assertEquals(1, completions.get(), output.toString(StandardCharsets.UTF_8));
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-analyze"));
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
+    }
+  }
+
+  @Test
   void missingMainlineCompletesWhenTrackingFillsLastRequestBeforeActivation() throws Exception {
     try (TestEnvironment env = TestEnvironment.open()) {
       Lizzie.config.analysisReuseCurrentEngine = true;
