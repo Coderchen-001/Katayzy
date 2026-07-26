@@ -15,6 +15,7 @@ import featurecat.lizzie.gui.Menu;
 import featurecat.lizzie.gui.WinrateGraph;
 import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.Stone;
+import featurecat.lizzie.rules.Zobrist;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -1647,6 +1648,8 @@ class LeelazTrackingStreamLeaseTest {
   @Test
   void boardSizeMirrorsBeforeRealBoardReopenCommands() throws Exception {
     Board previousBoard = Lizzie.board;
+    int previousBoardWidth = Board.boardWidth;
+    int previousBoardHeight = Board.boardHeight;
     Leelaz previousSecondEngine = Lizzie.leelaz2;
     WinrateGraph previousWinrateGraph = LizzieFrame.winrateGraph;
     try (TestState state = TestState.open(reusableLocalKatago())) {
@@ -1654,6 +1657,9 @@ class LeelazTrackingStreamLeaseTest {
       ByteArrayOutputStream secondOutput = installOutput(secondEngine);
       Lizzie.frame = allocate(PonderTrackingFrame.class);
       LizzieFrame.winrateGraph = allocate(WinrateGraph.class);
+      Board.boardWidth = 19;
+      Board.boardHeight = 19;
+      Zobrist.init();
       Lizzie.board = new Board();
       state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
       processCommandResponse(state.engine, "=800000000");
@@ -1668,6 +1674,9 @@ class LeelazTrackingStreamLeaseTest {
           mirroredCommands.startsWith("boardsize 13\nclear_board\n"),
           mirroredCommands);
     } finally {
+      Board.boardWidth = previousBoardWidth;
+      Board.boardHeight = previousBoardHeight;
+      Zobrist.init();
       Lizzie.board = previousBoard;
       Lizzie.leelaz2 = previousSecondEngine;
       LizzieFrame.winrateGraph = previousWinrateGraph;
