@@ -1403,6 +1403,7 @@ class LeelazExclusiveRemoteGtpSessionTest {
       assertTrue(
           harness.engine.endForegroundAnalysisLease(
               harness.owner, harness.completions::incrementAndGet, failures::incrementAndGet));
+      Lizzie.frame = null;
       installInput(harness.engine, "");
       harness.engine.isNormalEnd = true;
 
