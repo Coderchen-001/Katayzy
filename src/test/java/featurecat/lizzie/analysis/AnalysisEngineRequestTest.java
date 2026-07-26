@@ -264,6 +264,45 @@ class AnalysisEngineRequestTest {
   }
 
   @Test
+  void reuseModeClaimsActiveTrackingBeforeStartingMissingMainlineRequest() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      assertEquals(
+          Leelaz.ExclusiveGtpLeaseAvailability.AVAILABLE,
+          foreground.previewForegroundAnalysisLeaseAvailability(),
+          "preview remains competitive so the business owner can create a typed handoff target");
+      assertEquals(
+          Leelaz.ExclusiveGtpLeaseAvailability.EXISTING_LEASE,
+          foreground.beginForegroundAnalysisLease(new Object(), line -> {}, () -> {}, () -> {}),
+          "direct acquisition must not overwrite the active tracking session");
+      int requested = engine.startRequestMissingMainline(false);
+
+      assertEquals(1, requested);
+      assertEquals(
+          "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
+          output.toString(StandardCharsets.UTF_8));
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).contains("kata-get-rules\n"),
+          output.toString(StandardCharsets.UTF_8));
+      closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
   void activeTrackingForegroundRequestFailsWithoutActivationAfterReaderRebind() throws Exception {
     try (TestEnvironment env = TestEnvironment.open()) {
       Lizzie.config.analysisReuseCurrentEngine = true;

@@ -5267,6 +5267,9 @@ public class Leelaz {
         if (availability != ExclusiveGtpLeaseAvailability.AVAILABLE) {
           return availability;
         }
+        if (exclusiveGtpSession != null) {
+          return ExclusiveGtpLeaseAvailability.EXISTING_LEASE;
+        }
         if (normalCommandSendInProgress || !commandQueue().isEmpty() || lineConsumer == null) {
           return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
         }

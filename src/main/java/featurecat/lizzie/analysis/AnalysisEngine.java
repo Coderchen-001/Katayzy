@@ -1083,8 +1083,10 @@ public class AnalysisEngine {
       sharedForegroundRulesCapturePending = true;
       foregroundLeaseAvailability = Leelaz.ExclusiveGtpLeaseAvailability.AVAILABLE;
     }
-    if (target.allBranches) {
+    if (target.kind == ForegroundRequestKind.ALL_BRANCHES) {
       startRequestAllBranchesNow(target.showProgressDialog);
+    } else if (target.kind == ForegroundRequestKind.MISSING_MAINLINE) {
+      startRequestMissingMainlineNow(target.showProgressDialog);
     } else {
       startRequestNow(target.startMove, target.endMove, target.showProgressDialog);
     }
@@ -1118,6 +1120,18 @@ public class AnalysisEngine {
 
   public int startRequestMissingMainline(boolean showProgressDialog) {
     if (!isLoaded) return 0;
+    int requestCount = countMissingMainlineRequests();
+    if (requestCount > 0) {
+      ForegroundRequestTarget target =
+          ForegroundRequestTarget.missingMainline(this, showProgressDialog);
+      if (tryClaimForegroundTrackingHandoff(target)) {
+        return target.failed ? -1 : requestCount;
+      }
+    }
+    return startRequestMissingMainlineNow(showProgressDialog);
+  }
+
+  private int startRequestMissingMainlineNow(boolean showProgressDialog) {
     prepareRequestState(showProgressDialog);
     if (useRemoteCompute) {
       enqueueRemoteGtpMainlineRequests(
@@ -1140,6 +1154,18 @@ public class AnalysisEngine {
     }
     if (requestCount == 0 && shouldRePonder && !Lizzie.leelaz.isPondering()) {
       Lizzie.leelaz.togglePonder();
+    }
+    return requestCount;
+  }
+
+  private int countMissingMainlineRequests() {
+    int requestCount = 0;
+    BoardHistoryNode node = firstHistoryActionNode(Lizzie.board.getHistory().getStart());
+    while (node != null) {
+      if (shouldAnalyzeMissingNode(node)) {
+        requestCount++;
+      }
+      node = nextHistoryActionNode(node);
     }
     return requestCount;
   }
@@ -2026,6 +2052,12 @@ public class AnalysisEngine {
     return sharedForegroundEngine != null;
   }
 
+  private enum ForegroundRequestKind {
+    MAINLINE,
+    ALL_BRANCHES,
+    MISSING_MAINLINE
+  }
+
   private static final class ForegroundRequestTarget implements Leelaz.TrackingHandoffTarget {
     private final AnalysisEngine owner;
     private final BoardHistoryNode historyRoot;
@@ -2033,7 +2065,7 @@ public class AnalysisEngine {
     private final Zobrist boardPosition;
     private final boolean blackToPlay;
     private final long contextRevision;
-    private final boolean allBranches;
+    private final ForegroundRequestKind kind;
     private final int startMove;
     private final int endMove;
     private final boolean showProgressDialog;
@@ -2043,10 +2075,11 @@ public class AnalysisEngine {
         new java.util.concurrent.atomic.AtomicBoolean(false);
     private volatile long generation;
     private volatile Leelaz.TrackingHandoffClaim claim;
+    private volatile boolean failed;
 
     private ForegroundRequestTarget(
         AnalysisEngine owner,
-        boolean allBranches,
+        ForegroundRequestKind kind,
         int startMove,
         int endMove,
         boolean showProgressDialog) {
@@ -2057,7 +2090,7 @@ public class AnalysisEngine {
       this.boardPosition = history == null ? null : history.getZobrist();
       this.blackToPlay = history != null && history.isBlacksTurn();
       this.contextRevision = Lizzie.board == null ? 0L : Lizzie.board.getContextRevision();
-      this.allBranches = allBranches;
+      this.kind = kind;
       this.startMove = startMove;
       this.endMove = endMove;
       this.showProgressDialog = showProgressDialog;
@@ -2065,12 +2098,20 @@ public class AnalysisEngine {
 
     private static ForegroundRequestTarget mainline(
         AnalysisEngine owner, int startMove, int endMove, boolean showProgressDialog) {
-      return new ForegroundRequestTarget(owner, false, startMove, endMove, showProgressDialog);
+      return new ForegroundRequestTarget(
+          owner, ForegroundRequestKind.MAINLINE, startMove, endMove, showProgressDialog);
     }
 
     private static ForegroundRequestTarget allBranches(
         AnalysisEngine owner, boolean showProgressDialog) {
-      return new ForegroundRequestTarget(owner, true, -1, -1, showProgressDialog);
+      return new ForegroundRequestTarget(
+          owner, ForegroundRequestKind.ALL_BRANCHES, -1, -1, showProgressDialog);
+    }
+
+    private static ForegroundRequestTarget missingMainline(
+        AnalysisEngine owner, boolean showProgressDialog) {
+      return new ForegroundRequestTarget(
+          owner, ForegroundRequestKind.MISSING_MAINLINE, -1, -1, showProgressDialog);
     }
 
     @Override
@@ -2111,6 +2152,7 @@ public class AnalysisEngine {
     @Override
     public void fail(Leelaz.TrackingHandoffFailure failure) {
       if (settled.compareAndSet(false, true)) {
+        failed = true;
         owner.failForegroundRequest(this);
       }
     }
