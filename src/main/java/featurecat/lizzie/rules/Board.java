@@ -2966,8 +2966,8 @@ public class Board {
   }
 
   private void restoreEnginePosition(Leelaz engine, ArrayList<Movelist> fallbackMoves) {
+    boolean wasPondering = engine.isPonderingOrWasPonderingBeforeTracking();
     syncEngineKomiToNonDefaultCurrentGame(engine);
-    boolean wasPondering = engine.isPondering();
     engine.sendCommand("clear_board");
     BoardHistoryNode currentNode = getHistory().getCurrentHistoryNode();
     BoardData editedCurrentBoard = createEditedCurrentBoardAnchor(currentNode);

@@ -3525,13 +3525,14 @@ public class Leelaz {
     }
   }
 
-  private boolean wasPonderingBeforeCurrentTracking() {
+  public boolean isPonderingOrWasPonderingBeforeTracking() {
     synchronized (engineArbitrationLock()) {
-      return exclusiveGtpSession != null
-          && exclusiveGtpSession.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY
-          && exclusiveGtpSession.owner instanceof TrackingStreamLease
-          && !exclusiveGtpSession.closedCallbackRun
-          && exclusiveGtpSession.wasPondering;
+      return isPondering()
+          || (exclusiveGtpSession != null
+              && exclusiveGtpSession.releasePolicy == ExclusiveGtpReleasePolicy.STREAM_ONLY
+              && exclusiveGtpSession.owner instanceof TrackingStreamLease
+              && !exclusiveGtpSession.closedCallbackRun
+              && exclusiveGtpSession.wasPondering);
     }
   }
 
@@ -8280,7 +8281,7 @@ public class Leelaz {
         //          throw new IllegalArgumentException(
         //              "The stone color must be B or W, but was " + color.toString());
     }
-    boolean continuePonderAfterMove = isPondering || wasPonderingBeforeCurrentTracking();
+    boolean continuePonderAfterMove = isPonderingOrWasPonderingBeforeTracking();
     sendCommand("play " + colorString + " " + move);
     bestMoves = new ArrayList<>();
     currentTotalPlayouts = 0;
@@ -9640,10 +9641,11 @@ public class Leelaz {
 
   public void undo(boolean addPlayer, boolean blackToPlay) {
     synchronized (this) {
+      boolean continuePonderAfterUndo = isPonderingOrWasPonderingBeforeTracking();
       sendCommand("undo");
       bestMoves = new ArrayList<>();
       currentTotalPlayouts = 0;
-      if (isPondering)
+      if (continuePonderAfterUndo)
         if (Lizzie.config.isAutoAna
             || ((Lizzie.config.analyzeBlack && Lizzie.board.getHistory().isBlacksTurn())
                 || (Lizzie.config.analyzeWhite && !Lizzie.board.getHistory().isBlacksTurn())))
