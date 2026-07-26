@@ -113,6 +113,12 @@ tracking-analysis-max-visits
 - Windows integration harness 只存在于 test source，通过 public controller/lease/handoff
   seam 使用 monotonic clock 输出原始 CSV/JSON；它必须捕获并恢复 default uncaught handler
   与 EDT EventQueue，Executor task 必须显式取得 `Future` 或 join。
+- 未设置真实引擎时，`TrackingWindowsIntegrationHarnessTest` 运行 controlled transport
+  characterization。Ticket 07 通过 `tracking.real.command` system property 或
+  `TRACKING_REAL_COMMAND` environment variable 提供已批准的真实 KataGo 命令；harness 先做
+  3 次 warm-up，再采集 30 个 acquisition/handoff/target-operation 原始样本，输出
+  `real-samples.csv`、`real-samples.json` 及 P50/P95/max。可用
+  `tracking.real.output` 指定输出目录。
 - Windows GUI、真实 KataGo/OpenCL 与实际进程数仍需 Ticket 07 验收；本 source candidate 在
   该 gate 前不得 merge 或 release。
 

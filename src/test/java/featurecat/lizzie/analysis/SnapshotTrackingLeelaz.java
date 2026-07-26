@@ -3,6 +3,8 @@ package featurecat.lizzie.analysis;
 import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.SGFParser;
 import featurecat.lizzie.rules.Stone;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
@@ -58,6 +60,9 @@ class SnapshotTrackingLeelaz extends Leelaz {
     leelaz.readBoardGmaCapabilityKnown = false;
     leelaz.readBoardGmaSupported = false;
     leelaz.readBoardGmaPonderingSupported = false;
+    leelaz.commandLists = new ArrayList<>(List.of("stop", "kata-analyze"));
+    setLeelazField(leelaz, "endGetCommandList", true);
+    setLeelazField(leelaz, "outputStream", new BufferedOutputStream(new ByteArrayOutputStream()));
     initializeReadBoardGmaRuntimeParam(leelaz, "readBoardGmaMaxTime", "maxTime");
     initializeReadBoardGmaRuntimeParam(leelaz, "readBoardGmaMaxVisits", "maxVisits");
     initializeReadBoardGmaRuntimeParam(leelaz, "readBoardGmaPondering", "ponderingEnabled");
@@ -65,6 +70,12 @@ class SnapshotTrackingLeelaz extends Leelaz {
     leelaz.isLoaded = true;
     leelaz.resetBoardState();
     return leelaz;
+  }
+
+  private static void setLeelazField(Leelaz leelaz, String name, Object value) throws Exception {
+    Field field = Leelaz.class.getDeclaredField(name);
+    field.setAccessible(true);
+    field.set(leelaz, value);
   }
 
   private static void initializeReadBoardGmaRuntimeParam(

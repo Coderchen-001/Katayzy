@@ -1085,11 +1085,10 @@ public class Leelaz {
   }
 
   public boolean isEligibleLocalKataGoForReadBoardTracking() {
-    return started
+    return this == Lizzie.leelaz
+        && started
         && isLoaded
-        && isKatago
-        && !useRemoteCompute
-        && !isSSH
+        && trackingStaticAvailability() == ExclusiveGtpLeaseAvailability.AVAILABLE
         && !EngineManager.isEngineGame();
   }
 
@@ -5380,11 +5379,9 @@ public class Leelaz {
     if (Lizzie.leelaz != this) {
       return ExclusiveGtpLeaseAvailability.NOT_CURRENT_FOREGROUND_ENGINE;
     }
-    if (useRemoteCompute || useJavaSSH || isSSH) {
-      return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
-    }
-    if (Lizzie.config != null && Lizzie.config.isDoubleEngineMode()) {
-      return ExclusiveGtpLeaseAvailability.APPLICATION_EXCLUSIVE_MODE;
+    ExclusiveGtpLeaseAvailability staticAvailability = trackingStaticAvailability();
+    if (staticAvailability != ExclusiveGtpLeaseAvailability.AVAILABLE) {
+      return staticAvailability;
     }
     if (engineStateUnrestored) {
       return ExclusiveGtpLeaseAvailability.ENGINE_STATE_UNRESTORED;
@@ -5398,19 +5395,32 @@ public class Leelaz {
     if (trackingHandoffGate != null) {
       return ExclusiveGtpLeaseAvailability.EXISTING_LEASE;
     }
-    if (!isLoaded() || !isStarted() || outputStream == null || !endGetCommandList) {
+    if (!isLoaded() || !isStarted()) {
       return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
-    }
-    if (!isKatago) {
-      return ExclusiveGtpLeaseAvailability.NOT_KATAGO;
-    }
-    if (!commandLists.contains("stop") || !commandLists.contains("kata-analyze")) {
-      return ExclusiveGtpLeaseAvailability.MISSING_CAPABILITY;
     }
     if (exclusiveGtpSession != null) {
       return ExclusiveGtpLeaseAvailability.EXISTING_LEASE;
     }
     return foregroundEngineUseAvailability();
+  }
+
+  private ExclusiveGtpLeaseAvailability trackingStaticAvailability() {
+    if (useRemoteCompute || useJavaSSH || isSSH) {
+      return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
+    }
+    if (Lizzie.config != null && Lizzie.config.isDoubleEngineMode()) {
+      return ExclusiveGtpLeaseAvailability.APPLICATION_EXCLUSIVE_MODE;
+    }
+    if (!isKatago) {
+      return ExclusiveGtpLeaseAvailability.NOT_KATAGO;
+    }
+    if (outputStream == null || !endGetCommandList) {
+      return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
+    }
+    if (!commandLists.contains("stop") || !commandLists.contains("kata-analyze")) {
+      return ExclusiveGtpLeaseAvailability.MISSING_CAPABILITY;
+    }
+    return ExclusiveGtpLeaseAvailability.AVAILABLE;
   }
 
   private void recordForegroundAnalysisLeaseFailure(

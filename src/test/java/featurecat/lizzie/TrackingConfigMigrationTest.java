@@ -2,7 +2,10 @@ package featurecat.lizzie;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
@@ -34,5 +37,14 @@ class TrackingConfigMigrationTest {
     assertEquals(456, Config.migrateTrackingAnalysisConfig(ui));
     assertEquals(456, ui.getInt("tracking-analysis-max-visits"));
     assertFalse(ui.has("tracking-engine-max-visits"));
+  }
+
+  @Test
+  void changingVisitsAtTheProductionSettingsEntryClearsTheOldContext() throws Exception {
+    String dialog =
+        Files.readString(Path.of("src/main/java/featurecat/lizzie/gui/ConfigDialog2.java"));
+
+    assertTrue(dialog.contains("previousTrackingAnalysisMaxVisits"));
+    assertTrue(dialog.contains("Lizzie.frame.clearTrackingPoints()"));
   }
 }

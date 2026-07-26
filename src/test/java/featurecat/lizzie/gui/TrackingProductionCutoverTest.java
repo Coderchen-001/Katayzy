@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import featurecat.lizzie.Config;
+import featurecat.lizzie.ExtraMode;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.analysis.EngineManager;
 import featurecat.lizzie.analysis.Leelaz;
@@ -16,9 +17,13 @@ import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardData;
 import featurecat.lizzie.rules.BoardHistoryList;
 import featurecat.lizzie.rules.BoardHistoryNode;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -84,6 +89,113 @@ class TrackingProductionCutoverTest {
       assertTrue(environment.commands().contains("800000002 stop\n"));
       assertFalse(environment.commands().contains("800000003 stop\n"));
     }
+  }
+
+  @Test
+  void trackingDisplayChangesRequestRefreshWithoutOrdinaryParserRepaint() throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      TrackingFrame frame = (TrackingFrame) environment.frame;
+      assertEquals(TrackingAnalysisController.AddResult.ADDED, frame.addTrackingPoint("A1"));
+      environment.completeInitialFence(800000000);
+      int beforeInfo = frame.analysisRefreshRequests;
+
+      environment.sendTrackingInfo("info move A1 visits 100 winrate 0.51 scoreLead 1.5 pv A1");
+
+      assertTrue(frame.analysisRefreshRequests > beforeInfo);
+      int beforeCompletion = frame.analysisRefreshRequests;
+      environment.completeFinalFence(800000002);
+      assertTrue(frame.analysisRefreshRequests > beforeCompletion);
+    }
+  }
+
+  @Test
+  void trackingOverlayIsIndependentOfCandidateVisibilityAndSuppressedForBranchOrStaleNode()
+      throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      TrackingFrame frame = (TrackingFrame) environment.frame;
+      Font previousWinrateFont = LizzieFrame.winrateFont;
+      Font previousPlayoutsFont = LizzieFrame.playoutsFont;
+      LizzieFrame.winrateFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+      LizzieFrame.playoutsFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+      try {
+        assertEquals(TrackingAnalysisController.AddResult.ADDED, frame.addTrackingPoint("A1"));
+        environment.completeInitialFence(800000000);
+        environment.sendTrackingInfo("info move A1 visits 10 winrate 0.51 scoreLead 1.5 pv A1");
+        Lizzie.config.showBestMoves = false;
+        frame.isShowingHeatmap = true;
+        frame.isShowingPolicy = true;
+        BoardRenderer renderer = configuredRenderer();
+
+        assertTrue(hasVisiblePaint(renderTrackingOverlay(renderer)));
+
+        setField(renderer, BoardRenderer.class, "isShowingBranch", true);
+        assertFalse(hasVisiblePaint(renderTrackingOverlay(renderer)));
+        setField(renderer, BoardRenderer.class, "isShowingBranch", false);
+        Lizzie.board.setHistory(new BoardHistoryList(BoardData.empty(2, 2)));
+        assertFalse(hasVisiblePaint(renderTrackingOverlay(renderer)));
+      } finally {
+        LizzieFrame.winrateFont = previousWinrateFont;
+        LizzieFrame.playoutsFont = previousPlayoutsFont;
+      }
+    }
+  }
+
+  @Test
+  void unsupportedEngineModesAndMissingCapabilitiesAreHiddenBeforeLeaseAcquisition()
+      throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      environment.engine.useJavaSSH = true;
+      assertFalse(environment.frame.canStartTrackingAnalysis());
+
+      environment.engine.useJavaSSH = false;
+      Lizzie.config.extraMode = ExtraMode.Double_Engine;
+      assertFalse(environment.frame.canStartTrackingAnalysis());
+
+      Lizzie.config.extraMode = ExtraMode.Normal;
+      environment.engine.commandLists.remove("kata-analyze");
+      assertFalse(environment.frame.canStartTrackingAnalysis());
+
+      environment.engine.commandLists.add("kata-analyze");
+      setField(environment.engine, Leelaz.class, "outputStream", null);
+      assertFalse(environment.frame.canStartTrackingAnalysis());
+    }
+  }
+
+  private static BoardRenderer configuredRenderer() throws Exception {
+    BoardRenderer renderer = new BoardRenderer(false);
+    setField(renderer, BoardRenderer.class, "x", 0);
+    setField(renderer, BoardRenderer.class, "y", 0);
+    setField(renderer, BoardRenderer.class, "scaledMarginWidth", 20);
+    setField(renderer, BoardRenderer.class, "scaledMarginHeight", 20);
+    setField(renderer, BoardRenderer.class, "squareWidth", 40);
+    setField(renderer, BoardRenderer.class, "squareHeight", 40);
+    setField(renderer, BoardRenderer.class, "stoneRadius", 16);
+    return renderer;
+  }
+
+  private static BufferedImage renderTrackingOverlay(BoardRenderer renderer) throws Exception {
+    BufferedImage image = new BufferedImage(100, 100, BufferedImage.TYPE_INT_ARGB);
+    Graphics2D graphics = image.createGraphics();
+    try {
+      Method method =
+          BoardRenderer.class.getDeclaredMethod("drawTrackingOverlay", Graphics2D.class);
+      method.setAccessible(true);
+      method.invoke(renderer, graphics);
+    } finally {
+      graphics.dispose();
+    }
+    return image;
+  }
+
+  private static boolean hasVisiblePaint(BufferedImage image) {
+    for (int y = 0; y < image.getHeight(); y++) {
+      for (int x = 0; x < image.getWidth(); x++) {
+        if ((image.getRGB(x, y) >>> 24) != 0) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private static final class TestEnvironment implements AutoCloseable {
@@ -203,6 +315,10 @@ class TrackingProductionCutoverTest {
       dispatch("");
     }
 
+    void sendTrackingInfo(String line) throws Exception {
+      dispatch(line);
+    }
+
     private void dispatch(String line) throws Exception {
       java.lang.reflect.Method method =
           Leelaz.class.getDeclaredMethod("dispatchExclusiveGtpLine", String.class);
@@ -235,8 +351,15 @@ class TrackingProductionCutoverTest {
   }
 
   private static final class TrackingFrame extends LizzieFrame {
+    private int analysisRefreshRequests;
+
     @Override
     public void refresh() {}
+
+    @Override
+    public void requestAnalysisRefresh() {
+      analysisRefreshRequests++;
+    }
   }
 
   private static void setField(Object target, Class<?> owner, String name, Object value)

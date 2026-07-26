@@ -200,16 +200,20 @@ class TrackingAnalysisControllerTest {
     RecordingPonderLeelaz engine = new RecordingPonderLeelaz();
     try (TestState state = TestState.open(engine)) {
       engine.Pondering();
+      AtomicInteger displayChanges = new AtomicInteger();
       TrackingAnalysisController controller =
-          new TrackingAnalysisController(new ManualTimeoutScheduler());
+          new TrackingAnalysisController(
+              new ManualTimeoutScheduler(), displayChanges::incrementAndGet);
       TrackingAnalysisController.Context context = state.context();
       assertEquals(TrackingAnalysisController.AddResult.ADDED, controller.addPoint("D4", context));
       completeInitialFence(state.engine, 800000000);
       assertEquals(TrackingAnalysisController.AddResult.ADDED, controller.addPoint("E5", context));
       assertTrue(dispatch(state.engine, "info move D4 visits 40 winrate 0.51 pv D4"));
 
+      int beforeFreeze = displayChanges.get();
       assertTrue(state.engine.sendRawConsoleCommand("version"));
 
+      assertTrue(displayChanges.get() > beforeFreeze);
       assertTrue(controller.snapshot().frozen());
       assertFalse(controller.snapshot().active());
       assertEquals(List.of("D4"), new ArrayList<>(controller.snapshot().selectedPoints()));
@@ -219,8 +223,10 @@ class TrackingAnalysisControllerTest {
           controller.addPoint("F6", context));
       assertEquals(List.of("D4"), new ArrayList<>(controller.snapshot().selectedPoints()));
 
+      int beforeClear = displayChanges.get();
       state.engine.sendCommand("boardsize 19");
 
+      assertTrue(displayChanges.get() > beforeClear);
       assertFalse(controller.snapshot().frozen());
       assertTrue(controller.snapshot().selectedPoints().isEmpty());
       assertTrue(controller.snapshot().results().isEmpty());
@@ -494,8 +500,10 @@ class TrackingAnalysisControllerTest {
     assertTrue(rightClick.contains("removeTrackingPoint("));
     assertFalse(rightClick.contains("ensureTrackingEngineWithWarning()"));
     assertFalse(rightClick.contains("triggerTrackingAnalysis()"));
-    assertFalse(Files.exists(Path.of("src/main/java/featurecat/lizzie/analysis/TrackingEngine.java")));
-    assertFalse(Files.exists(Path.of("src/main/java/featurecat/lizzie/gui/TrackingConsolePane.java")));
+    assertFalse(
+        Files.exists(Path.of("src/main/java/featurecat/lizzie/analysis/TrackingEngine.java")));
+    assertFalse(
+        Files.exists(Path.of("src/main/java/featurecat/lizzie/gui/TrackingConsolePane.java")));
     assertFalse(controllerSource.contains("AnalysisRequestBuilder"));
     assertFalse(controllerSource.contains("Lizzie.board"));
     assertFalse(controllerSource.contains("BoardHistory"));

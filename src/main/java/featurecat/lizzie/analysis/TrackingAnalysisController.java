@@ -340,6 +340,7 @@ public final class TrackingAnalysisController {
   }
 
   private final TimeoutScheduler timeoutScheduler;
+  private final Runnable displayChanged;
   private final LinkedHashSet<String> selectedPoints = new LinkedHashSet<>();
   private final Deque<String> pendingPoints = new ArrayDeque<>();
   private final LinkedHashMap<String, PointResult> results = new LinkedHashMap<>();
@@ -350,11 +351,20 @@ public final class TrackingAnalysisController {
   private volatile DisplaySnapshot snapshot = DisplaySnapshot.EMPTY;
 
   public TrackingAnalysisController() {
-    this(new DaemonTimeoutScheduler());
+    this(new DaemonTimeoutScheduler(), () -> {});
+  }
+
+  public TrackingAnalysisController(Runnable displayChanged) {
+    this(new DaemonTimeoutScheduler(), displayChanged);
   }
 
   TrackingAnalysisController(TimeoutScheduler timeoutScheduler) {
+    this(timeoutScheduler, () -> {});
+  }
+
+  TrackingAnalysisController(TimeoutScheduler timeoutScheduler, Runnable displayChanged) {
     this.timeoutScheduler = Objects.requireNonNull(timeoutScheduler, "timeoutScheduler");
+    this.displayChanged = Objects.requireNonNull(displayChanged, "displayChanged");
   }
 
   public synchronized AddResult addPoint(String coordinate, Context requestedContext) {
@@ -379,7 +389,7 @@ public final class TrackingAnalysisController {
       pendingPoints.clear();
       results.clear();
       initialReceipt = null;
-      snapshot = DisplaySnapshot.EMPTY;
+      publishEmptySnapshot();
     }
     if (selectedPoints.contains(normalized)) {
       return AddResult.DUPLICATE;
@@ -443,7 +453,7 @@ public final class TrackingAnalysisController {
     results.clear();
     context = null;
     initialReceipt = null;
-    snapshot = DisplaySnapshot.EMPTY;
+    publishEmptySnapshot();
     if (attempt != null && attempt.lease != null) {
       attempt.lease.release();
     }
@@ -480,7 +490,7 @@ public final class TrackingAnalysisController {
       results.clear();
       context = null;
       initialReceipt = null;
-      snapshot = DisplaySnapshot.EMPTY;
+      publishEmptySnapshot();
       return AddResult.LEASE_UNAVAILABLE;
     }
     attempt.lease = acquisition.lease();
@@ -498,7 +508,7 @@ public final class TrackingAnalysisController {
         results.clear();
         context = null;
         initialReceipt = null;
-        snapshot = DisplaySnapshot.EMPTY;
+        publishEmptySnapshot();
       }
       return AddResult.LEASE_UNAVAILABLE;
     }
@@ -683,6 +693,12 @@ public final class TrackingAnalysisController {
 
   private void publishSnapshot(boolean active, boolean frozen) {
     snapshot = new DisplaySnapshot(context, generation, selectedPoints, results, active, frozen);
+    displayChanged.run();
+  }
+
+  private void publishEmptySnapshot() {
+    snapshot = DisplaySnapshot.EMPTY;
+    displayChanged.run();
   }
 
   private static String normalizeCoordinate(String coordinate, Context context) {

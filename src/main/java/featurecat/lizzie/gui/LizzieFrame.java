@@ -13859,7 +13859,7 @@ public class LizzieFrame extends JFrame {
     }
     synchronized (this) {
       if (trackingAnalysisController == null) {
-        trackingAnalysisController = new TrackingAnalysisController();
+        trackingAnalysisController = new TrackingAnalysisController(this::requestAnalysisRefresh);
       }
       return trackingAnalysisController;
     }

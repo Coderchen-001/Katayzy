@@ -5884,6 +5884,7 @@ public class ConfigDialog2 extends JDialog {
       Lizzie.config.uiConfig.put("use-zen-estimate", Lizzie.config.useZenEstimate);
       Lizzie.config.loadEstimateEngine = chkAutoLoadEstimate.isSelected();
       Lizzie.config.uiConfig.put("load-estimate-engine", Lizzie.config.loadEstimateEngine);
+      int previousTrackingAnalysisMaxVisits = Lizzie.config.trackingAnalysisMaxVisits;
       Lizzie.config.trackingAnalysisMaxVisits =
           Utils.parseTextToInt(
               txtTrackingAnalysisMaxVisits, Lizzie.config.trackingAnalysisMaxVisits);
@@ -5891,6 +5892,10 @@ public class ConfigDialog2 extends JDialog {
         Lizzie.config.trackingAnalysisMaxVisits = 500;
       Lizzie.config.uiConfig.put(
           "tracking-analysis-max-visits", Lizzie.config.trackingAnalysisMaxVisits);
+      if (Lizzie.config.trackingAnalysisMaxVisits != previousTrackingAnalysisMaxVisits
+          && Lizzie.frame != null) {
+        Lizzie.frame.clearTrackingPoints();
+      }
       Lizzie.config.loadSgfLast = chkSgfLoadLast.isSelected();
       Lizzie.config.uiConfig.put("load-sgf-last", Lizzie.config.loadSgfLast);
       Lizzie.config.autoQuickAnalyzeOnLoad = chkAutoQuickAnalyzeOnLoad.isSelected();

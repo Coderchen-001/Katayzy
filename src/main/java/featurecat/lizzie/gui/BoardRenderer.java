@@ -305,6 +305,7 @@ public class BoardRenderer {
               drawLeelazSuggestions(g);
             }
           }
+          drawTrackingOverlay(g);
           if (Lizzie.config.showNextMoves && !isShowingBranch) {
             drawNextMoveOutlinesOnTop(g);
           }
@@ -3057,6 +3058,12 @@ public class BoardRenderer {
       }
     }
 
+  }
+
+  private void drawTrackingOverlay(Graphics2D g) {
+    if (boardIndex != 0 || isShowingBranch) return;
+    int minAlpha = 32;
+    float alphaFactor = 5.0f;
     try {
       if (Lizzie.board == null) return;
       TrackingAnalysisController.DisplaySnapshot trackingSnapshot =
