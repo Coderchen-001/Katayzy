@@ -661,8 +661,16 @@ public class AnalysisEngine {
       failRemoteGtpSetup();
       return true;
     }
+    Leelaz engine = sharedForegroundEngine;
     Leelaz.ForegroundAnalysisLease lease = sharedForegroundLease;
-    if (sharedForegroundEngine == null || lease == null || !lease.setRestoreRules(payload)) {
+    ForegroundRequestTarget handoffOwner = sharedForegroundHandoffOwner;
+    boolean restoreRulesCaptured =
+        engine != null
+            && (lease != null
+                ? lease.setRestoreRules(payload)
+                : handoffOwner != null
+                    && engine.setForegroundAnalysisLeaseRestoreRules(handoffOwner, payload));
+    if (!restoreRulesCaptured) {
       failRemoteGtpSetup();
       return true;
     }

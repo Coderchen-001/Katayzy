@@ -340,6 +340,12 @@ class AnalysisEngineRequestTest {
       assertTrue(
           output.toString(StandardCharsets.UTF_8).contains("kata-get-rules\n"),
           output.toString(StandardCharsets.UTF_8));
+      String originalRules =
+          "{\"koRule\":\"POSITIONAL\",\"scoringRule\":\"AREA\",\"taxRule\":\"NONE\"}";
+      assertTrue(dispatchExclusiveLine(foreground, "=830000000 " + originalRules));
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).endsWith("830000001 boardsize 3\n"),
+          output.toString(StandardCharsets.UTF_8));
       closeExclusiveSessionForTest(foreground);
     }
   }
