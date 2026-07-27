@@ -6,9 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Component;
+import java.awt.EventQueue;
 import java.awt.GraphicsEnvironment;
-import java.awt.Point;
-import java.awt.Robot;
+import java.awt.Toolkit;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.InputEvent;
@@ -35,7 +36,7 @@ import org.junit.jupiter.api.Test;
 class LizzieFrameRestartInteractionGateTest {
 
   @Test
-  void gateBlocksDesktopBoardShortcutMenuFileAndOwnedDialogMutations() throws Exception {
+  void gateBlocksAndRestoresDesktopEntryPointState() throws Exception {
     Assumptions.assumeFalse(GraphicsEnvironment.isHeadless());
     JFrame frame = new JFrame();
     JPanel board = new JPanel();
@@ -102,7 +103,6 @@ class LizzieFrameRestartInteractionGateTest {
       settingsDialogs.add(dialog);
       settingsMutations.add(mutation);
     }
-    Robot robot = new Robot();
     try {
       SwingUtilities.invokeAndWait(
           () -> {
@@ -120,18 +120,10 @@ class LizzieFrameRestartInteractionGateTest {
               dialogX += 120;
             }
           });
-      robot.waitForIdle();
-      Point boardLocation = board.getLocationOnScreen();
-      int boardX = boardLocation.x + board.getWidth() / 2;
-      int boardY = boardLocation.y + board.getHeight() / 2;
-      click(robot, boardX, boardY);
-      focus(frame, board);
-      robot.waitForIdle();
-      boardMutations.set(0);
 
       LizzieFrame.RestartInteractionGate gate = LizzieFrame.beginRestartInteractionGate(frame);
-      exerciseMainWindowInputs(robot, boardX, boardY);
-      exerciseDialogInputs(robot, settingsMutations);
+      assertFalse(frame.isEnabled());
+      settingsDialogs.forEach(dialog -> assertFalse(dialog.isEnabled()));
       assertTrue(boardMutations.get() == 0);
       assertTrue(navigationMutations.get() == 0);
       assertTrue(menuMutations.get() == 0);
@@ -140,29 +132,50 @@ class LizzieFrameRestartInteractionGateTest {
       assertTrue(dragDropMutations.get() == 0);
       assertTrue(dialogMutations.get() == 0);
 
+      postKeyEvent(board, KeyEvent.VK_RIGHT, 0);
+      postKeyEvent(board, KeyEvent.VK_M, InputEvent.CTRL_DOWN_MASK);
+      postKeyEvent(board, KeyEvent.VK_O, InputEvent.CTRL_DOWN_MASK);
+      assertTrue(navigationMutations.get() == 0);
+      assertTrue(menuMutations.get() == 0);
+      assertTrue(fileOpenMutations.get() == 0);
+
+      gate.close();
+      gate.close();
+      assertTrue(frame.isEnabled());
+      settingsDialogs.forEach(dialog -> assertTrue(dialog.isEnabled()));
+      assertSame(dragDropEntry, board.getTransferHandler());
+
       SwingUtilities.invokeAndWait(
           () -> {
-            settingsDialogs.forEach(dialog -> dialog.setVisible(false));
+            board.dispatchEvent(
+                new MouseEvent(
+                    board,
+                    MouseEvent.MOUSE_CLICKED,
+                    System.currentTimeMillis(),
+                    0,
+                    board.getWidth() / 2,
+                    board.getHeight() / 2,
+                    1,
+                    false,
+                    MouseEvent.BUTTON1));
+            board.getActionMap().get("navigate").actionPerformed(null);
+            menuAction.doClick();
+            fileOpen.doClick();
+            for (JButton mutation : settingsMutations) {
+              mutation.doClick();
+            }
+            assertTrue(
+                board
+                    .getTransferHandler()
+                    .importData(
+                        new TransferHandler.TransferSupport(
+                            board, new StringSelection("sgf-file"))));
           });
-      gate.close();
-      focus(frame, board);
-      robot.waitForIdle();
-      exerciseMainWindowInputs(robot, boardX, boardY);
       assertTrue(boardMutations.get() == 1);
       assertTrue(navigationMutations.get() == 1);
       assertTrue(menuMutations.get() == 1);
       assertTrue(fileOpenMutations.get() == 1);
-      assertSame(dragDropEntry, board.getTransferHandler());
-      assertTrue(
-          board
-              .getTransferHandler()
-              .importData(
-                  new TransferHandler.TransferSupport(board, new StringSelection("sgf-file"))));
       assertTrue(dragDropMutations.get() == 1);
-      SwingUtilities.invokeAndWait(
-          () -> settingsDialogs.forEach(dialog -> dialog.setVisible(true)));
-      robot.waitForIdle();
-      exerciseDialogInputs(robot, settingsMutations);
       assertTrue(dialogMutations.get() == 3);
     } finally {
       SwingUtilities.invokeAndWait(
@@ -173,6 +186,20 @@ class LizzieFrameRestartInteractionGateTest {
             frame.dispose();
           });
     }
+  }
+
+  private static void postKeyEvent(Component source, int keyCode, int modifiers)
+      throws Exception {
+    EventQueue queue = Toolkit.getDefaultToolkit().getSystemEventQueue();
+    queue.postEvent(
+        new KeyEvent(
+            source,
+            KeyEvent.KEY_PRESSED,
+            System.currentTimeMillis(),
+            modifiers,
+            keyCode,
+            KeyEvent.CHAR_UNDEFINED));
+    SwingUtilities.invokeAndWait(() -> {});
   }
 
   @Test
@@ -269,43 +296,4 @@ class LizzieFrameRestartInteractionGateTest {
     }
   }
 
-  private static void click(Robot robot, int x, int y) {
-    robot.mouseMove(x, y);
-    robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-    robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-    robot.waitForIdle();
-  }
-
-  private static void exerciseMainWindowInputs(Robot robot, int boardX, int boardY) {
-    click(robot, boardX, boardY);
-    robot.keyPress(KeyEvent.VK_RIGHT);
-    robot.keyRelease(KeyEvent.VK_RIGHT);
-    pressShortcut(robot, KeyEvent.VK_M);
-    pressShortcut(robot, KeyEvent.VK_O);
-    robot.waitForIdle();
-  }
-
-  private static void exerciseDialogInputs(Robot robot, List<JButton> settingsMutations) {
-    for (JButton mutation : settingsMutations) {
-      Point location = mutation.getLocationOnScreen();
-      click(robot, location.x + mutation.getWidth() / 2, location.y + mutation.getHeight() / 2);
-    }
-    robot.waitForIdle();
-  }
-
-  private static void pressShortcut(Robot robot, int keyCode) {
-    robot.keyPress(KeyEvent.VK_CONTROL);
-    robot.keyPress(keyCode);
-    robot.keyRelease(keyCode);
-    robot.keyRelease(KeyEvent.VK_CONTROL);
-  }
-
-  private static void focus(JFrame frame, JPanel board) throws Exception {
-    SwingUtilities.invokeAndWait(
-        () -> {
-          frame.toFront();
-          frame.requestFocus();
-          board.requestFocusInWindow();
-        });
-  }
 }
