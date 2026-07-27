@@ -1537,7 +1537,7 @@ public final class KataGoRuntimeHelper {
           benchmarkPausedEngineByShutdown = pauseByShutdown;
         }
         if (!pauseByShutdown) {
-          if (analysisWasPondering) {
+          if (currentEngine.isPondering()) {
             currentEngine.togglePonder();
           }
           return new BenchmarkPauseResult(true, analysisWasPondering);
@@ -1562,7 +1562,7 @@ public final class KataGoRuntimeHelper {
       }
     }
 
-    if (analysisWasPondering) {
+    if (currentEngine != null && currentEngine.isPondering()) {
       try {
         currentEngine.togglePonder();
       } catch (Exception ignored) {

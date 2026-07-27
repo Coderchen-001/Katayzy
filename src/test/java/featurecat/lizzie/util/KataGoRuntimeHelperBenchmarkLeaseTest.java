@@ -402,6 +402,32 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
   }
 
   @Test
+  void nonShutdownBenchmarkKeepsTrackingPausedAndRestoresSavedPonderIntent() throws Exception {
+    try (BenchmarkEnvironment environment = new BenchmarkEnvironment(1)) {
+      RecordingBenchmarkLeelaz engine = environment.engine(0);
+      installOutput(engine);
+      engine.Pondering();
+      engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(engine, "=800000000");
+      assertTrue(dispatchExclusiveLine(engine, ""));
+      EngineManager.isEmpty = true;
+
+      KataGoRuntimeHelper.BenchmarkPauseResult pause = environment.pause(0);
+
+      assertTrue(pause.accepted());
+      assertTrue(pause.analysisWasPondering());
+      assertFalse(engine.isPondering(), "benchmark must not restart ponder while tracking settles.");
+
+      assertTrue(dispatchExclusiveLine(engine, "=800000001"));
+      assertTrue(dispatchExclusiveLine(engine, ""));
+      KataGoRuntimeHelper.restoreAnalysisAfterBenchmark(pause.analysisWasPondering());
+
+      assertTrue(engine.isPondering());
+      assertFalse(engine.hasExclusiveGtpWorkInProgress());
+    }
+  }
+
+  @Test
   void secondBenchmarkPauseIsRejectedWithoutClearingFirstPauseState() throws Exception {
     Config previousConfig = Lizzie.config;
     Leelaz previousEngine = Lizzie.leelaz;
