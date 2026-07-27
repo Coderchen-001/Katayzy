@@ -2036,7 +2036,9 @@ public class EngineManager {
       showForegroundEngineLeaseInUse();
       return;
     }
-    attachRestartInteractionGate(reservations);
+    if (!attachRestartInteractionGate(reservations)) {
+      return;
+    }
     try {
       //  Lizzie.leelaz.normalQuit();
       Lizzie.leelaz.isNormalEnd = true;
@@ -2070,7 +2072,9 @@ public class EngineManager {
         showForegroundEngineLeaseInUse();
         return;
       }
-    attachRestartInteractionGate(reservations);
+    if (!attachRestartInteractionGate(reservations)) {
+      return;
+    }
     try {
       engineList.get(index).isNormalEnd = true;
       engineList.get(index).shutdown();
@@ -2570,6 +2574,8 @@ public class EngineManager {
       Leelaz engine, Runnable synchronization, Runnable afterSync) {
     Runnable restartScopedSynchronization =
         engine.withCurrentRestartBootstrapReceipt(synchronization);
+    Runnable restartScopedAfterSync =
+        afterSync == null ? null : engine.withCurrentRestartBootstrapReceipt(afterSync);
     Runnable restartBootstrapFailure =
         engine.currentRestartBootstrapFailureAction(
             "restart engine did not complete startup and board synchronization");
@@ -2590,8 +2596,8 @@ public class EngineManager {
                 ex.printStackTrace();
                 showEngineSynchronizationFailure(engine);
               } finally {
-                if (afterSync != null) {
-                  afterSync.run();
+                if (restartScopedAfterSync != null) {
+                  restartScopedAfterSync.run();
                 }
               }
             },
@@ -2663,9 +2669,20 @@ public class EngineManager {
     return new EngineLifecycleReservations(currentReservation, targetReservation);
   }
 
-  private void attachRestartInteractionGate(EngineLifecycleReservations reservations) {
-    if (reservations != null && Lizzie.frame != null && Lizzie.frame.isDisplayable()) {
-      reservations.interactionGate = Lizzie.frame.beginRestartInteractionGate();
+  private boolean attachRestartInteractionGate(EngineLifecycleReservations reservations) {
+    try {
+      if (reservations != null && Lizzie.frame != null && Lizzie.frame.isDisplayable()) {
+        reservations.interactionGate = Lizzie.frame.beginRestartInteractionGate();
+      }
+      return true;
+    } catch (RuntimeException failure) {
+      try {
+        reservations.close();
+      } catch (RuntimeException cleanupFailure) {
+        failure.addSuppressed(cleanupFailure);
+      }
+      showEngineSynchronizationFailure(Lizzie.leelaz);
+      return false;
     }
   }
 
@@ -2682,18 +2699,32 @@ public class EngineManager {
     }
 
     @Override
-    public synchronized void close() {
-      if (target != null) {
-        target.close();
+    public void close() {
+      Leelaz.ExclusiveGtpLifecycleReservation targetToClose;
+      Leelaz.ExclusiveGtpLifecycleReservation currentToClose;
+      LizzieFrame.RestartInteractionGate gateToClose;
+      synchronized (this) {
+        targetToClose = target;
+        currentToClose = current;
+        gateToClose = interactionGate;
         target = null;
-      }
-      if (current != null) {
-        current.close();
         current = null;
-      }
-      if (interactionGate != null) {
-        interactionGate.close();
         interactionGate = null;
+      }
+      try {
+        if (targetToClose != null) {
+          targetToClose.close();
+        }
+      } finally {
+        try {
+          if (currentToClose != null) {
+            currentToClose.close();
+          }
+        } finally {
+          if (gateToClose != null) {
+            gateToClose.close();
+          }
+        }
       }
     }
   }

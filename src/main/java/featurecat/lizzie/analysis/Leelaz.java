@@ -1486,6 +1486,7 @@ public class Leelaz {
     return receipt != null
         && receipt.engine == this
         && restartBootstrapReceipt == receipt
+        && restartBootstrapAttemptIds.get() == receipt.restartAttempt
         && exclusiveGtpLifecycleTransition
         && exclusiveGtpLifecycleQueueGate
         && exclusiveGtpLifecycleOwner == receipt.lifecycleOwner
@@ -1502,6 +1503,7 @@ public class Leelaz {
         if (isCurrentRestartBootstrapReceiptLocked(receipt)) {
           engineStateUnrestored = true;
           restartBootstrapReceipt = null;
+          receipt.binding.restartBootstrapReceipt = null;
           reset = resetGtpCommandStateLocked(detail);
         }
       }
@@ -6146,6 +6148,9 @@ public class Leelaz {
           exclusiveGtpLifecycleQueueGate = false;
           exclusiveGtpLifecycleOwner = null;
           exclusiveGtpLifecycleDepth = 0;
+          if (restartBootstrapReceipt != null) {
+            restartBootstrapReceipt.binding.restartBootstrapReceipt = null;
+          }
           restartBootstrapReceipt = null;
           ended = true;
         }

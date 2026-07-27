@@ -131,8 +131,18 @@ public class LizzieFrame extends JFrame {
           }
           Component focusOwner =
               KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
-          for (Window window : windows) {
-            window.setEnabled(false);
+          try {
+            for (Window window : windows) {
+              window.setEnabled(false);
+            }
+          } catch (RuntimeException failure) {
+            for (Window window : windows) {
+              window.setEnabled(Boolean.TRUE.equals(enabledStates.get(window)));
+            }
+            if (focusOwner != null && focusOwner.isDisplayable()) {
+              focusOwner.requestFocusInWindow();
+            }
+            throw failure;
           }
           AtomicBoolean closed = new AtomicBoolean(false);
           result.set(

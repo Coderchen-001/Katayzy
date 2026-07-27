@@ -34,11 +34,11 @@ import javax.swing.ImageIcon;
 import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
-/** Phase A production-entry RED for the restart-only receipt boundary. */
-class Ticket07PhaseAProductionEntryTest {
+/** Production-entry coverage for the restart-only receipt boundary. */
+class Ticket07RestartBootstrapProductionEntryTest {
 
   @Test
-  void publicRestartPublishesNewBindingButStartupCannotCrossLifecycleGate() throws Exception {
+  void publicRestartPublishesNewBindingAndStartupCrossesLifecycleGate() throws Exception {
     Path runtime = Files.createTempDirectory("ticket07-phase-a");
     Path commandLog = runtime.resolve("commands.log");
     Path nameMarker = runtime.resolve("name.sent");
