@@ -145,7 +145,7 @@ class Ticket07RestartBootstrapProductionEntryTest {
         boolean lifecycleGate = (boolean) getField(engine, "exclusiveGtpLifecycleQueueGate");
         assertTrue(
             markerCreated,
-            "RED: startup name was queued but did not reach the new writer; oldIncarnation="
+            "startup name was queued but did not reach the new writer; oldIncarnation="
                 + oldIncarnation
                 + ", newPid="
                 + newPid
