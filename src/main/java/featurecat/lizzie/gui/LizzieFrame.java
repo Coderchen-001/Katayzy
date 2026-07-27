@@ -83,6 +83,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
@@ -108,6 +109,79 @@ import org.json.JSONObject;
 /** The window used to display the game. */
 public class LizzieFrame extends JFrame {
   private static final Map<String, BufferedImage> PLAYER_STRENGTH_IMAGE_CACHE = new HashMap<>();
+
+  public interface RestartInteractionGate extends AutoCloseable {
+    @Override
+    void close();
+  }
+
+  public RestartInteractionGate beginRestartInteractionGate() {
+    return beginRestartInteractionGate(this);
+  }
+
+  static RestartInteractionGate beginRestartInteractionGate(Window root) {
+    AtomicReference<RestartInteractionGate> result = new AtomicReference<>();
+    runRestartInteractionMutationOnEdt(
+        () -> {
+          List<Window> windows = new ArrayList<>();
+          collectOwnedWindows(root, windows, Collections.newSetFromMap(new IdentityHashMap<>()));
+          Map<Window, Boolean> enabledStates = new IdentityHashMap<>();
+          for (Window window : windows) {
+            enabledStates.put(window, window.isEnabled());
+          }
+          Component focusOwner =
+              KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+          for (Window window : windows) {
+            window.setEnabled(false);
+          }
+          AtomicBoolean closed = new AtomicBoolean(false);
+          result.set(
+              () -> {
+                if (!closed.compareAndSet(false, true)) {
+                  return;
+                }
+                runRestartInteractionMutationOnEdt(
+                    () -> {
+                      for (Window window : windows) {
+                        if (Boolean.TRUE.equals(enabledStates.get(window))) {
+                          window.setEnabled(true);
+                        }
+                      }
+                      if (focusOwner != null && focusOwner.isDisplayable()) {
+                        focusOwner.requestFocusInWindow();
+                      }
+                    });
+              });
+        });
+    return result.get();
+  }
+
+  private static void collectOwnedWindows(
+      Window window, List<Window> windows, Set<Window> visited) {
+    if (window == null || !visited.add(window)) {
+      return;
+    }
+    windows.add(window);
+    for (Window owned : window.getOwnedWindows()) {
+      collectOwnedWindows(owned, windows, visited);
+    }
+  }
+
+  private static void runRestartInteractionMutationOnEdt(Runnable action) {
+    if (SwingUtilities.isEventDispatchThread()) {
+      action.run();
+      return;
+    }
+    try {
+      SwingUtilities.invokeAndWait(action);
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(
+          "Interrupted while updating restart interaction gate", interrupted);
+    } catch (Exception failure) {
+      throw new IllegalStateException("Failed to update restart interaction gate", failure);
+    }
+  }
 
   enum PasteSgfDecision {
     IGNORE_EMPTY,

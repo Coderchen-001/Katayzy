@@ -251,6 +251,10 @@ public class Leelaz {
   private boolean exclusiveGtpLifecycleQueueGate;
   private Object exclusiveGtpLifecycleOwner;
   private int exclusiveGtpLifecycleDepth;
+  private final AtomicLong restartBootstrapAttemptIds = new AtomicLong();
+  private final ThreadLocal<RestartBootstrapReceipt> restartBootstrapReceiptContext =
+      new ThreadLocal<>();
+  private RestartBootstrapReceipt restartBootstrapReceipt;
 
   private BufferedReader inputStream;
   private BufferedOutputStream outputStream;
@@ -808,33 +812,39 @@ public class Leelaz {
       clearReadBoardGmaSearchLimitSnapshots();
     }
     // sendCommand("turnon");
+    RestartBootstrapReceipt startupReceipt = currentRestartBootstrapReceipt();
     if (!isSSH) {
       Runnable runnable =
           new Runnable() {
             public void run() {
-              int times = 0;
-              while (outputStream == null && times < 10) {
-                try {
-                  times++;
-                  Thread.sleep(100);
-                } catch (InterruptedException e) {
-                  // TODO Auto-generated catch block
-                  e.printStackTrace();
-                }
-              }
-              sendCommand("name");
-              sendCommand("version");
-              sendCommand("list_commands");
-              enqueueSavedGtpConfiguration();
-              if (!(Lizzie.frame.isPlayingAgainstLeelaz || Lizzie.frame.isAnaPlayingAgainstLeelaz))
-                sendCommand("komi " + komi);
-              boardSizeForEngine(width, height);
-              if (initialCommand != null && !initialCommand.equals("")) {
-                String[] initialCommands = initialCommand.trim().split(";");
-                for (String command : initialCommands) {
-                  sendCommand(command);
-                }
-              }
+              runWithRestartBootstrapReceipt(
+                  startupReceipt,
+                  () -> {
+                    int times = 0;
+                    while (outputStream == null && times < 10) {
+                      try {
+                        times++;
+                        Thread.sleep(100);
+                      } catch (InterruptedException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                      }
+                    }
+                    sendCommand("name");
+                    sendCommand("version");
+                    sendCommand("list_commands");
+                    enqueueSavedGtpConfiguration();
+                    if (!(Lizzie.frame.isPlayingAgainstLeelaz
+                        || Lizzie.frame.isAnaPlayingAgainstLeelaz))
+                      sendCommand("komi " + komi);
+                    boardSizeForEngine(width, height);
+                    if (initialCommand != null && !initialCommand.equals("")) {
+                      String[] initialCommands = initialCommand.trim().split(";");
+                      for (String command : initialCommands) {
+                        sendCommand(command);
+                      }
+                    }
+                  });
             }
           };
       Thread thread = new Thread(runnable);
@@ -959,7 +969,7 @@ public class Leelaz {
               }
             }
           };
-      Thread syncBoardTh = new Thread(syncBoard);
+      Thread syncBoardTh = new Thread(withCurrentRestartBootstrapReceipt(syncBoard));
       syncBoardTh.start();
       restoreScheduled = true;
     } finally {
@@ -1114,6 +1124,11 @@ public class Leelaz {
   }
 
   void markBoardSynchronizationFailed(String detail) {
+    RestartBootstrapReceipt receipt = restartBootstrapReceiptContext.get();
+    if (receipt != null) {
+      failRestartBootstrapReceipt(receipt, detail);
+      return;
+    }
     synchronized (readBoardGmaLock()) {
       engineStateUnrestored = true;
     }
@@ -1304,7 +1319,7 @@ public class Leelaz {
         inputStream = nextInputStream;
         outputStream = nextOutputStream;
         errorStream = nextErrorStream;
-        readerStreamBinding =
+          readerStreamBinding =
             new ReaderStreamBinding(
                 nextInputStream,
                 nextErrorStream,
@@ -1312,6 +1327,9 @@ public class Leelaz {
                 useRemoteCompute ? remoteTransport : null,
                 useJavaSSH ? javaSSH : null,
                 processIncarnationIds.incrementAndGet());
+          synchronized (commandQueue()) {
+            publishRestartBootstrapReceiptLocked(readerStreamBinding, nextOutputStream);
+          }
         if (ownsRebindGateAfterTrackingCleanup) {
           readerStreamRebindInProgress = false;
           engineArbitrationLock().notifyAll();
@@ -1349,6 +1367,9 @@ public class Leelaz {
                   useRemoteCompute ? remoteTransport : null,
                   useJavaSSH ? javaSSH : null,
                   processIncarnationIds.incrementAndGet());
+          synchronized (commandQueue()) {
+            publishRestartBootstrapReceiptLocked(readerStreamBinding, nextOutputStream);
+          }
           readerStreamRebindInProgress = false;
           engineArbitrationLock().notifyAll();
         }
@@ -1400,6 +1421,94 @@ public class Leelaz {
                 processIncarnationIds.incrementAndGet());
       }
       return readerStreamBinding;
+    }
+  }
+
+  private void publishRestartBootstrapReceiptLocked(
+      ReaderStreamBinding binding, BufferedOutputStream bindingOutput) {
+    if (!exclusiveGtpLifecycleTransition
+        || !exclusiveGtpLifecycleQueueGate
+        || exclusiveGtpLifecycleOwner == null) {
+      restartBootstrapReceipt = null;
+      return;
+    }
+    RestartBootstrapReceipt receipt =
+        new RestartBootstrapReceipt(
+            this,
+            exclusiveGtpLifecycleOwner,
+            restartBootstrapAttemptIds.incrementAndGet(),
+            binding,
+            binding.incarnation,
+            bindingOutput);
+    restartBootstrapReceipt = receipt;
+    binding.restartBootstrapReceipt = receipt;
+  }
+
+  private RestartBootstrapReceipt currentRestartBootstrapReceipt() {
+    synchronized (engineArbitrationLock()) {
+      synchronized (commandQueue()) {
+        RestartBootstrapReceipt receipt = restartBootstrapReceipt;
+        return isCurrentRestartBootstrapReceiptLocked(receipt) ? receipt : null;
+      }
+    }
+  }
+
+  Runnable withCurrentRestartBootstrapReceipt(Runnable action) {
+    RestartBootstrapReceipt receipt = currentRestartBootstrapReceipt();
+    return () -> runWithRestartBootstrapReceipt(receipt, action);
+  }
+
+  Runnable currentRestartBootstrapFailureAction(String detail) {
+    RestartBootstrapReceipt receipt = currentRestartBootstrapReceipt();
+    return () -> failRestartBootstrapReceipt(receipt, detail);
+  }
+
+  private void runWithRestartBootstrapReceipt(
+      RestartBootstrapReceipt receipt, Runnable action) {
+    RestartBootstrapReceipt previous = restartBootstrapReceiptContext.get();
+    if (receipt == null) {
+      restartBootstrapReceiptContext.remove();
+    } else {
+      restartBootstrapReceiptContext.set(receipt);
+    }
+    try {
+      action.run();
+    } finally {
+      if (previous == null) {
+        restartBootstrapReceiptContext.remove();
+      } else {
+        restartBootstrapReceiptContext.set(previous);
+      }
+    }
+  }
+
+  private boolean isCurrentRestartBootstrapReceiptLocked(RestartBootstrapReceipt receipt) {
+    return receipt != null
+        && receipt.engine == this
+        && restartBootstrapReceipt == receipt
+        && exclusiveGtpLifecycleTransition
+        && exclusiveGtpLifecycleQueueGate
+        && exclusiveGtpLifecycleOwner == receipt.lifecycleOwner
+        && readerStreamBinding == receipt.binding
+        && !receipt.binding.terminated
+        && receipt.incarnation == receipt.binding.incarnation
+        && outputStream == receipt.output;
+  }
+
+  private void failRestartBootstrapReceipt(RestartBootstrapReceipt receipt, String detail) {
+    GtpCommandStateReset reset = null;
+    synchronized (engineArbitrationLock()) {
+      synchronized (commandQueue()) {
+        if (isCurrentRestartBootstrapReceiptLocked(receipt)) {
+          engineStateUnrestored = true;
+          restartBootstrapReceipt = null;
+          reset = resetGtpCommandStateLocked(detail);
+        }
+      }
+    }
+    if (reset != null) {
+      rememberRecentLine(recentStderrLines, "Restart bootstrap failed: " + detail);
+      notifyGtpCommandStateReset(reset);
     }
   }
 
@@ -1484,6 +1593,7 @@ public class Leelaz {
     private final EngineTransport remoteTransport;
     private final SSHController javaSSH;
     private final long incarnation;
+    private RestartBootstrapReceipt restartBootstrapReceipt;
     private int linesInProgress;
     private Throwable terminalFailure;
     private boolean terminalCleanupStarted;
@@ -1502,6 +1612,30 @@ public class Leelaz {
       this.remoteTransport = remoteTransport;
       this.javaSSH = javaSSH;
       this.incarnation = incarnation;
+    }
+  }
+
+  private static final class RestartBootstrapReceipt {
+    private final Leelaz engine;
+    private final Object lifecycleOwner;
+    private final long restartAttempt;
+    private final ReaderStreamBinding binding;
+    private final long incarnation;
+    private final BufferedOutputStream output;
+
+    private RestartBootstrapReceipt(
+        Leelaz engine,
+        Object lifecycleOwner,
+        long restartAttempt,
+        ReaderStreamBinding binding,
+        long incarnation,
+        BufferedOutputStream output) {
+      this.engine = engine;
+      this.lifecycleOwner = lifecycleOwner;
+      this.restartAttempt = restartAttempt;
+      this.binding = binding;
+      this.incarnation = incarnation;
+      this.output = output;
     }
   }
 
@@ -3774,7 +3908,9 @@ public class Leelaz {
             if (!cmd.equals("") && !cmd.equals("=")) commandLists.add(cmd);
           }
           try {
-            parseLine(line);
+            String readerLine = line;
+            runWithRestartBootstrapReceipt(
+                binding.restartBootstrapReceipt, () -> parseLine(readerLine));
           } catch (Exception e) {
             e.printStackTrace();
           }
@@ -3811,7 +3947,10 @@ public class Leelaz {
             Thread thread = new Thread(runnable);
             thread.start();
           }
-          processCommandResponseLine(line);
+          String responseLine = line;
+          runWithRestartBootstrapReceipt(
+              binding.restartBootstrapReceipt,
+              () -> processCommandResponseLine(responseLine, binding));
         }
         isCommandLine = false;
         lineInProgress = false;
@@ -4229,12 +4368,16 @@ public class Leelaz {
       boolean countCommand,
       boolean noLeelaz2Coalescing) {
     ArrayDeque<QueuedCommand> currentQueue = commandQueue();
+    RestartBootstrapReceipt bootstrapReceipt = restartBootstrapReceiptContext.get();
     if (Thread.holdsLock(currentQueue)
         && exclusiveGtpSession == null
         && trackingHandoffGate == null
         && settlement == null) {
       if (shouldDropStaleForegroundRestoreCommand()
-          || shouldSuppressNormalCommandForForegroundAnalysis()) {
+          || shouldSuppressNormalCommandForForegroundAnalysis()
+          || (restartBootstrapReceipt != null
+              && exclusiveGtpLifecycleQueueGate
+              && !isCurrentRestartBootstrapReceiptLocked(bootstrapReceipt))) {
         return false;
       }
       ArrayDeque<QueuedCommand> targetQueue = commandQueueForCurrentThread();
@@ -4250,7 +4393,9 @@ public class Leelaz {
           cmdNumber--;
         }
       }
-      targetQueue.addLast(new QueuedCommand(command, onResponse, onSendFailure, failOnSendError));
+      targetQueue.addLast(
+          new QueuedCommand(
+              command, onResponse, onSendFailure, failOnSendError, null, bootstrapReceipt));
       return true;
     }
     QueuedCommand coalesced = null;
@@ -4261,6 +4406,9 @@ public class Leelaz {
       synchronized (commandQueue()) {
         if (shouldDropStaleForegroundRestoreCommand()
             || shouldSuppressNormalCommandForForegroundAnalysis()
+            || (restartBootstrapReceipt != null
+                && exclusiveGtpLifecycleQueueGate
+                && !isCurrentRestartBootstrapReceiptLocked(bootstrapReceipt))
             || (rejectForExclusiveWinner
                 && (engineStateUnrestored
                     || readBoardGmaReservation != null
@@ -4291,7 +4439,13 @@ public class Leelaz {
           }
         }
         targetQueue.addLast(
-            new QueuedCommand(command, onResponse, onSendFailure, failOnSendError, settlement));
+            new QueuedCommand(
+                command,
+                onResponse,
+                onSendFailure,
+                failOnSendError,
+                settlement,
+                bootstrapReceipt));
         if (isTrackingStreamSession(trackingSession) && trackingHandoffGate == null) {
           TrackingReleaseDisposition disposition =
               releaseReason == TrackingReleaseReason.SAFE_READ_ONLY_QUERY
@@ -4622,7 +4776,6 @@ public class Leelaz {
     synchronized (commandQueue()) {
       if (exclusiveGtpSession != null
           || trackingHandoffGate != null
-          || exclusiveGtpLifecycleQueueGate
           || readerStreamRebindInProgress
           || normalCommandSendInProgress) {
         return;
@@ -4633,6 +4786,11 @@ public class Leelaz {
         return;
       }
       if (targetQueue.isEmpty()) {
+        return;
+      }
+      QueuedCommand queueHead = targetQueue.peekFirst();
+      if (exclusiveGtpLifecycleQueueGate
+          && !isCurrentRestartBootstrapReceiptLocked(queueHead.restartBootstrapReceipt)) {
         return;
       }
       if (!foregroundRestoreInProgress && !isResponseUpToPreCommand()) {
@@ -4708,12 +4866,16 @@ public class Leelaz {
     String commandLine = buildCommandLine(command, pendingHandler.responseCommandId);
     BufferedOutputStream currentOutputStream = outputStream;
     if (currentOutputStream != null) {
+      if (!claimRestartBootstrapOutputWrite(queuedCommand, currentOutputStream)) {
+        return null;
+      }
       if (!addPendingResponseHandler(pendingHandler)) {
         return null;
       }
       try {
         synchronized (currentOutputStream) {
-          if (!queuedCommand.beginOutputWrite()) {
+          if (queuedCommand.restartBootstrapReceipt == null
+              && !queuedCommand.beginOutputWrite()) {
             removePendingResponseHandler(pendingHandler);
             return null;
           }
@@ -4775,6 +4937,25 @@ public class Leelaz {
       played = false;
     }
     return deferredResponse;
+  }
+
+  private boolean claimRestartBootstrapOutputWrite(
+      QueuedCommand queuedCommand, BufferedOutputStream currentOutputStream) {
+    RestartBootstrapReceipt receipt = queuedCommand.restartBootstrapReceipt;
+    if (receipt == null) {
+      return true;
+    }
+    synchronized (engineArbitrationLock()) {
+      synchronized (commandQueue()) {
+        if (!isCurrentRestartBootstrapReceiptLocked(receipt)
+            || currentOutputStream != receipt.output) {
+          queuedCommand.cancelBeforeOutputWrite(
+              new IllegalStateException("Restart bootstrap receipt is no longer current"));
+          return false;
+        }
+        return queuedCommand.beginOutputWrite();
+      }
+    }
   }
 
   private RuntimeException buildCommandSendFailure(String command, String detail, Exception cause) {
@@ -5153,6 +5334,10 @@ public class Leelaz {
   }
 
   private void processCommandResponseLine(String line) {
+    processCommandResponseLine(line, currentReaderStreamBinding());
+  }
+
+  private void processCommandResponseLine(String line, ReaderStreamBinding responseBinding) {
     if (foregroundRestoreInProgress && line != null && line.trim().startsWith("?")) {
       failForegroundRestore(foregroundRestoreSession, "restore command failed: " + line.trim());
     }
@@ -5161,22 +5346,33 @@ public class Leelaz {
     currentCommandResponseLine = line == null ? "" : line;
     currentCommandResponseError = line != null && line.startsWith("?");
     try {
-      synchronized (commandQueue()) {
-        matchedPendingHandler = pollPendingResponseHandler(line);
-        ignoreResponse =
-            matchedPendingHandler == null
-                && (parseResponseCommandId(line) != NO_RESPONSE_COMMAND_ID
-                    || hasStrictPendingResponseHandlerAtFront());
-        if (!ignoreResponse
-            && (matchedPendingHandler == null
-                || !matchedPendingHandler.isOutstandingResponseRetired())) {
-          currentCmdNum++;
-          if (currentCmdNum > cmdNumber - 1) {
-            currentCmdNum = cmdNumber - 1;
+      synchronized (engineArbitrationLock()) {
+        synchronized (commandQueue()) {
+          matchedPendingHandler = pollPendingResponseHandler(line);
+          RestartBootstrapReceipt receipt =
+              matchedPendingHandler == null
+                  ? null
+                  : matchedPendingHandler.queuedCommand.restartBootstrapReceipt;
+          boolean staleBootstrapResponse =
+              receipt != null
+                  && (responseBinding != receipt.binding
+                      || !isCurrentRestartBootstrapReceiptLocked(receipt));
+          ignoreResponse =
+              staleBootstrapResponse
+                  || (matchedPendingHandler == null
+                      && (parseResponseCommandId(line) != NO_RESPONSE_COMMAND_ID
+                          || hasStrictPendingResponseHandlerAtFront()));
+          if (!ignoreResponse
+              && (matchedPendingHandler == null
+                  || !matchedPendingHandler.isOutstandingResponseRetired())) {
+            currentCmdNum++;
+            if (currentCmdNum > cmdNumber - 1) {
+              currentCmdNum = cmdNumber - 1;
+            }
           }
         }
       }
-      if (matchedPendingHandler != null) {
+      if (!ignoreResponse && matchedPendingHandler != null) {
         matchedPendingHandler.run();
       }
       acknowledgeExclusiveGtpInitialStop(line);
@@ -5940,16 +6136,19 @@ public class Leelaz {
   private void endExclusiveGtpLifecycleTransition(Object owner) {
     boolean ended = false;
     synchronized (engineArbitrationLock()) {
-      if (!exclusiveGtpLifecycleTransition || exclusiveGtpLifecycleOwner != owner) {
-        return;
-      }
-      exclusiveGtpLifecycleDepth--;
-      if (exclusiveGtpLifecycleDepth <= 0) {
-        exclusiveGtpLifecycleTransition = false;
-        exclusiveGtpLifecycleQueueGate = false;
-        exclusiveGtpLifecycleOwner = null;
-        exclusiveGtpLifecycleDepth = 0;
-        ended = true;
+      synchronized (commandQueue()) {
+        if (!exclusiveGtpLifecycleTransition || exclusiveGtpLifecycleOwner != owner) {
+          return;
+        }
+        exclusiveGtpLifecycleDepth--;
+        if (exclusiveGtpLifecycleDepth <= 0) {
+          exclusiveGtpLifecycleTransition = false;
+          exclusiveGtpLifecycleQueueGate = false;
+          exclusiveGtpLifecycleOwner = null;
+          exclusiveGtpLifecycleDepth = 0;
+          restartBootstrapReceipt = null;
+          ended = true;
+        }
       }
     }
     if (ended) {
@@ -8068,6 +8267,7 @@ public class Leelaz {
     private final CommandSendFailureHandler onSendFailure;
     private final boolean failOnSendError;
     private final QueuedCommandSettlement settlement;
+    private final RestartBootstrapReceipt restartBootstrapReceipt;
     private RuntimeException cancellationFailure;
     private boolean outputWriteStarted;
     private boolean settlementFailurePublished;
@@ -8080,7 +8280,7 @@ public class Leelaz {
         Runnable onResponse,
         CommandSendFailureHandler onSendFailure,
         boolean failOnSendError) {
-      this(command, onResponse, onSendFailure, failOnSendError, null);
+      this(command, onResponse, onSendFailure, failOnSendError, null, null);
     }
 
     private QueuedCommand(
@@ -8089,11 +8289,22 @@ public class Leelaz {
         CommandSendFailureHandler onSendFailure,
         boolean failOnSendError,
         QueuedCommandSettlement settlement) {
+      this(command, onResponse, onSendFailure, failOnSendError, settlement, null);
+    }
+
+    private QueuedCommand(
+        String command,
+        Runnable onResponse,
+        CommandSendFailureHandler onSendFailure,
+        boolean failOnSendError,
+        QueuedCommandSettlement settlement,
+        RestartBootstrapReceipt restartBootstrapReceipt) {
       this.command = command;
       this.onResponse = onResponse;
       this.onSendFailure = onSendFailure;
       this.failOnSendError = failOnSendError;
       this.settlement = settlement;
+      this.restartBootstrapReceipt = restartBootstrapReceipt;
     }
 
     private boolean isTrackedLoadSgf() {
@@ -9381,6 +9592,8 @@ public class Leelaz {
     private final Runnable onSuccess;
     private final Consumer<String> onFailure;
     private final AtomicBoolean settled = new AtomicBoolean(false);
+    private final RestartBootstrapReceipt restartReceipt =
+        restartBootstrapReceiptContext.get();
     private final Runnable responseHandler =
         (BoardSynchronizationResponseHandler) this::onResponse;
     private Timer timeout;
@@ -9427,7 +9640,7 @@ public class Leelaz {
       if (isCurrentCommandResponseError()) {
         runFailure("board synchronization failed: " + currentCommandResponseLine());
       } else if (onSuccess != null) {
-        onSuccess.run();
+        runWithRestartBootstrapReceipt(restartReceipt, onSuccess);
       }
     }
 
@@ -9446,7 +9659,7 @@ public class Leelaz {
 
     private void runFailure(String detail) {
       if (onFailure != null) {
-        onFailure.accept(detail);
+        runWithRestartBootstrapReceipt(restartReceipt, () -> onFailure.accept(detail));
       }
     }
 

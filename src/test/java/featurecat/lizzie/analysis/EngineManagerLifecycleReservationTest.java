@@ -510,6 +510,34 @@ class EngineManagerLifecycleReservationTest {
   }
 
   @Test
+  void explicitRestartAlwaysKeepsLifecycleUntilTheBoardFence() throws Exception {
+    Leelaz previousEngine = Lizzie.leelaz;
+    boolean previousEmpty = EngineManager.isEmpty;
+    FenceTrackingLeelaz engine = new FenceTrackingLeelaz();
+    engine.started = true;
+    engine.isLoaded = true;
+    RecoverySwitchEngineManager manager =
+        new RecoverySwitchEngineManager(List.of(engine), engine);
+    try {
+      Lizzie.leelaz = engine;
+      EngineManager.isEmpty = false;
+
+      manager.reStartEngine(0);
+      manager.afterSync.run();
+
+      assertNotNull(engine.confirmation);
+      assertTrue(engine.hasExclusiveGtpWorkInProgress());
+
+      engine.confirmation.run();
+
+      assertFalse(engine.hasExclusiveGtpWorkInProgress());
+    } finally {
+      Lizzie.leelaz = previousEngine;
+      EngineManager.isEmpty = previousEmpty;
+    }
+  }
+
+  @Test
   void secondaryRestartConflictDoesNotShutDownSecondaryEngine() throws Exception {
     Leelaz previousEngine = Lizzie.leelaz;
     Leelaz previousSecondEngine = Lizzie.leelaz2;

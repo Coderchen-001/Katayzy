@@ -2036,6 +2036,7 @@ public class EngineManager {
       showForegroundEngineLeaseInUse();
       return;
     }
+    attachRestartInteractionGate(reservations);
     try {
       //  Lizzie.leelaz.normalQuit();
       Lizzie.leelaz.isNormalEnd = true;
@@ -2069,6 +2070,7 @@ public class EngineManager {
         showForegroundEngineLeaseInUse();
         return;
       }
+    attachRestartInteractionGate(reservations);
     try {
       engineList.get(index).isNormalEnd = true;
       engineList.get(index).shutdown();
@@ -2378,8 +2380,7 @@ public class EngineManager {
     if (!isMain
         || current == null
         || target == null
-        || (!current.hasUnrestoredReadBoardGmaState()
-            && !(allowTargetRecovery && target.hasUnrestoredReadBoardGmaState()))) {
+        || (!allowTargetRecovery && !current.hasUnrestoredReadBoardGmaState())) {
       return reservations::close;
     }
     return () -> {
@@ -2389,7 +2390,7 @@ public class EngineManager {
       }
       target.confirmBoardSynchronization(
           () -> {
-            if (allowTargetRecovery) {
+            if (allowTargetRecovery && target.hasUnrestoredReadBoardGmaState()) {
               target.completeReadBoardGmaRecoveryAfterBoardSync();
             }
             reservations.close();
@@ -2567,18 +2568,25 @@ public class EngineManager {
 
   protected void synchronizeEngineWhenReady(
       Leelaz engine, Runnable synchronization, Runnable afterSync) {
+    Runnable restartScopedSynchronization =
+        engine.withCurrentRestartBootstrapReceipt(synchronization);
+    Runnable restartBootstrapFailure =
+        engine.currentRestartBootstrapFailureAction(
+            "restart engine did not complete startup and board synchronization");
     Thread synchronizationThread =
         new Thread(
             () -> {
               try {
                 if (!waitForEngineSynchronizationReadiness(engine)) {
                   engine.isLoaded = false;
+                  restartBootstrapFailure.run();
                   showEngineSynchronizationFailure(engine);
                   return;
                 }
-                synchronization.run();
+                restartScopedSynchronization.run();
               } catch (RuntimeException ex) {
                 engine.isLoaded = false;
+                restartBootstrapFailure.run();
                 ex.printStackTrace();
                 showEngineSynchronizationFailure(engine);
               } finally {
@@ -2655,9 +2663,16 @@ public class EngineManager {
     return new EngineLifecycleReservations(currentReservation, targetReservation);
   }
 
+  private void attachRestartInteractionGate(EngineLifecycleReservations reservations) {
+    if (reservations != null && Lizzie.frame != null && Lizzie.frame.isDisplayable()) {
+      reservations.interactionGate = Lizzie.frame.beginRestartInteractionGate();
+    }
+  }
+
   private static final class EngineLifecycleReservations implements AutoCloseable {
     private Leelaz.ExclusiveGtpLifecycleReservation current;
     private Leelaz.ExclusiveGtpLifecycleReservation target;
+    private LizzieFrame.RestartInteractionGate interactionGate;
 
     private EngineLifecycleReservations(
         Leelaz.ExclusiveGtpLifecycleReservation current,
@@ -2675,6 +2690,10 @@ public class EngineManager {
       if (current != null) {
         current.close();
         current = null;
+      }
+      if (interactionGate != null) {
+        interactionGate.close();
+        interactionGate = null;
       }
     }
   }
