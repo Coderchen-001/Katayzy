@@ -133,7 +133,23 @@ public class LizzieFrame extends JFrame {
           }
           Component focusOwner =
               KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+          KeyboardFocusManager focusManager =
+              KeyboardFocusManager.getCurrentKeyboardFocusManager();
+          KeyEventDispatcher keyboardGate =
+              event -> {
+                Component source = event.getComponent();
+                Window sourceWindow =
+                    source == null
+                        ? focusManager.getFocusedWindow()
+                        : SwingUtilities.getWindowAncestor(source);
+                if (sourceWindow != null && windows.contains(sourceWindow)) {
+                  event.consume();
+                  return true;
+                }
+                return false;
+              };
           try {
+            focusManager.addKeyEventDispatcher(keyboardGate);
             for (JComponent component : transferHandlers.keySet()) {
               component.setTransferHandler(null);
             }
@@ -141,6 +157,7 @@ public class LizzieFrame extends JFrame {
               window.setEnabled(false);
             }
           } catch (RuntimeException failure) {
+            focusManager.removeKeyEventDispatcher(keyboardGate);
             for (Map.Entry<JComponent, TransferHandler> entry : transferHandlers.entrySet()) {
               entry.getKey().setTransferHandler(entry.getValue());
             }
@@ -169,6 +186,7 @@ public class LizzieFrame extends JFrame {
                           transferHandlers.entrySet()) {
                         entry.getKey().setTransferHandler(entry.getValue());
                       }
+                      focusManager.removeKeyEventDispatcher(keyboardGate);
                       if (focusOwner != null && focusOwner.isDisplayable()) {
                         focusOwner.requestFocusInWindow();
                       }
