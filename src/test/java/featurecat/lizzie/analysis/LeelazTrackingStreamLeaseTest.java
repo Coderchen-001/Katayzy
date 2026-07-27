@@ -821,6 +821,28 @@ class LeelazTrackingStreamLeaseTest {
   }
 
   @Test
+  void lifecycleReservationAllowsRestartStartupCommandsAfterTrackingReaderRebind()
+      throws Exception {
+    try (TestState state = TestState.open(reusableLocalKatago())) {
+      state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      processCommandResponse(state.engine, "=800000000");
+      assertTrue(dispatch(state.engine, ""));
+
+      Leelaz.ExclusiveGtpLifecycleReservation reservation =
+          state.engine.beginExclusiveGtpLifecycleReservation();
+      assertTrue(reservation != null);
+      ByteArrayOutputStream restartedOutput = new ByteArrayOutputStream();
+      initializeStreams(state.engine, restartedOutput);
+
+      state.engine.sendCommand("name");
+
+      assertEquals("name\n", restartedOutput.toString(StandardCharsets.UTF_8));
+      assertEquals(null, state.engine.beginExclusiveGtpLifecycleReservation());
+      reservation.close();
+    }
+  }
+
+  @Test
   void typedHandoffClearsReleaseDispositionBeforeActivationDespiteObserverFailure()
       throws Exception {
     try (TestState state = TestState.open(reusableLocalKatago())) {
