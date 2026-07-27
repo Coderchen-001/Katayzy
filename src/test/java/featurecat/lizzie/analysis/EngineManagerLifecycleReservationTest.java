@@ -3,6 +3,7 @@ package featurecat.lizzie.analysis;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import featurecat.lizzie.Config;
@@ -38,15 +39,18 @@ class EngineManagerLifecycleReservationTest {
   @Test
   void restartClaimsActiveTrackingAndRetiresItOnReaderRebind() throws Exception {
     Leelaz previousEngine = Lizzie.leelaz;
+    LizzieFrame previousFrame = Lizzie.frame;
     boolean previousEmpty = EngineManager.isEmpty;
     int previousEngineNo = EngineManager.currentEngineNo;
     TrackingRestartActionLeelaz engine = new TrackingRestartActionLeelaz();
+    CountingRestartGateFrame frame = allocate(CountingRestartGateFrame.class);
     DeferredSwitchEngineManager manager = new DeferredSwitchEngineManager(List.of(engine));
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     setLeelazField(engine, "outputStream", new BufferedOutputStream(output));
     setCapabilityDiscoveryComplete(engine, true);
     try {
       Lizzie.leelaz = engine;
+      Lizzie.frame = frame;
       EngineManager.isEmpty = false;
       EngineManager.currentEngineNo = 0;
       Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(engine);
@@ -55,6 +59,7 @@ class EngineManagerLifecycleReservationTest {
 
       assertEquals(1, engine.shutdownCount);
       assertEquals(1, manager.switchCount);
+      assertEquals(1, frame.beginCount);
       assertFalse(tracking.lease().isOwned());
       assertTrue(engine.hasExclusiveGtpWorkInProgress());
       assertNotNull(manager.afterSync);
@@ -62,6 +67,7 @@ class EngineManagerLifecycleReservationTest {
       assertFalse(engine.hasExclusiveGtpWorkInProgress());
     } finally {
       Lizzie.leelaz = previousEngine;
+      Lizzie.frame = previousFrame;
       EngineManager.isEmpty = previousEmpty;
       EngineManager.currentEngineNo = previousEngineNo;
     }
@@ -510,29 +516,30 @@ class EngineManagerLifecycleReservationTest {
   }
 
   @Test
-  void explicitRestartAlwaysKeepsLifecycleUntilTheBoardFence() throws Exception {
+  void inactiveExplicitRestartPreservesImmediateLifecycleSettlement() throws Exception {
     Leelaz previousEngine = Lizzie.leelaz;
+    LizzieFrame previousFrame = Lizzie.frame;
     boolean previousEmpty = EngineManager.isEmpty;
     FenceTrackingLeelaz engine = new FenceTrackingLeelaz();
+    CountingRestartGateFrame frame = allocate(CountingRestartGateFrame.class);
     engine.started = true;
     engine.isLoaded = true;
     RecoverySwitchEngineManager manager =
         new RecoverySwitchEngineManager(List.of(engine), engine);
     try {
       Lizzie.leelaz = engine;
+      Lizzie.frame = frame;
       EngineManager.isEmpty = false;
 
       manager.reStartEngine(0);
       manager.afterSync.run();
 
-      assertNotNull(engine.confirmation);
-      assertTrue(engine.hasExclusiveGtpWorkInProgress());
-
-      engine.confirmation.run();
-
+      assertNull(engine.confirmation);
+      assertEquals(0, frame.beginCount);
       assertFalse(engine.hasExclusiveGtpWorkInProgress());
     } finally {
       Lizzie.leelaz = previousEngine;
+      Lizzie.frame = previousFrame;
       EngineManager.isEmpty = previousEmpty;
     }
   }
@@ -596,17 +603,22 @@ class EngineManagerLifecycleReservationTest {
     LizzieFrame previousFrame = Lizzie.frame;
     boolean previousEmpty = EngineManager.isEmpty;
     TrackingRestartActionLeelaz engine = new TrackingRestartActionLeelaz();
+    setLeelazField(engine, "outputStream", new BufferedOutputStream(new ByteArrayOutputStream()));
+    setCapabilityDiscoveryComplete(engine, true);
     GateFailureEngineManager manager = new GateFailureEngineManager(List.of(engine));
     try {
       Lizzie.leelaz = engine;
-      Lizzie.frame = allocate(FailingRestartGateFrame.class);
+      Lizzie.frame = null;
       EngineManager.isEmpty = false;
+      Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(engine);
+      Lizzie.frame = allocate(FailingRestartGateFrame.class);
 
       manager.reStartEngine(0);
 
       assertEquals(0, engine.shutdownCount);
       assertEquals(1, manager.failureCount);
-      assertFalse(engine.hasExclusiveGtpWorkInProgress());
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+      assertFalse((boolean) getLeelazField(engine, "exclusiveGtpLifecycleTransition"));
     } finally {
       Lizzie.leelaz = previousEngine;
       Lizzie.frame = previousFrame;
@@ -1092,6 +1104,21 @@ class EngineManagerLifecycleReservationTest {
 
     @Override
     public void refresh() {}
+  }
+
+  private static final class CountingRestartGateFrame extends LizzieFrame {
+    private int beginCount;
+
+    @Override
+    public boolean isDisplayable() {
+      return true;
+    }
+
+    @Override
+    public RestartInteractionGate beginRestartInteractionGate() {
+      beginCount++;
+      return () -> {};
+    }
   }
 
   private static final class FailingRestartGateFrame extends LizzieFrame {

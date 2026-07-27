@@ -1119,7 +1119,7 @@ public class Leelaz {
       if (!beginExclusiveGtpLifecycleTransition(owner)) {
         return null;
       }
-      return new ExclusiveGtpLifecycleReservation(this, owner);
+      return new ExclusiveGtpLifecycleReservation(this, owner, false);
     }
   }
 
@@ -6074,6 +6074,7 @@ public class Leelaz {
     ExclusiveGtpSession trackingSession = null;
     TrackingDispositionNotification dispositionNotification = null;
     int releaseStopCommandId = 0;
+    boolean trackingFirstWinner = false;
     synchronized (engineArbitrationLock()) {
       synchronized (commandQueue()) {
         if (isWebTrialEngineBusy()) {
@@ -6098,6 +6099,7 @@ public class Leelaz {
           exclusiveGtpLifecycleOwner = owner;
           exclusiveGtpLifecycleDepth = 1;
           trackingSession.releaseRequested = true;
+          trackingFirstWinner = true;
           dispositionNotification =
               advanceTrackingReleaseDispositionLocked(
                   trackingSession, TrackingReleaseDisposition.CLEARED);
@@ -6111,7 +6113,7 @@ public class Leelaz {
     if (releaseStopCommandId != 0) {
       sendTrackingReleaseStop(trackingSession, releaseStopCommandId);
     }
-    return new ExclusiveGtpLifecycleReservation(this, owner);
+    return new ExclusiveGtpLifecycleReservation(this, owner, trackingFirstWinner);
   }
 
   public EngineModeReservation beginEngineModeReservation() {
@@ -8034,8 +8036,16 @@ public class Leelaz {
   }
 
   public static final class ExclusiveGtpLifecycleReservation extends EngineModeReservation {
-    private ExclusiveGtpLifecycleReservation(Leelaz engine, Object owner) {
+    private final boolean trackingFirstWinner;
+
+    private ExclusiveGtpLifecycleReservation(
+        Leelaz engine, Object owner, boolean trackingFirstWinner) {
       super(engine, owner);
+      this.trackingFirstWinner = trackingFirstWinner;
+    }
+
+    boolean isTrackingFirstWinner() {
+      return trackingFirstWinner;
     }
   }
 

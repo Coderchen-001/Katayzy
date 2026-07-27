@@ -41,7 +41,7 @@ class WebTrialSingleStreamExclusionTest {
   private Config previousConfig;
   private Board previousBoard;
   private Leelaz engine;
-  private WebBoardManager manager;
+  private HookedWebBoardManager manager;
   private ByteArrayOutputStream output;
   private AtomicInteger overrideMutations;
 
@@ -55,7 +55,7 @@ class WebTrialSingleStreamExclusionTest {
     output = new ByteArrayOutputStream();
     setLeelazField(engine, "outputStream", new BufferedOutputStream(output));
     overrideMutations = new AtomicInteger();
-    manager = new WebBoardManager();
+    manager = new HookedWebBoardManager();
     manager.setOverrideSinkForTest(node -> overrideMutations.incrementAndGet());
     manager.setDesktopRefresherForTest(() -> {});
     manager.setCollectorForTest(stubCollector());
@@ -152,9 +152,10 @@ class WebTrialSingleStreamExclusionTest {
     assertEquals(
         WebBoardManager.TrialEnterResult.IDEMPOTENT,
         manager.enterTrialWithResult("trial-owner", anchor));
-    assertEquals(
-        WebBoardManager.TrialEnterResult.IN_USE,
-        manager.enterTrialWithResult("other-client", anchor));
+    WebBoardManager.TrialEnterResult inUse =
+        manager.enterTrialWithResult("other-client", anchor);
+    assertEquals(WebBoardManager.TrialEnterResult.Kind.IN_USE, inUse.kind());
+    assertEquals("trial-owner", inUse.capturedOwnerClientId());
   }
 
   @Test
@@ -202,6 +203,28 @@ class WebTrialSingleStreamExclusionTest {
     assertEquals(bytesBeforeEnter, output.toString(StandardCharsets.UTF_8));
     assertNull(manager.getTrialOwnerForTest());
     assertEquals(0, overrideMutations.get());
+  }
+
+  @Test
+  void productionMessageEntrySerializesCapturedTrialOwnerAcrossExitAndReenter() throws Exception {
+    Lizzie.board = new Board();
+    BoardHistoryNode anchor = anyNode();
+    assertTrue(manager.enterTrial("original-owner", anchor));
+    RecordingWebBoardServer server = new RecordingWebBoardServer();
+    manager.attachWebSocketServer(server);
+    manager.decisionHook =
+        () -> {
+          manager.exitTrial("original-owner");
+          assertTrue(manager.enterTrial("replacement-owner", anchor));
+        };
+
+    server.onMessage(null, "{\"type\":\"enter_trial\",\"clientId\":\"challenger\"}");
+
+    JSONObject denied = new JSONObject(server.lastMessage.get());
+    assertEquals("trial_denied", denied.getString("type"));
+    assertEquals("in_use", denied.getString("reason"));
+    assertEquals("original-owner", denied.getString("ownerClientId"));
+    assertEquals("replacement-owner", manager.getTrialOwnerForTest());
   }
 
   @Test
@@ -396,6 +419,15 @@ class WebTrialSingleStreamExclusionTest {
     @Override
     public void sendToConnection(WebSocket conn, String json) {
       lastMessage.set(json);
+    }
+  }
+
+  private static final class HookedWebBoardManager extends WebBoardManager {
+    private Runnable decisionHook = () -> {};
+
+    @Override
+    void afterTrialDecisionCapturedForTest(TrialEnterResult result) {
+      decisionHook.run();
     }
   }
 

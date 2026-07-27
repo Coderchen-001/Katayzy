@@ -53,11 +53,41 @@ public class WebBoardManager {
     }
   }
 
-  public enum TrialEnterResult {
-    ENTERED,
-    IDEMPOTENT,
-    IN_USE,
-    ENGINE_BUSY
+  public static final class TrialEnterResult {
+    public enum Kind {
+      ENTERED,
+      IDEMPOTENT,
+      IN_USE,
+      ENGINE_BUSY
+    }
+
+    public static final TrialEnterResult ENTERED = new TrialEnterResult(Kind.ENTERED, "");
+    public static final TrialEnterResult IDEMPOTENT = new TrialEnterResult(Kind.IDEMPOTENT, "");
+    public static final TrialEnterResult ENGINE_BUSY = new TrialEnterResult(Kind.ENGINE_BUSY, "");
+
+    private final Kind kind;
+    private final String capturedOwnerClientId;
+
+    private TrialEnterResult(Kind kind, String capturedOwnerClientId) {
+      this.kind = kind;
+      this.capturedOwnerClientId = capturedOwnerClientId;
+    }
+
+    private static TrialEnterResult inUse(String ownerClientId) {
+      return new TrialEnterResult(Kind.IN_USE, ownerClientId);
+    }
+
+    public Kind kind() {
+      return kind;
+    }
+
+    public String capturedOwnerClientId() {
+      return capturedOwnerClientId;
+    }
+
+    private boolean isAccepted() {
+      return kind == Kind.ENTERED || kind == Kind.IDEMPOTENT;
+    }
   }
 
   private volatile WebBoardServer wsServer;
@@ -182,13 +212,14 @@ public class WebBoardManager {
           BoardHistoryNode anchor = capturedBoard.getHistory().getCurrentHistoryNode();
           TrialEnterResult result =
               enterTrialWithResult(clientId, anchor, capturedBoard, capturedServer, conn);
-          if (result != TrialEnterResult.ENTERED && result != TrialEnterResult.IDEMPOTENT) {
-            boolean inUse = result == TrialEnterResult.IN_USE;
+          afterTrialDecisionCapturedForTest(result);
+          if (!result.isAccepted()) {
+            boolean inUse = result.kind() == TrialEnterResult.Kind.IN_USE;
             JSONObject denied =
                 new JSONObject()
                     .put("type", "trial_denied")
                     .put("reason", inUse ? "in_use" : "engine_busy")
-                    .put("ownerClientId", inUse ? getCurrentTrialOwner() : "");
+                    .put("ownerClientId", result.capturedOwnerClientId());
             wsServer.sendToConnection(conn, denied.toString());
           } else {
             collector.broadcastTrialState(activeSession);
@@ -304,7 +335,7 @@ public class WebBoardManager {
 
   public boolean enterTrial(String clientId, BoardHistoryNode anchor) {
     TrialEnterResult result = enterTrialWithResult(clientId, anchor);
-    return result == TrialEnterResult.ENTERED || result == TrialEnterResult.IDEMPOTENT;
+    return result.isAccepted();
   }
 
   public TrialEnterResult enterTrialWithResult(String clientId, BoardHistoryNode anchor) {
@@ -322,7 +353,7 @@ public class WebBoardManager {
       if (activeSession != null) {
         return activeSession.ownerClientId.equals(clientId)
             ? TrialEnterResult.IDEMPOTENT
-            : TrialEnterResult.IN_USE;
+            : TrialEnterResult.inUse(activeSession.ownerClientId);
       }
       if (desktopPlayingProbe.getAsBoolean()) {
         return TrialEnterResult.ENGINE_BUSY;
@@ -342,7 +373,7 @@ public class WebBoardManager {
         if (activeSession != null) {
           return activeSession.ownerClientId.equals(clientId)
               ? TrialEnterResult.IDEMPOTENT
-              : TrialEnterResult.IN_USE;
+              : TrialEnterResult.inUse(activeSession.ownerClientId);
         }
         if (desktopPlayingProbe.getAsBoolean()
             || Lizzie.leelaz != capturedEngine
@@ -670,6 +701,10 @@ public class WebBoardManager {
 
   void setCollectorForTest(WebBoardDataCollector c) {
     this.collector = c;
+  }
+
+  void afterTrialDecisionCapturedForTest(TrialEnterResult result) {
+    // Test seam for deterministic protocol-entry race coverage.
   }
 
   String getTrialOwnerForTest() {

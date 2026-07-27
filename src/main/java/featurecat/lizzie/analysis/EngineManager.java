@@ -2381,10 +2381,16 @@ public class EngineManager {
       boolean isMain,
       boolean allowTargetRecovery,
       EngineLifecycleReservations reservations) {
-    if (!isMain
-        || current == null
-        || target == null
-        || (!allowTargetRecovery && !current.hasUnrestoredReadBoardGmaState())) {
+    boolean trackingRestart =
+        reservations != null && reservations.isTrackingRestartFirstWinner();
+    boolean readBoardRecovery =
+        (allowTargetRecovery
+                && ((target != null && target.hasUnrestoredReadBoardGmaState())
+                    || (current != null && current.hasUnrestoredReadBoardGmaState())))
+            || (!allowTargetRecovery
+                && current != null
+                && current.hasUnrestoredReadBoardGmaState());
+    if (!isMain || current == null || target == null || (!trackingRestart && !readBoardRecovery)) {
       return reservations::close;
     }
     return () -> {
@@ -2671,7 +2677,10 @@ public class EngineManager {
 
   private boolean attachRestartInteractionGate(EngineLifecycleReservations reservations) {
     try {
-      if (reservations != null && Lizzie.frame != null && Lizzie.frame.isDisplayable()) {
+      if (reservations != null
+          && reservations.isTrackingRestartFirstWinner()
+          && Lizzie.frame != null
+          && Lizzie.frame.isDisplayable()) {
         reservations.interactionGate = Lizzie.frame.beginRestartInteractionGate();
       }
       return true;
@@ -2696,6 +2705,10 @@ public class EngineManager {
         Leelaz.ExclusiveGtpLifecycleReservation target) {
       this.current = current;
       this.target = target;
+    }
+
+    private boolean isTrackingRestartFirstWinner() {
+      return current != null && current.isTrackingFirstWinner();
     }
 
     @Override
