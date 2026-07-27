@@ -1349,7 +1349,7 @@ public class Leelaz {
                   useRemoteCompute ? remoteTransport : null,
                   useJavaSSH ? javaSSH : null,
                   processIncarnationIds.incrementAndGet());
-          if (retiredTrackingSession != null) {
+          if (exclusiveGtpLifecycleQueueGate) {
             exclusiveGtpLifecycleQueueGate = false;
           }
           readerStreamRebindInProgress = false;
