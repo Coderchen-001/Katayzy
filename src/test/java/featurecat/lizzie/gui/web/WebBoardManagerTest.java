@@ -2,8 +2,10 @@ package featurecat.lizzie.gui.web;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.analysis.EngineCommandSink;
 import featurecat.lizzie.analysis.EngineFollowController;
+import featurecat.lizzie.analysis.Leelaz;
 import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardData;
 import featurecat.lizzie.rules.BoardHistoryNode;
@@ -14,9 +16,27 @@ import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class WebBoardManagerTest {
+  private Leelaz previousEngine;
+  private WebBoardManager previousManager;
+
+  @BeforeEach
+  void installReservableForegroundEngine() throws Exception {
+    previousEngine = Lizzie.leelaz;
+    previousManager = Lizzie.webBoardManager;
+    Lizzie.leelaz = new Leelaz("");
+    Lizzie.webBoardManager = new WebBoardManager();
+  }
+
+  @AfterEach
+  void restoreForegroundEngine() {
+    Lizzie.leelaz = previousEngine;
+    Lizzie.webBoardManager = previousManager;
+  }
 
   @Test
   void getLanIp_returnsNonNullAddress() {

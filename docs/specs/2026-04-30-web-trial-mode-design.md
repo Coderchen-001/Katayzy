@@ -18,7 +18,27 @@
 | 6 | 先到先得；他人请求进入试下时拒绝（不抢占） |
 | 7 | WebSocket 协议在现有基础上扩展（见下文） |
 | 8 | 桌面端跟随 displayNode 显示，禁止落子，菜单提供「强制结束试下」 |
-| 9 | 不修改 `SNAPSHOT_NODE_KIND.md` / `TRACKING_ANALYSIS_CONTRACT.md` 等现有契约 |
+| 9 | Single-stream tracking 与 Web 试下严格互斥；不自动清退或转交 tracking |
+
+### 2026-07-27 single-stream compatibility correction
+
+本设计原先假设 tracking 使用独立引擎。Single-stream replacement 改为复用当前前台
+KataGo，因此该前提失效。本轮选择严格互斥。该兼容修正在restart-only candidate稳定后
+独立执行，不参与restart receipt或ReadBoard feasibility设计：
+
+- Tracking lease处于ACQUIRING、ACTIVE、release/final-fence closing或相关gate尚未settle
+  时，`enter_trial`返回`trial_denied { reason: "engine_busy" }`；tracking本身不被
+  release，选点、disposition与engine bytes均不改变。
+- Trial active或`onTrialExit(...)` engine resync task尚未settle时，新的tracking、
+  foreground analysis、用户触发engine lifecycle、GMA与PLAY_MODE沿用existing busy。
+- 用户须先结束tracking，再重新点击「进入试下」。不保存请求、不自动重试，也不增加
+  typed handoff、第二engine、第二queue或长期owner。
+- 进入试下的first-winner、enter/exit空窗与具体reservation顺序由
+  [`2026-04-30-web-trial-engine-follow-design.md`](2026-04-30-web-trial-engine-follow-design.md)
+  的修订合同定义。
+
+本修订只改变engine-owner admission；`SNAPSHOT_NODE_KIND`、试下variation结构、ReadBoard
+mainline推进与Web协议其它字段保持原语义。
 
 ## 架构
 
@@ -118,6 +138,8 @@ anchorNode (mainline)
 - 当前 `Idle`：接受，广播 `trial_state { active: true, ownerClientId }`
 - 当前 `TrialActive` 且 `ownerClientId == clientId`：幂等成功
 - 当前 `TrialActive` 且不同 `clientId`：单播 `trial_denied { reason: "in_use" }`
+- 当前single-stream engine正被tracking或其它互斥owner占用：单播
+  `trial_denied { reason: "engine_busy" }`；不得先修改trial或tracking状态
 
 #### `exit_trial` — 退出试下
 
@@ -194,10 +216,11 @@ anchorNode (mainline)
 #### `trial_denied` — 拒绝进入
 
 ```json
-{ "type": "trial_denied", "reason": "in_use", "ownerClientId": "uuid-string" }
+{ "type": "trial_denied", "reason": "engine_busy", "ownerClientId": "" }
 ```
 
-仅向请求方单播。
+仅向请求方单播。`reason`枚举为`in_use`或`engine_busy`；`ownerClientId`只在`in_use`时
+返回当前owner，engine ownership冲突不得泄漏或伪造trial owner。
 
 ### 分叉点交互（F3）
 
@@ -242,7 +265,9 @@ anchorNode (mainline)
 
 非试下时显示「进入试下」按钮。点击后发送 `enter_trial`：
 - 收到 `trial_state.active=true && ownerClientId == myClientId`：进入试下 UI
-- 收到 `trial_denied`：toast「另一位用户正在试下，稍后再试」
+- 收到 `trial_denied.reason == in_use`：toast「另一位用户正在试下，稍后再试」
+- 收到 `trial_denied.reason == engine_busy`：toast「分析引擎正被其他功能使用，请先结束后
+  再进入试下」
 
 试下 owner UI：
 
@@ -272,7 +297,9 @@ anchorNode (mainline)
 - 颜色切换 / 自由放子 / 让先（决策 3：严格交替）
 - 试下期间禁止 mainline 同步（决策 2：同步管线照常）
 - 抢占式接管（决策 6：先到先得）
-- 修改 `SNAPSHOT_NODE_KIND` 或 `TRACKING_ANALYSIS_CONTRACT` 契约（决策 9）
+- 修改 `SNAPSHOT_NODE_KIND` 的history语义；本轮只补充tracking/trial互斥，不改tracking
+  request、fence或overlay合同
+- 从tracking自动转交到trial、保存/retry enter intent、active trial透明restart/switch
 - 试下分支的独立胜率曲线 / 节点级胜率展示（试下期间前端胜率曲线仅显示 anchor 之前的 mainline，试下分支节点不绘制；后续版本可加）
 
 ## 与现有契约的对照
@@ -283,7 +310,9 @@ anchorNode (mainline)
 
 ### `TRACKING_ANALYSIS_CONTRACT.md`
 
-Tracking analysis 使用独立引擎实例（见原契约），不与主引擎竞争。试下不触发 tracking analysis、也不被 tracking analysis 影响。
+Single-stream tracking与试下共用当前前台KataGo，因此按本修订严格互斥。Tracking先赢时
+`enter_trial`只返回`engine_busy`且不清退tracking；trial active/exiting时tracking
+acquisition返回existing application-exclusive/busy。两者不透明共存，也不自动转交。
 
 ### `2026-04-22-web-board-viewer-design.md`
 
@@ -301,3 +330,6 @@ Tracking analysis 使用独立引擎实例（见原契约），不与主引擎�
 | 在分叉点按 → | 走 `variations[0]`，棋盘上显示其它子节点的位置标记 |
 | 试下中桌面端用户点击棋盘 | 弹 toast 提示，不落子，不影响 mainline |
 | 桌面端「强制结束试下」 | 试下立即退出，Web owner 客户端收到状态广播切回旁观 UI |
+| Tracking ACQUIRING/ACTIVE/closing 时进入试下 | 返回 `engine_busy`；零tracking release、零trial mutation、零engine bytes |
+| Trial active 或 exit resync task 未settle时启动tracking | 返回existing busy；trial/controller状态不变 |
+| 用户结束tracking后再次进入试下 | 单次点击正常进入；不消费此前被拒绝的enter intent |

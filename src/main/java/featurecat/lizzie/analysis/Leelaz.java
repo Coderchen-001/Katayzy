@@ -5658,6 +5658,9 @@ public class Leelaz {
     if (Lizzie.leelaz != this) {
       return ExclusiveGtpLeaseAvailability.NOT_CURRENT_FOREGROUND_ENGINE;
     }
+    if (isWebTrialEngineBusy()) {
+      return ExclusiveGtpLeaseAvailability.APPLICATION_EXCLUSIVE_MODE;
+    }
     ExclusiveGtpLeaseAvailability staticAvailability = trackingStaticAvailability();
     if (staticAvailability != ExclusiveGtpLeaseAvailability.AVAILABLE) {
       return staticAvailability;
@@ -5681,6 +5684,11 @@ public class Leelaz {
       return ExclusiveGtpLeaseAvailability.EXISTING_LEASE;
     }
     return foregroundEngineUseAvailability();
+  }
+
+  private boolean isWebTrialEngineBusy() {
+    return Lizzie.webBoardManager != null
+        && Lizzie.webBoardManager.isEngineOperationExcludedByTrial();
   }
 
   private ExclusiveGtpLeaseAvailability trackingStaticAvailability() {
@@ -5723,6 +5731,9 @@ public class Leelaz {
       }
       if (Lizzie.leelaz != this) {
         return ExclusiveGtpLeaseAvailability.NOT_CURRENT_FOREGROUND_ENGINE;
+      }
+      if (isWebTrialEngineBusy()) {
+        return ExclusiveGtpLeaseAvailability.APPLICATION_EXCLUSIVE_MODE;
       }
       synchronized (commandQueue()) {
         if (canClaimTrackingHandoffLocked()) {
@@ -6038,7 +6049,7 @@ public class Leelaz {
 
   public boolean beginExclusiveGtpLifecycleTransition() {
     synchronized (engineArbitrationLock()) {
-      if (engineStateUnrestored || readBoardGmaReservation != null) {
+      if (isWebTrialEngineBusy() || engineStateUnrestored || readBoardGmaReservation != null) {
         return false;
       }
       return beginExclusiveGtpLifecycleTransition(Thread.currentThread());
@@ -6047,7 +6058,8 @@ public class Leelaz {
 
   boolean canArmReadBoardGma() {
     synchronized (engineArbitrationLock()) {
-      return !engineStateUnrestored
+      return !isWebTrialEngineBusy()
+          && !engineStateUnrestored
           && readBoardGmaReservation == null
           && trackingHandoffGate == null
           && !foregroundRestoreInProgress
@@ -6064,6 +6076,9 @@ public class Leelaz {
     int releaseStopCommandId = 0;
     synchronized (engineArbitrationLock()) {
       synchronized (commandQueue()) {
+        if (isWebTrialEngineBusy()) {
+          return null;
+        }
         if (exclusiveGtpSession == null) {
           if (!beginExclusiveGtpLifecycleTransition(owner)) {
             return null;
@@ -6101,7 +6116,7 @@ public class Leelaz {
 
   public EngineModeReservation beginEngineModeReservation() {
     synchronized (engineArbitrationLock()) {
-      if (engineStateUnrestored || readBoardGmaReservation != null) {
+      if (isWebTrialEngineBusy() || engineStateUnrestored || readBoardGmaReservation != null) {
         return null;
       }
       Object owner = Thread.currentThread();
@@ -9269,7 +9284,7 @@ public class Leelaz {
   private boolean beginReadBoardGmaSession() {
     synchronized (engineArbitrationLock()) {
       synchronized (readBoardGmaLock()) {
-        if (engineStateUnrestored || readBoardGmaRestoreBarrier != null) {
+        if (isWebTrialEngineBusy() || engineStateUnrestored || readBoardGmaRestoreBarrier != null) {
           return false;
         }
         if (readBoardGmaReservation != null) {
@@ -9288,7 +9303,7 @@ public class Leelaz {
   private boolean beginReadBoardGmaSession(TrackingHandoffTarget target) {
     synchronized (engineArbitrationLock()) {
       synchronized (readBoardGmaLock()) {
-        if (engineStateUnrestored || readBoardGmaRestoreBarrier != null) {
+        if (isWebTrialEngineBusy() || engineStateUnrestored || readBoardGmaRestoreBarrier != null) {
           return false;
         }
         if (readBoardGmaReservation != null) {
