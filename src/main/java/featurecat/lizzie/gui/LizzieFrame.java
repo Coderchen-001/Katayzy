@@ -126,16 +126,24 @@ public class LizzieFrame extends JFrame {
           List<Window> windows = new ArrayList<>();
           collectOwnedWindows(root, windows, Collections.newSetFromMap(new IdentityHashMap<>()));
           Map<Window, Boolean> enabledStates = new IdentityHashMap<>();
+          Map<JComponent, TransferHandler> transferHandlers = new IdentityHashMap<>();
           for (Window window : windows) {
             enabledStates.put(window, window.isEnabled());
+            collectTransferHandlers(window, transferHandlers);
           }
           Component focusOwner =
               KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
           try {
+            for (JComponent component : transferHandlers.keySet()) {
+              component.setTransferHandler(null);
+            }
             for (Window window : windows) {
               window.setEnabled(false);
             }
           } catch (RuntimeException failure) {
+            for (Map.Entry<JComponent, TransferHandler> entry : transferHandlers.entrySet()) {
+              entry.getKey().setTransferHandler(entry.getValue());
+            }
             for (Window window : windows) {
               window.setEnabled(Boolean.TRUE.equals(enabledStates.get(window)));
             }
@@ -157,6 +165,10 @@ public class LizzieFrame extends JFrame {
                           window.setEnabled(true);
                         }
                       }
+                      for (Map.Entry<JComponent, TransferHandler> entry :
+                          transferHandlers.entrySet()) {
+                        entry.getKey().setTransferHandler(entry.getValue());
+                      }
                       if (focusOwner != null && focusOwner.isDisplayable()) {
                         focusOwner.requestFocusInWindow();
                       }
@@ -174,6 +186,22 @@ public class LizzieFrame extends JFrame {
     windows.add(window);
     for (Window owned : window.getOwnedWindows()) {
       collectOwnedWindows(owned, windows, visited);
+    }
+  }
+
+  private static void collectTransferHandlers(
+      Component component, Map<JComponent, TransferHandler> transferHandlers) {
+    if (component instanceof JComponent) {
+      JComponent swingComponent = (JComponent) component;
+      TransferHandler transferHandler = swingComponent.getTransferHandler();
+      if (transferHandler != null) {
+        transferHandlers.put(swingComponent, transferHandler);
+      }
+    }
+    if (component instanceof Container) {
+      for (Component child : ((Container) component).getComponents()) {
+        collectTransferHandlers(child, transferHandlers);
+      }
     }
   }
 
