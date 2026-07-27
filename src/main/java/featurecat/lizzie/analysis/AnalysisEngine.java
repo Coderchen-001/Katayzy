@@ -1107,6 +1107,10 @@ public class AnalysisEngine {
       }
     } else {
       startRequestNow(target.startMove, target.endMove, target.showProgressDialog);
+      if (!requestDispatchFailed && analyzeMap.isEmpty()) {
+        finishSuccessfulEmptyForegroundRequest();
+        return;
+      }
     }
     if (!beginSharedForegroundRulesCapture()) {
       requestDispatchFailed = true;
@@ -1115,9 +1119,17 @@ public class AnalysisEngine {
   }
 
   private void finishSuccessfulEmptyForegroundRequest() {
+    Runnable finishSuccessfulRequest =
+        () -> {
+          WaitForAnalysis completedFrame = waitFrame;
+          if (completedFrame != null) {
+            javax.swing.SwingUtilities.invokeLater(() -> completedFrame.setVisible(false));
+          }
+          runCompletionCallback();
+        };
     if (!releaseSharedForegroundLease(
-        this::runCompletionCallback, this::finishSharedForegroundRestoreFailure)) {
-      runCompletionCallback();
+        finishSuccessfulRequest, this::finishSharedForegroundRestoreFailure)) {
+      finishSuccessfulRequest.run();
     }
   }
 
@@ -2262,7 +2274,7 @@ public class AnalysisEngine {
   }
 
   public boolean isRunning() {
-    if (!isLoaded()) {
+    if (isNormalEnd || !isLoaded()) {
       return false;
     }
     if (useJavaSSH) {

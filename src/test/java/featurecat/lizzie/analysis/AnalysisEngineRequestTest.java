@@ -216,6 +216,19 @@ class AnalysisEngineRequestTest {
   }
 
   @Test
+  void terminatedSharedForegroundAnalysisEngineIsNotRunning() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      Lizzie.leelaz = reusableForegroundEngine(true);
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      engine.normalQuit();
+
+      assertFalse(engine.isRunning());
+    }
+  }
+
+  @Test
   void reuseModeClaimsAcquiringTrackingBeforeStartingTheForegroundRequest() throws Exception {
     try (TestEnvironment env = TestEnvironment.open()) {
       Lizzie.config.analysisReuseCurrentEngine = true;
@@ -370,6 +383,45 @@ class AnalysisEngineRequestTest {
       javax.swing.SwingUtilities.invokeAndWait(() -> {});
 
       assertEquals(1, failures.get());
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
+    }
+  }
+
+  @Test
+  void mainlineCompletesAfterTrackingHandoffWhenEmptyBoardHasNoRequests() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      boardWithHistory(new BoardHistoryList(BoardData.empty(BOARD_SIZE, BOARD_SIZE)));
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+      TrackingWaitForAnalysis waitFrame = allocate(TrackingWaitForAnalysis.class);
+      waitFrame.setVisible(true);
+      engine.waitFrame = waitFrame;
+      AtomicInteger completions = new AtomicInteger();
+      engine.setCompletionCallback(completions::incrementAndGet);
+
+      engine.startRequest(-1, -1, true);
+
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).endsWith("800000004 stop\n"),
+          output.toString(StandardCharsets.UTF_8));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000004"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      completeForegroundRestore(foreground);
+      javax.swing.SwingUtilities.invokeAndWait(() -> {});
+
+      assertEquals(2, waitFrame.visibilityCalls);
+      assertFalse(waitFrame.lastVisible);
+      assertEquals(1, completions.get(), output.toString(StandardCharsets.UTF_8));
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
       assertFalse(foreground.hasExclusiveGtpWorkInProgress());
       assertFalse(engine.isAnalysisInProgress());
     }
@@ -2892,6 +2944,8 @@ class AnalysisEngineRequestTest {
     private int progressCalls;
     private int currentMove;
     private int totalMoves;
+    private int visibilityCalls;
+    private boolean lastVisible;
 
     private TrackingWaitForAnalysis() {}
 
@@ -2903,7 +2957,10 @@ class AnalysisEngineRequestTest {
     }
 
     @Override
-    public void setVisible(boolean visible) {}
+    public void setVisible(boolean visible) {
+      visibilityCalls++;
+      lastVisible = visible;
+    }
   }
 
   private static final class TrackingAnalysisEngine extends AnalysisEngine {
