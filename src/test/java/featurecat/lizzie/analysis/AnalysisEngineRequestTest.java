@@ -428,6 +428,41 @@ class AnalysisEngineRequestTest {
   }
 
   @Test
+  void allBranchesCompletesAfterTrackingHandoffWhenEmptyBoardHasNoRequests() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      boardWithHistory(new BoardHistoryList(BoardData.empty(BOARD_SIZE, BOARD_SIZE)));
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+      AtomicInteger completions = new AtomicInteger();
+      engine.setCompletionCallback(completions::incrementAndGet);
+
+      engine.startRequestAllBranches(false);
+
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).endsWith("800000004 stop\n"),
+          output.toString(StandardCharsets.UTF_8));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000004"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      completeForegroundRestore(foreground);
+      javax.swing.SwingUtilities.invokeAndWait(() -> {});
+
+      assertEquals(1, completions.get(), output.toString(StandardCharsets.UTF_8));
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
+    }
+  }
+
+  @Test
   void missingMainlineCompletesWhenAcquiringTrackingFillsLastRequestBeforeInitialFence()
       throws Exception {
     try (TestEnvironment env = TestEnvironment.open()) {

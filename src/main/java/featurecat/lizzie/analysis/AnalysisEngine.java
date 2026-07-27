@@ -1094,23 +1094,15 @@ public class AnalysisEngine {
     if (target.kind == ForegroundRequestKind.ALL_BRANCHES) {
       startRequestAllBranchesNow(target.showProgressDialog);
     } else if (target.kind == ForegroundRequestKind.MISSING_MAINLINE) {
-      if (startRequestMissingMainlineNow(target.showProgressDialog) == 0) {
-        finishSuccessfulEmptyForegroundRequest();
-        return;
-      }
+      startRequestMissingMainlineNow(target.showProgressDialog);
     } else if (target.kind == ForegroundRequestKind.WHOLE_GAME) {
-      if (startWholeGameRequestNow(
-              target.requestedNodes, target.targetVisits, target.includeOwnership)
-          == 0) {
-        finishSuccessfulEmptyForegroundRequest();
-        return;
-      }
+      startWholeGameRequestNow(target.requestedNodes, target.targetVisits, target.includeOwnership);
     } else {
       startRequestNow(target.startMove, target.endMove, target.showProgressDialog);
-      if (!requestDispatchFailed && analyzeMap.isEmpty()) {
-        finishSuccessfulEmptyForegroundRequest();
-        return;
-      }
+    }
+    if (!requestDispatchFailed && analyzeMap.isEmpty()) {
+      finishSuccessfulEmptyForegroundRequest();
+      return;
     }
     if (!beginSharedForegroundRulesCapture()) {
       requestDispatchFailed = true;
