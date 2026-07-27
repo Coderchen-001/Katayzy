@@ -372,10 +372,13 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
   }
 
   @Test
-  void benchmarkPauseClaimsActiveTrackingInOneClick() throws Exception {
+  void benchmarkPauseClaimsActiveTrackingAndRestoresSavedPonderIntentInOneClick()
+      throws Exception {
     try (BenchmarkEnvironment environment = new BenchmarkEnvironment(1)) {
       RecordingBenchmarkLeelaz engine = environment.engine(0);
       ByteArrayOutputStream output = installOutput(engine);
+      engine.Pondering();
+      engine.ponderingCallCount = 0;
       Leelaz.TrackingStreamLeaseAcquisition tracking =
           engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
       processCommandResponse(engine, "=800000000");
@@ -384,14 +387,17 @@ class KataGoRuntimeHelperBenchmarkLeaseTest {
       KataGoRuntimeHelper.BenchmarkPauseResult pause = environment.pause(0);
 
       assertTrue(pause.accepted());
+      assertTrue(pause.analysisWasPondering());
+      int pausePonderCalls = engine.ponderingCallCount;
       assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
       assertEquals("800000000 stop\n800000001 stop\n", output.toString(StandardCharsets.UTF_8));
 
       assertTrue(dispatchExclusiveLine(engine, "=800000001"));
       assertTrue(dispatchExclusiveLine(engine, ""));
-      KataGoRuntimeHelper.restoreAnalysisAfterBenchmark(false);
+      KataGoRuntimeHelper.restoreAnalysisAfterBenchmark(pause.analysisWasPondering());
       assertEquals(2, engine.reservationAttempts);
       assertEquals(1, engine.restartCount);
+      assertEquals(pausePonderCalls + 1, engine.ponderingCallCount);
     }
   }
 

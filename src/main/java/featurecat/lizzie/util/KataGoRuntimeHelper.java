@@ -1487,6 +1487,10 @@ public final class KataGoRuntimeHelper {
 
   public static BenchmarkPauseResult pauseCurrentAnalysisForBenchmark() {
     Leelaz currentEngine = Lizzie.leelaz;
+    boolean analysisWasPondering =
+        currentEngine != null
+            && currentEngine.isLoaded()
+            && currentEngine.isPonderingOrWasPonderingBeforeTracking();
     Leelaz.ExclusiveGtpLifecycleReservation reservation =
         currentEngine == null ? null : currentEngine.beginExclusiveGtpLifecycleReservation();
     if (currentEngine != null && reservation == null) {
@@ -1509,8 +1513,6 @@ public final class KataGoRuntimeHelper {
       benchmarkEngineSyncSuppressed = true;
     }
 
-    boolean analysisWasPondering =
-        currentEngine != null && currentEngine.isLoaded() && currentEngine.isPondering();
     if (currentEngine != null
         && currentEngine.isLoaded()
         && currentEngine.isKatago
