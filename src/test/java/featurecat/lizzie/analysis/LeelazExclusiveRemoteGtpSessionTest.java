@@ -30,9 +30,19 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class LeelazExclusiveRemoteGtpSessionTest {
+  private static final List<Leelaz> createdEngines = new ArrayList<>();
+
+  @AfterEach
+  void closeCreatedExclusiveSessions() throws Exception {
+    for (Leelaz engine : createdEngines) {
+      closeExclusiveSessionForTest(engine);
+    }
+    createdEngines.clear();
+  }
 
   @Test
   void exclusiveRemoteSessionWaitsForStopThenRoutesOnlyQuickCurveTraffic() throws Exception {
@@ -1393,7 +1403,7 @@ class LeelazExclusiveRemoteGtpSessionTest {
       assertTrue(
           harness.engine.endForegroundAnalysisLease(
               harness.owner, harness.completions::incrementAndGet, failures::incrementAndGet));
-      installInput(harness.engine, "");
+      Lizzie.frame = null;
       harness.engine.isNormalEnd = true;
 
       invokeRead(harness.engine);
@@ -1467,6 +1477,8 @@ class LeelazExclusiveRemoteGtpSessionTest {
     Leelaz previousEngine = Lizzie.leelaz;
     Leelaz engine = reusableKatagoEngine(false, false);
     installOutput(engine);
+    installInput(engine, "info move D4 visits 1\n");
+    AtomicInteger consumerCalls = new AtomicInteger();
     try {
       Lizzie.leelaz = engine;
       assertEquals(
@@ -1474,18 +1486,19 @@ class LeelazExclusiveRemoteGtpSessionTest {
           engine.beginForegroundAnalysisLease(
               new Object(),
               line -> {
+                consumerCalls.incrementAndGet();
                 throw new IllegalStateException("simulated parser failure");
               },
               () -> {},
               () -> {}));
       processCommandResponse(engine, "=800000000");
       assertTrue(dispatch(engine, ""));
-      installInput(engine, "info move D4 visits 1\n");
       Lizzie.leelaz = null;
       engine.isNormalEnd = true;
 
       assertDoesNotThrow(() -> invokeRead(engine));
 
+      assertEquals(1, consumerCalls.get());
       assertFalse(engine.hasExclusiveGtpLease());
       assertFalse(engine.hasExclusiveGtpWorkInProgress());
       assertFalse(engine.isStarted());
@@ -1561,6 +1574,7 @@ class LeelazExclusiveRemoteGtpSessionTest {
             "set_position",
             "kata-analyze"));
     setCapabilityDiscoveryComplete(engine, true);
+    createdEngines.add(engine);
     return engine;
   }
 
@@ -1581,6 +1595,7 @@ class LeelazExclusiveRemoteGtpSessionTest {
             "set_position",
             "kata-analyze"));
     setCapabilityDiscoveryComplete(engine, true);
+    createdEngines.add(engine);
     return engine;
   }
 
@@ -1713,6 +1728,26 @@ class LeelazExclusiveRemoteGtpSessionTest {
     Method method = Leelaz.class.getDeclaredMethod("processCommandResponseLine", String.class);
     method.setAccessible(true);
     method.invoke(engine, line);
+  }
+
+  private static void closeExclusiveSessionForTest(Leelaz engine) throws Exception {
+    Field field = Leelaz.class.getDeclaredField("exclusiveGtpSession");
+    field.setAccessible(true);
+    Object session = field.get(engine);
+    if (session == null) {
+      return;
+    }
+    Method cancelInitial =
+        Leelaz.class.getDeclaredMethod("cancelExclusiveGtpInitialStopTimeout", session.getClass());
+    cancelInitial.setAccessible(true);
+    cancelInitial.invoke(engine, session);
+    Method cancelRelease =
+        Leelaz.class.getDeclaredMethod("cancelExclusiveGtpReleaseStopTimeout", session.getClass());
+    cancelRelease.setAccessible(true);
+    cancelRelease.invoke(engine, session);
+    Method close = Leelaz.class.getDeclaredMethod("closeExclusiveGtpSession", session.getClass());
+    close.setAccessible(true);
+    close.invoke(engine, session);
   }
 
   private static void completeForegroundRestore(Leelaz engine) throws Exception {
@@ -1976,6 +2011,7 @@ class LeelazExclusiveRemoteGtpSessionTest {
       boolean previousEngineGame = EngineManager.isEngineGame;
       boolean previousPreEngineGame = EngineManager.isPreEngineGame;
       RecordingRestoreLeelaz engine = recordingRestoreEngine();
+      installInput(engine, "");
       RecordingRestoreBoard board = allocate(RecordingRestoreBoard.class);
       ByteArrayOutputStream output = installOutput(engine);
       Lizzie.leelaz = engine;

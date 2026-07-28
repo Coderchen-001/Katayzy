@@ -1094,9 +1094,7 @@ public class Config {
   public boolean analysisEnginePreLoad = false;
   public boolean analysisReuseCurrentEngine = false;
   public boolean analysisAlwaysOverride = false;
-  public boolean trackingEnginePreload = false;
-  public int trackingEngineMaxVisits = 500;
-  public boolean trackingEngineSkipWarning = false;
+  public int trackingAnalysisMaxVisits = 500;
   public boolean autoQuickAnalyzeOnLoad = true;
   public String analysisSpecificRules = "";
 
@@ -1874,9 +1872,7 @@ public class Config {
     analysisEnginePreLoad = uiConfig.optBoolean("analysis-engine-preload", false);
     analysisReuseCurrentEngine = uiConfig.optBoolean("analysis-reuse-current-engine", false);
     analysisAlwaysOverride = uiConfig.optBoolean("analysis-always-override", false);
-    trackingEnginePreload = uiConfig.optBoolean("tracking-engine-preload", false);
-    trackingEngineMaxVisits = uiConfig.optInt("tracking-engine-max-visits", 500);
-    trackingEngineSkipWarning = uiConfig.optBoolean("tracking-engine-skip-warning", false);
+    trackingAnalysisMaxVisits = migrateTrackingAnalysisConfig(uiConfig);
     autoQuickAnalyzeOnLoad = uiConfig.optBoolean("auto-quick-analyze-on-load", true);
     analysisSpecificRules = uiConfig.optString("analysis-specific-rules", "");
     showScoreLeadLine = uiConfig.optBoolean("show-score-lead-line", true);
@@ -2921,6 +2917,20 @@ public class Config {
     //   ui.put("gtp-console-style", defaultGtpConsoleStyle);
     config.put("ui", ui);
     return config;
+  }
+
+  static int migrateTrackingAnalysisConfig(JSONObject ui) {
+    int visits =
+        ui.optInt(
+            "tracking-analysis-max-visits", ui.optInt("tracking-engine-max-visits", 500));
+    if (visits <= 0) {
+      visits = 500;
+    }
+    ui.put("tracking-analysis-max-visits", visits);
+    ui.remove("tracking-engine-preload");
+    ui.remove("tracking-engine-skip-warning");
+    ui.remove("tracking-engine-max-visits");
+    return visits;
   }
 
   private JSONObject createSaveBoardConfig() {

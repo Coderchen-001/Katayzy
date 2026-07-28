@@ -24,6 +24,7 @@ import java.awt.FontFormatException;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GraphicsEnvironment;
 import java.awt.Window;
 import java.awt.geom.AffineTransform;
 import java.io.BufferedInputStream;
@@ -569,6 +570,7 @@ public class Utils {
   }
 
   public static void showHtmlMessage(String title, String content, Window owner) {
+    if (GraphicsEnvironment.isHeadless()) return;
     HtmlMessage htmlMessage = new HtmlMessage(title, content, owner);
     htmlMessage.setVisible(true);
   }
@@ -1009,6 +1011,7 @@ public class Utils {
   }
 
   public static void showMsg(String message) {
+    if (GraphicsEnvironment.isHeadless()) return;
     //  Message msg = new Message();
     //    msg.setMessage(message);
     HtmlMessage htmlMessage =

@@ -72,6 +72,7 @@ public class Board {
   private boolean neverPassedInGame = true;
   private volatile int movelistRefreshGeneration = 0;
   private volatile long lastMoveNavigationAt = 0L;
+  private volatile long contextRevision = 0L;
 
   public boolean isMouseOnStone = false;
   private boolean preMouseOnStone = false;
@@ -2898,6 +2899,7 @@ public class Board {
           Lizzie.leelaz.playMove(data.get().lastMoveColor, "pass", true, data.get().blackToPlay);
         }
         history.next();
+        advanceContextRevision();
         history.getCurrentHistoryNode().placeExtraStones();
         if (history.getCurrentHistoryNode().hasRemovedStone())
           history.getCurrentHistoryNode().clearAndSyncBoard(true);
@@ -2964,8 +2966,8 @@ public class Board {
   }
 
   private void restoreEnginePosition(Leelaz engine, ArrayList<Movelist> fallbackMoves) {
+    boolean wasPondering = engine.isPonderingOrWasPonderingBeforeTracking();
     syncEngineKomiToNonDefaultCurrentGame(engine);
-    boolean wasPondering = engine.isPondering();
     engine.sendCommand("clear_board");
     BoardHistoryNode currentNode = getHistory().getCurrentHistoryNode();
     BoardData editedCurrentBoard = createEditedCurrentBoardAnchor(currentNode);
@@ -3077,6 +3079,7 @@ public class Board {
       // Don't update winrate here as this is usually called when jumping between
       // variations
       if (history.nextVariation(idx).isPresent()) {
+        advanceContextRevision();
         // Update leelaz board position, before updating to next node
         updateIsBest();
         notifyReadBoardLocalHistoryNavigation();
@@ -3631,6 +3634,7 @@ public class Board {
         }
         history.getCurrentHistoryNode().undoExtraStones();
         history.previous();
+        advanceContextRevision();
         if (needSync) history.getCurrentHistoryNode().clearAndSyncBoard(false);
         notifyReadBoardLocalHistoryNavigation();
         if (needRefresh) {
@@ -3974,10 +3978,18 @@ public class Board {
     thread.start();
   }
 
+  public long getContextRevision() {
+    return contextRevision;
+  }
+
   private void markMoveNavigationForMovelistRefresh() {
     if (!isLoadingFile) {
       lastMoveNavigationAt = System.currentTimeMillis();
     }
+  }
+
+  private synchronized void advanceContextRevision() {
+    contextRevision++;
   }
 
   private boolean pauseMovelistRefreshForRecentNavigation() {

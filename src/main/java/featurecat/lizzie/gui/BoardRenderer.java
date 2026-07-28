@@ -13,7 +13,7 @@ import featurecat.lizzie.analysis.EngineManager;
 import featurecat.lizzie.analysis.Leelaz;
 import featurecat.lizzie.analysis.MoveData;
 import featurecat.lizzie.analysis.MoveRankDefinition;
-import featurecat.lizzie.analysis.TrackingEngine;
+import featurecat.lizzie.analysis.TrackingAnalysisController;
 import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardData;
 import featurecat.lizzie.rules.BoardHistoryNode;
@@ -34,7 +34,6 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -356,6 +355,7 @@ public class BoardRenderer {
               drawLeelazSuggestions(g);
             }
           }
+          drawTrackingOverlay(g);
           if (Lizzie.config.showNextMoves && !isShowingBranch) {
             drawNextMoveOutlinesOnTop(g);
           }
@@ -3114,28 +3114,37 @@ public class BoardRenderer {
       }
     }
 
+  }
+
+  private void drawTrackingOverlay(Graphics2D g) {
+    if (boardIndex != 0 || isShowingBranch) return;
+    int minAlpha = 32;
+    float alphaFactor = 5.0f;
     try {
       if (Lizzie.board == null) return;
-      TrackingEngine te = Lizzie.frame != null ? Lizzie.frame.trackingEngine : null;
-      if (te != null && te.isLoaded()) {
-        List<MoveData> trackedMoves = te.getCurrentTrackedMoves();
-        if (trackedMoves != null && !trackedMoves.isEmpty()) {
+      TrackingAnalysisController.DisplaySnapshot trackingSnapshot =
+          Lizzie.frame == null ? null : Lizzie.frame.trackingDisplaySnapshot();
+      boolean currentTrackingDisplay =
+          Lizzie.frame != null && Lizzie.frame.isTrackingDisplayCurrent(trackingSnapshot);
+      if (currentTrackingDisplay) {
+        java.util.Collection<TrackingAnalysisController.PointResult> trackedMoves =
+            trackingSnapshot.results().values();
+        if (!trackedMoves.isEmpty()) {
           java.util.Set<String> mainCoords = new java.util.HashSet<>();
           if (bestMoves != null) {
             for (MoveData m : bestMoves) mainCoords.add(m.coordinate);
           }
           long maxPlayoutsTracked = 0;
-          for (MoveData m : trackedMoves) {
-            if (m.playouts > maxPlayoutsTracked) maxPlayoutsTracked = m.playouts;
+          for (TrackingAnalysisController.PointResult result : trackedMoves) {
+            if (result.visits() > maxPlayoutsTracked) maxPlayoutsTracked = result.visits();
           }
           float orangeHue = Color.RGBtoHSB(255, 165, 0, null)[0];
-          for (MoveData move : trackedMoves) {
-            String moveCoord = move.coordinate;
+          for (TrackingAnalysisController.PointResult result : trackedMoves) {
+            String moveCoord = result.coordinate();
             if (moveCoord == null) continue;
-            int movePlayouts = move.playouts;
-            double moveWinrate = move.winrate;
-            double moveScoreMean = move.scoreMean;
-            boolean moveIsKataData = move.isKataData;
+            int movePlayouts = result.visits();
+            double moveWinrate = result.winrate();
+            double moveScoreMean = result.scoreLead();
             if (mainCoords.contains(moveCoord)) continue;
             if (movePlayouts == 0) continue;
             Optional<int[]> coordsOpt = Board.asCoordinates(moveCoord);
@@ -3173,7 +3182,7 @@ public class BoardRenderer {
             g.setColor(Color.BLACK);
             String winrateText = String.format(Locale.ENGLISH, "%.1f", roundedWinrate);
             String playoutsText = Utils.getPlayoutsString(movePlayouts);
-            boolean showScoreLead = moveIsKataData && Lizzie.config.showScoremeanInSuggestion;
+            boolean showScoreLead = Lizzie.config.showScoremeanInSuggestion;
             if (showScoreLead) {
               String scoreLeadText = Utils.convertScoreToString(moveScoreMean, moveScoreMean);
               float availableWidth = squareWidth * (Board.boardWidth - 1);
@@ -3240,19 +3249,18 @@ public class BoardRenderer {
           }
         }
       }
-      drawTrackedPointMarkers(g);
+      drawTrackedPointMarkers(
+          g,
+          currentTrackingDisplay
+              ? trackingSnapshot.selectedPoints()
+              : java.util.Collections.emptySet());
     } catch (Exception e) {
       e.printStackTrace();
     }
   }
 
-  private void drawTrackedPointMarkers(Graphics2D g) {
-    if (Lizzie.frame == null || Lizzie.frame.trackedCoords == null) return;
-    Set<String> trackedSnapshot;
-    synchronized (Lizzie.frame.trackedCoords) {
-      if (Lizzie.frame.trackedCoords.isEmpty()) return;
-      trackedSnapshot = new LinkedHashSet<>(Lizzie.frame.trackedCoords);
-    }
+  private void drawTrackedPointMarkers(Graphics2D g, Set<String> trackedSnapshot) {
+    if (trackedSnapshot.isEmpty()) return;
     Stroke oldStroke = g.getStroke();
     Color oldColor = g.getColor();
     Composite oldComposite = g.getComposite();

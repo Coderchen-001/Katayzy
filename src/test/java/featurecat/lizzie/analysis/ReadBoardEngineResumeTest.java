@@ -174,6 +174,43 @@ class ReadBoardEngineResumeTest {
   }
 
   @Test
+  void oneMoveAutoPlayResumesOrdinaryAnalysisWhenTrackingStillOwnsTheStream() throws Exception {
+    try (EngineResumeHarness harness =
+        EngineResumeHarness.create(rootHistory(emptyStones(), true))) {
+      harness.frame.bothSync = true;
+      harness.leelaz.isKatago = true;
+      buildHistory(harness.board, placement(0, 0, Stone.BLACK));
+      harness.leelaz.Pondering();
+      Leelaz.TrackingStreamLeaseAcquisition acquisition =
+          harness.leelaz.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      assertFalse(dispatchTrackingLine(harness.leelaz, "=800000000"));
+      processTrackingCommandResponse(harness.leelaz, "=800000000");
+      assertTrue(dispatchTrackingLine(harness.leelaz, ""));
+      assertTrue(acquisition.lease().isOwned());
+      assertTrue(acquisition.lease().send("kata-analyze 10"));
+      assertTrue(dispatchTrackingLine(harness.leelaz, "=800000001"));
+      harness.leelaz.Pondering();
+      harness.frame.isAnaPlayingAgainstLeelaz = true;
+
+      harness.sync(
+          snapshot(
+              stones(placement(0, 0, Stone.BLACK), placement(1, 0, Stone.WHITE)),
+              Optional.of(new int[] {1, 0}),
+              Stone.WHITE));
+
+      assertEquals(
+          1,
+          harness.leelaz.ponderCount,
+          "one-move auto-play must submit ordinary analysis when tracking still owns the only stream.");
+
+      assertTrue(acquisition.lease().release());
+      assertTrue(dispatchTrackingLine(harness.leelaz, ""));
+      assertTrue(dispatchTrackingLine(harness.leelaz, "=800000002"));
+      assertTrue(dispatchTrackingLine(harness.leelaz, ""));
+    }
+  }
+
+  @Test
   void forceRebuildRegeneratesFailedEngineMoveWhenPlayingAgainstLeelaz() throws Exception {
     try (EngineResumeHarness harness =
         EngineResumeHarness.create(rootHistory(emptyStones(), true))) {
@@ -950,7 +987,7 @@ class ReadBoardEngineResumeTest {
   }
 
   @Test
-  void readBoardGmaActivationUsesForegroundLifecycleReservation() throws Exception {
+  void readBoardGmaActivationArmsWithoutTakingLifecycleOwnership() throws Exception {
     try (EngineResumeHarness harness =
         EngineResumeHarness.create(rootHistory(emptyStones(), true))) {
       RecordingLifecycleLeelaz foreground = new RecordingLifecycleLeelaz();
@@ -958,8 +995,9 @@ class ReadBoardEngineResumeTest {
 
       harness.readBoard.parseLine("play>white>0 0 0 gma");
 
-      assertEquals(1, foreground.beginLifecycleCount);
-      assertEquals(1, foreground.endLifecycleCount);
+      assertEquals(1, foreground.armCheckCount);
+      assertEquals(0, foreground.beginLifecycleCount);
+      assertEquals(0, foreground.endLifecycleCount);
       assertTrue(harness.readBoard.isReadBoardGmaAutoPlayActive());
     }
   }
@@ -969,7 +1007,7 @@ class ReadBoardEngineResumeTest {
     try (EngineResumeHarness harness =
         EngineResumeHarness.create(rootHistory(emptyStones(), true))) {
       RecordingLifecycleLeelaz foreground = new RecordingLifecycleLeelaz();
-      foreground.allowLifecycle = false;
+      foreground.allowArm = false;
       Lizzie.leelaz = foreground;
       setField(harness.readBoard, "failedLocalMoveSuppressionActive", true);
       setField(harness.readBoard, "failedLocalMoveSuppressionX", 2);
@@ -983,7 +1021,8 @@ class ReadBoardEngineResumeTest {
 
       harness.readBoard.parseLine("play>white>5 12 34 gma");
 
-      assertEquals(1, foreground.beginLifecycleCount);
+      assertEquals(1, foreground.armCheckCount);
+      assertEquals(0, foreground.beginLifecycleCount);
       assertEquals(0, foreground.endLifecycleCount);
       assertFalse(harness.readBoard.isReadBoardGmaAutoPlayActive());
       assertFalse(getBooleanField(harness.readBoard, "readBoardGmaAwaitingSyncedBoard"));
@@ -1623,7 +1662,7 @@ class ReadBoardEngineResumeTest {
   }
 
   @Test
-  void readBoardGmaLeaseRejectionRollsBackPendingState() throws Exception {
+  void readBoardGmaLeaseRejectionIsOneShotUntilANewPlayGeneration() throws Exception {
     try (EngineResumeHarness harness =
         EngineResumeHarness.create(rootHistory(emptyStones(), true))) {
       harness.frame.bothSync = true;
@@ -1632,9 +1671,16 @@ class ReadBoardEngineResumeTest {
 
       harness.readBoard.parseLine("play>black>0 0 0 gma");
       harness.sync(snapshot(emptyStones(), Optional.empty(), Stone.EMPTY));
+      harness.sync(snapshot(emptyStones(), Optional.empty(), Stone.EMPTY));
 
       assertEquals(0, harness.leelaz.readBoardGmaCount);
+      assertEquals(1, harness.leelaz.readBoardGmaAttemptCount);
       assertFalse(getBooleanField(harness.readBoard, "readBoardGmaPending"));
+
+      harness.readBoard.parseLine("play>black>0 0 0 gma");
+      harness.sync(snapshot(emptyStones(), Optional.empty(), Stone.EMPTY));
+
+      assertEquals(2, harness.leelaz.readBoardGmaAttemptCount);
     }
   }
 
@@ -1964,6 +2010,18 @@ class ReadBoardEngineResumeTest {
     return (boolean) method.invoke(readBoard);
   }
 
+  private static boolean dispatchTrackingLine(Leelaz engine, String line) throws Exception {
+    Method method = Leelaz.class.getDeclaredMethod("dispatchExclusiveGtpLine", String.class);
+    method.setAccessible(true);
+    return (boolean) method.invoke(engine, line);
+  }
+
+  private static void processTrackingCommandResponse(Leelaz engine, String line) throws Exception {
+    Method method = Leelaz.class.getDeclaredMethod("processCommandResponseLine", String.class);
+    method.setAccessible(true);
+    method.invoke(engine, line);
+  }
+
   private static void invokeClearFailedLocalMoveStateIfAutoPlaySideChanged(
       ReadBoard readBoard, Stone autoPlayColor) throws Exception {
     Method method =
@@ -2140,18 +2198,25 @@ class ReadBoardEngineResumeTest {
   }
 
   private static final class RecordingLifecycleLeelaz extends Leelaz {
+    private int armCheckCount;
     private int beginLifecycleCount;
     private int endLifecycleCount;
-    private boolean allowLifecycle = true;
+    private boolean allowArm = true;
 
     private RecordingLifecycleLeelaz() throws IOException {
       super("");
     }
 
     @Override
+    boolean canArmReadBoardGma() {
+      armCheckCount++;
+      return allowArm;
+    }
+
+    @Override
     public synchronized boolean beginExclusiveGtpLifecycleTransition() {
       beginLifecycleCount++;
-      return allowLifecycle;
+      return true;
     }
 
     @Override

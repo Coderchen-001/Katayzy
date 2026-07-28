@@ -13,7 +13,9 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -22,7 +24,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
@@ -166,6 +170,144 @@ class ReadBoardShutdownTest {
   }
 
   @Test
+  void explicitShutdownRetiresGmaAndConsumesOneLateTerminalResponse() throws Exception {
+    Leelaz previousEngine = Lizzie.leelaz;
+    LizzieFrame previousFrame = Lizzie.frame;
+    try {
+      RecordingGmaRetirementLeelaz engine = new RecordingGmaRetirementLeelaz();
+      ReadBoard readBoard = initializedReadBoardForRetirement();
+      LizzieFrame frame = allocate(LizzieFrame.class);
+      frame.readBoard = readBoard;
+      Lizzie.frame = frame;
+      Lizzie.leelaz = engine;
+      setField(readBoard, "readBoardGmaPending", true);
+      engine.bindReadBoardGmaResponseOwner(readBoard);
+
+      readBoard.shutdown();
+      readBoard.shutdown();
+
+      assertEquals(1, engine.retirementCount);
+      assertTrue(readBoard.handleReadBoardGmaEnginePlay("D4"));
+      assertFalse(readBoard.handleReadBoardGmaEnginePlay("Q16"));
+      assertFalse(getBooleanField(readBoard, "readBoardGmaPending"));
+      assertNull(frame.readBoard);
+    } finally {
+      Lizzie.leelaz = previousEngine;
+      Lizzie.frame = previousFrame;
+    }
+  }
+
+  @Test
+  void eofAndIoShutdownShareTheSameExactlyOnceRetirementPath() throws Exception {
+    Leelaz previousEngine = Lizzie.leelaz;
+    LizzieFrame previousFrame = Lizzie.frame;
+    try {
+      RecordingGmaRetirementLeelaz engine = new RecordingGmaRetirementLeelaz();
+      Lizzie.leelaz = engine;
+      LizzieFrame frame = allocate(LizzieFrame.class);
+      Lizzie.frame = frame;
+
+      ReadBoard eof = initializedReadBoardForRetirement();
+      frame.readBoard = eof;
+      eof.shutdownAfterProcessEnd();
+      eof.shutdownAfterProcessEnd();
+      assertEquals(1, engine.retirementCount);
+
+      ReadBoard io = initializedReadBoardForRetirement();
+      frame.readBoard = io;
+      setField(
+          io,
+          "inputStream",
+          new InputStreamReader(
+              new InputStream() {
+                @Override
+                public int read() throws java.io.IOException {
+                  throw new java.io.IOException("controlled helper read failure");
+                }
+              }));
+      Method read = ReadBoard.class.getDeclaredMethod("read");
+      read.setAccessible(true);
+      read.invoke(io);
+
+      assertEquals(2, engine.retirementCount);
+      assertNull(frame.readBoard);
+    } finally {
+      Lizzie.leelaz = previousEngine;
+      Lizzie.frame = previousFrame;
+    }
+  }
+
+  @Test
+  void retirementAndGmaActivationChooseOneDeterministicWinner() throws Exception {
+    Leelaz previousEngine = Lizzie.leelaz;
+    LizzieFrame previousFrame = Lizzie.frame;
+    try {
+      BlockingGmaActivationLeelaz engine = new BlockingGmaActivationLeelaz();
+      ReadBoard readBoard = initializedReadBoardForRetirement();
+      LizzieFrame frame = allocate(LizzieFrame.class);
+      frame.readBoard = readBoard;
+      Lizzie.frame = frame;
+      Lizzie.leelaz = engine;
+      Object identity = armPendingGmaTarget(readBoard, 7L);
+      Leelaz.TrackingHandoffTarget target = newReadBoardGmaTarget(readBoard, identity, 7L);
+      AtomicReference<Throwable> activationFailure = new AtomicReference<>();
+      AtomicReference<Throwable> shutdownFailure = new AtomicReference<>();
+      Thread activationThread =
+          new Thread(
+              () -> {
+                try {
+                  target.activate(successfulRetainedActivation());
+                } catch (Throwable failure) {
+                  activationFailure.set(failure);
+                }
+              },
+              "readboard-gma-promotion-winner");
+      activationThread.start();
+      assertTrue(engine.activationEntered.await(1, TimeUnit.SECONDS));
+
+      Thread shutdownThread =
+          new Thread(
+              () -> {
+                try {
+                  readBoard.shutdown();
+                } catch (Throwable failure) {
+                  shutdownFailure.set(failure);
+                }
+              },
+              "readboard-gma-retirement-loser");
+      shutdownThread.start();
+      assertFalse(engine.retirementEntered.await(50, TimeUnit.MILLISECONDS));
+
+      engine.allowActivationToFinish.countDown();
+      activationThread.join(1000L);
+      shutdownThread.join(1000L);
+
+      assertNull(activationFailure.get());
+      assertNull(shutdownFailure.get());
+      assertEquals(1, engine.activationCount.get());
+      assertEquals(1, engine.retirementCount.get());
+
+      ReadBoard retiredFirst = initializedReadBoardForRetirement();
+      frame.readBoard = retiredFirst;
+      Object retiredIdentity = armPendingGmaTarget(retiredFirst, 8L);
+      Leelaz.TrackingHandoffTarget lateTarget =
+          newReadBoardGmaTarget(retiredFirst, retiredIdentity, 8L);
+      retiredFirst.shutdown();
+
+      lateTarget.activate(successfulRetainedActivation());
+
+      assertEquals(
+          1,
+          engine.activationCount.get(),
+          "retirement winner must suppress late activation bytes.");
+      assertEquals(2, engine.retirementCount.get());
+    } finally {
+      Lizzie.leelaz = previousEngine;
+      Lizzie.frame = previousFrame;
+    }
+  }
+
+  @Test
   void openBoardSyncDoesNotBlockEventDispatchThreadWhileRestarting() throws Exception {
     LizzieFrame previousFrame = Lizzie.frame;
     try {
@@ -192,6 +334,7 @@ class ReadBoardShutdownTest {
       assertTrue(
           frame.awaitRestart(RESTART_TIMEOUT_MS, TimeUnit.SECONDS),
           "restart should eventually create a replacement readboard.");
+      SwingUtilities.invokeAndWait(() -> {});
       assertFalse(
           frame.startedBeforeShutdownCompleted,
           "replacement readboard should not start before the previous instance finishes shutting down.");
@@ -217,6 +360,64 @@ class ReadBoardShutdownTest {
     Field field = target.getClass().getDeclaredField(name);
     field.setAccessible(true);
     field.set(target, value);
+  }
+
+  private static boolean getBooleanField(Object target, String name) throws Exception {
+    return (boolean) getField(target, name);
+  }
+
+  private static ReadBoard initializedReadBoardForRetirement() throws Exception {
+    ReadBoard readBoard = allocate(ReadBoard.class);
+    setField(readBoard, "conflictTracker", new SyncConflictTracker());
+    setField(readBoard, "historyJumpTracker", new SyncHistoryJumpTracker());
+    setField(readBoard, "localNavigationTracker", new SyncLocalNavigationTracker());
+    setField(readBoard, "tempcount", new ArrayList<Integer>());
+    setField(readBoard, "usePipe", true);
+    return readBoard;
+  }
+
+  private static Object armPendingGmaTarget(ReadBoard readBoard, long generation) throws Exception {
+    Object identity = new Object();
+    setField(readBoard, "trackingEligibilityIdentity", identity);
+    setField(readBoard, "readBoardGmaSessionGeneration", generation);
+    setField(readBoard, "readBoardGmaPending", true);
+    setField(readBoard, "readBoardGmaPendingIdentity", identity);
+    setField(readBoard, "readBoardGmaPendingGeneration", generation);
+    setField(readBoard, "readBoardGmaAutoPlayActive", true);
+    return identity;
+  }
+
+  private static Leelaz.TrackingHandoffTarget newReadBoardGmaTarget(
+      ReadBoard readBoard, Object identity, long generation) throws Exception {
+    Class<?> targetClass =
+        Class.forName("featurecat.lizzie.analysis.ReadBoard$ReadBoardGmaHandoffTarget");
+    Constructor<?> constructor =
+        targetClass.getDeclaredConstructor(
+            ReadBoard.class,
+            Object.class,
+            long.class,
+            String.class,
+            int.class,
+            int.class,
+            boolean.class);
+    constructor.setAccessible(true);
+    return (Leelaz.TrackingHandoffTarget)
+        constructor.newInstance(readBoard, identity, generation, "B", 1, 1, false);
+  }
+
+  private static Leelaz.TrackingHandoffActivation successfulRetainedActivation() {
+    return new Leelaz.TrackingHandoffActivation() {
+      @Override
+      public boolean activateForegroundAnalysis(
+          java.util.function.Consumer<String> lineConsumer, Runnable onClosed) {
+        return false;
+      }
+
+      @Override
+      public boolean completeRetainedEngineMode() {
+        return true;
+      }
+    };
   }
 
   private static final class UnsafeHolder {
@@ -279,6 +480,58 @@ class ReadBoardShutdownTest {
     @Override
     public void close() {
       closeCalled = true;
+    }
+  }
+
+  private static final class RecordingGmaRetirementLeelaz extends Leelaz {
+    private int retirementCount;
+
+    private RecordingGmaRetirementLeelaz() throws Exception {
+      super("");
+    }
+
+    @Override
+    void retireReadBoardGmaSession() {
+      retirementCount++;
+    }
+  }
+
+  private static final class BlockingGmaActivationLeelaz extends Leelaz {
+    private final CountDownLatch activationEntered = new CountDownLatch(1);
+    private final CountDownLatch allowActivationToFinish = new CountDownLatch(1);
+    private final CountDownLatch retirementEntered = new CountDownLatch(1);
+    private final AtomicInteger activationCount = new AtomicInteger();
+    private final AtomicInteger retirementCount = new AtomicInteger();
+
+    private BlockingGmaActivationLeelaz() throws Exception {
+      super("");
+    }
+
+    @Override
+    void activateReadBoardGmaAfterTracking(
+        TrackingHandoffTarget target,
+        String color,
+        int maxTimeSeconds,
+        int maxVisits,
+        boolean ponder,
+        TrackingHandoffActivation activation) {
+      activationCount.incrementAndGet();
+      activationEntered.countDown();
+      try {
+        if (!allowActivationToFinish.await(1, TimeUnit.SECONDS)) {
+          throw new AssertionError("timed out waiting to release activation");
+        }
+      } catch (InterruptedException failure) {
+        Thread.currentThread().interrupt();
+        throw new AssertionError(failure);
+      }
+      activation.completeRetainedEngineMode();
+    }
+
+    @Override
+    void retireReadBoardGmaSession() {
+      retirementCount.incrementAndGet();
+      retirementEntered.countDown();
     }
   }
 

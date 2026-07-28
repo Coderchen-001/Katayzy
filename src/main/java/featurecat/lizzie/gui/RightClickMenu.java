@@ -2,7 +2,6 @@ package featurecat.lizzie.gui;
 
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.analysis.GameInfo;
-import featurecat.lizzie.analysis.TrackingEngine;
 import featurecat.lizzie.rules.Board;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -40,7 +39,6 @@ public class RightClickMenu extends JPopupMenu {
   private JFontMenuItem trackPoint;
   private JFontMenuItem untrackPoint;
   private JFontMenuItem clearAllTracked;
-  private JFontCheckBoxMenuItem keepTracking;
   private JFontMenuItem reedit;
   private JFontMenuItem cleanupedit;
   private JFontMenuItem cleanedittemp;
@@ -129,7 +127,6 @@ public class RightClickMenu extends JPopupMenu {
               trackPoint.setVisible(false);
               untrackPoint.setVisible(false);
               clearAllTracked.setVisible(false);
-              keepTracking.setVisible(false);
               sep.setVisible(false);
               sep1.setVisible(false);
               previousMove.setText(resourceBundle.getString("RightClickMenu.regretOne")); // ("悔棋");
@@ -175,17 +172,15 @@ public class RightClickMenu extends JPopupMenu {
               } else {
                 allow2.setVisible(false);
               }
-              boolean isKataGo = Lizzie.leelaz != null && Lizzie.leelaz.isKatago;
+              boolean canTrack = Lizzie.frame.canStartTrackingAnalysis();
               String coordName =
                   Board.convertCoordinatesToName(
                       RightClickMenu.coords[0], RightClickMenu.coords[1]);
-              boolean isTracked = Lizzie.frame.trackedCoords.contains(coordName);
-              boolean hasTracked = !Lizzie.frame.trackedCoords.isEmpty();
-              trackPoint.setVisible(isKataGo && !isTracked);
-              untrackPoint.setVisible(isKataGo && isTracked);
-              clearAllTracked.setVisible(isKataGo && hasTracked);
-              keepTracking.setVisible(isKataGo && hasTracked);
-              keepTracking.setSelected(Lizzie.frame.isKeepTracking);
+              boolean isTracked = Lizzie.frame.isTrackingPoint(coordName);
+              boolean hasTracked = Lizzie.frame.hasTrackingPoints();
+              trackPoint.setVisible(canTrack && !isTracked);
+              untrackPoint.setVisible(isTracked);
+              clearAllTracked.setVisible(hasTracked);
             }
           }
           //	}
@@ -258,8 +253,6 @@ public class RightClickMenu extends JPopupMenu {
     untrackPoint.setIcon(iconRemovePoint);
     clearAllTracked = new JFontMenuItem(resourceBundle.getString("RightClickMenu.clearAllTracked"));
     clearAllTracked.setIcon(iconRecycle);
-    keepTracking =
-        new JFontCheckBoxMenuItem(resourceBundle.getString("RightClickMenu.keepTracking"));
     cleanedittemp =
         new JFontMenuItem(resourceBundle.getString("RightClickMenu.cleanedittemp")); // ("清除编辑缓存");
     cleanedittemp.setIcon(iconRecycle);
@@ -280,7 +273,6 @@ public class RightClickMenu extends JPopupMenu {
     this.add(trackPoint);
     this.add(untrackPoint);
     this.add(clearAllTracked);
-    this.add(keepTracking);
     this.add(sep);
     this.add(priority);
     this.add(clearPriority);
@@ -454,11 +446,7 @@ public class RightClickMenu extends JPopupMenu {
 
     trackPoint.addActionListener(e -> trackPointAction());
     untrackPoint.addActionListener(e -> untrackPointAction());
-    clearAllTracked.addActionListener(e -> Lizzie.frame.clearTrackedCoords());
-    keepTracking.addActionListener(
-        e -> {
-          Lizzie.frame.isKeepTracking = !Lizzie.frame.isKeepTracking;
-        });
+    clearAllTracked.addActionListener(e -> Lizzie.frame.clearTrackingPoints());
   }
 
   private void cleanupedit() {
@@ -492,26 +480,13 @@ public class RightClickMenu extends JPopupMenu {
   private void trackPointAction() {
     if (!Lizzie.board.iscoordsempty(coords[0], coords[1])) return;
     String coordName = Board.convertCoordinatesToName(coords[0], coords[1]);
-    Lizzie.frame.trackedCoords.add(coordName);
+    Lizzie.frame.addTrackingPoint(coordName);
     Lizzie.frame.refresh();
-    if (!Lizzie.frame.ensureTrackingEngineWithWarning()) {
-      Lizzie.frame.trackedCoords.remove(coordName);
-      Lizzie.frame.refresh();
-      return;
-    }
-    Lizzie.frame.triggerTrackingAnalysis();
   }
 
   private void untrackPointAction() {
     String coordName = Board.convertCoordinatesToName(coords[0], coords[1]);
-    Lizzie.frame.trackedCoords.remove(coordName);
-    if (Lizzie.frame.trackedCoords.isEmpty()) {
-      TrackingEngine te = Lizzie.frame.trackingEngine;
-      if (te != null) te.clearTrackedMoves();
-      Lizzie.frame.isKeepTracking = false;
-    } else {
-      Lizzie.frame.triggerTrackingAnalysis();
-    }
+    Lizzie.frame.removeTrackingPoint(coordName);
     Lizzie.frame.refresh();
   }
 
