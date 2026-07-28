@@ -2846,10 +2846,10 @@ public class ConfigDialog2 extends JDialog {
             chkMaxValueReverseColor);
         addInputRow(
             analysis,
-            configText("ConfigDialog2.modern.analysis.trackingVisits", "追踪选点计算量"),
+            configText("ConfigDialog2.modern.analysis.trackingVisits", "选点评估计算量"),
             configText(
                 "ConfigDialog2.modern.analysis.trackingVisitsSub",
-                "每个追踪选点达到该计算量后停止分析"),
+                "每个选点达到该计算量后停止评估"),
             txtTrackingAnalysisMaxVisits,
             configText("ConfigDialog2.modern.unit.visits", "次"));
         addInputRow(
@@ -3344,13 +3344,13 @@ public class ConfigDialog2 extends JDialog {
 
     JPanel trackingAppearance =
         createDesignSettingsCard(
-            configText("ConfigDialog2.modern.trackingAppearance.title", "追踪选点外观"),
+            configText("ConfigDialog2.modern.trackingAppearance.title", "选点评估结果外观"),
             configText(
                 "ConfigDialog2.modern.trackingAppearance.subtitle",
-                "调整追踪结果内部、动态质量外框和文字颜色。"));
+                "调整评估结果的底色、动态质量外框和文字颜色。"));
     addToggleRow(
         trackingAppearance,
-        configText("ConfigDialog2.modern.trackingAppearance.outline", "显示追踪点外框"),
+        configText("ConfigDialog2.modern.trackingAppearance.outline", "显示评估结果外框"),
         configText(
             "ConfigDialog2.modern.trackingAppearance.outlineSub",
             "用虚线外框显示等待状态和实时落子质量"),

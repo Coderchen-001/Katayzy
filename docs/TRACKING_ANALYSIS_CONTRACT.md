@@ -1,6 +1,6 @@
 # Tracking Analysis Contract
 
-“追踪分析此点”复用当前前台本地 KataGo 的唯一 GTP stream。Production 不再创建第二个
+“评估此点”复用当前前台本地 KataGo 的唯一 GTP stream。Production 不再创建第二个
 tracking KataGo 进程，也不保留 legacy runtime、console、preload、warning、keep-tracking、
 feature flag 或失败 fallback。
 
@@ -118,9 +118,9 @@ Tracking 每点 visits 使用：
 tracking-analysis-max-visits
 ```
 
-该值可在“综合设置 → 引擎与分析”的“追踪选点计算量”中调整。
+该值可在“综合设置 → 引擎与分析”的“选点评估计算量”中调整。
 
-追踪选点外观使用以下 UI 配置：
+选点评估结果外观使用以下 UI 配置：
 
 ```text
 show-tracking-point-outline
