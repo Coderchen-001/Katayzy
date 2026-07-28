@@ -72,9 +72,11 @@ class EngineManagerLifecycleReservationTest {
       manager.afterSync.run();
       assertNotNull(engine.confirmation);
       assertTrue(engine.hasExclusiveGtpWorkInProgress());
+      assertEquals(0, engine.ponderCount);
       engine.confirmation.run();
       assertFalse(engine.hasExclusiveGtpWorkInProgress());
       assertEquals(1, engine.ponderCount);
+      assertTrue(engine.ponderWhileLifecycleHeld);
     } finally {
       Lizzie.leelaz = previousEngine;
       Lizzie.frame = previousFrame;
@@ -110,6 +112,7 @@ class EngineManagerLifecycleReservationTest {
       assertFalse(engine.isLoaded());
       engine.started = true;
       engine.isLoaded = true;
+      engine.Pondering();
       manager.afterSync.run();
       assertNotNull(engine.rejection);
       assertTrue(engine.hasExclusiveGtpWorkInProgress());
@@ -118,6 +121,7 @@ class EngineManagerLifecycleReservationTest {
 
       assertFalse(engine.hasExclusiveGtpWorkInProgress());
       assertFalse(engine.isLoaded());
+      assertEquals(0, engine.ponderCount);
       assertEquals(1, manager.failureCount);
     } finally {
       Lizzie.leelaz = previousEngine;
@@ -1139,6 +1143,7 @@ class EngineManagerLifecycleReservationTest {
   private static final class TrackingRestartActionLeelaz extends Leelaz {
     private int shutdownCount;
     private int ponderCount;
+    private boolean ponderWhileLifecycleHeld;
     private Runnable confirmation;
     private Consumer<String> rejection;
 
@@ -1158,6 +1163,7 @@ class EngineManagerLifecycleReservationTest {
 
     @Override
     public void ponder() {
+      ponderWhileLifecycleHeld = hasExclusiveGtpWorkInProgress();
       ponderCount++;
     }
 
