@@ -7,11 +7,15 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
@@ -29,6 +33,7 @@ import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
+import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
@@ -48,6 +53,8 @@ public final class WholeGameAnalysisDialog extends JDialog
   private static final Color MUTED = new Color(103, 107, 99);
   private static final Color ACCENT = new Color(20, 111, 91);
   private static final Color ACCENT_SOFT = new Color(225, 240, 234);
+  private static final Color DISABLED_SURFACE = new Color(232, 229, 220);
+  private static final int SCREEN_MARGIN = 36;
 
   private final ResourceBundle resources = Lizzie.resourceBundle;
   private final LizzieFrame ownerFrame;
@@ -56,7 +63,8 @@ public final class WholeGameAnalysisDialog extends JDialog
   private final JLabel modeLabel = new JLabel();
   private final JLabel remainingLabel = new JLabel();
   private final JProgressBar progressBar = new JProgressBar(0, 100);
-  private final JButton hideButton = new JButton();
+  private final JButton startButton = new JButton();
+  private final JButton pauseButton = new JButton();
   private final JButton stopButton = new JButton();
   private WholeGameAnalysisSession session;
   private WholeGameAnalysisSession.State latestState = WholeGameAnalysisSession.State.IDLE;
@@ -66,12 +74,10 @@ public final class WholeGameAnalysisDialog extends JDialog
     ownerFrame = owner;
     setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
     setType(Window.Type.UTILITY);
-    setAutoRequestFocus(false);
-    setFocusableWindowState(false);
-    setMinimumSize(new Dimension(500, 330));
-    setPreferredSize(new Dimension(540, 360));
+    setResizable(true);
     setContentPane(buildContent());
     pack();
+    fitToUsableScreen();
     setLocationRelativeTo(owner);
     installWindowBehavior();
   }
@@ -81,11 +87,15 @@ public final class WholeGameAnalysisDialog extends JDialog
   }
 
   public void showOnScreen() {
-    if (!isVisible()) setVisible(true);
+    if (!isVisible()) {
+      setVisible(true);
+    }
     SwingUtilities.invokeLater(
         () -> {
-          ownerFrame.setMainPanelFocus();
           toFront();
+          if (latestState == WholeGameAnalysisSession.State.IDLE) {
+            startButton.requestFocusInWindow();
+          }
         });
   }
 
@@ -104,33 +114,39 @@ public final class WholeGameAnalysisDialog extends JDialog
                 snapshot.totalPositions,
                 snapshot.targetVisits));
     modeLabel.setText(
-        snapshot.state == WholeGameAnalysisSession.State.PREPARING
+        snapshot.state == WholeGameAnalysisSession.State.IDLE
+                || snapshot.state == WholeGameAnalysisSession.State.PREPARING
             ? ""
             : resources.getString(
                 snapshot.remoteBackend
                     ? "WholeGameAnalysis.mode.remote"
                     : "WholeGameAnalysis.mode.local"));
     remainingLabel.setText(remainingText(snapshot));
-
-    boolean terminal = isTerminal(snapshot.state);
-    hideButton.setEnabled(!terminal);
-    stopButton.setText(
-        resources.getString(terminal ? "WholeGameAnalysis.close" : "WholeGameAnalysis.cancel"));
-    stopButton.setBackground(terminal ? ACCENT : CARD);
-    stopButton.setForeground(terminal ? Color.WHITE : TEXT);
-    updateButtonSize(stopButton);
+    applyControlState(controlState(snapshot.state));
     progressBar
         .getAccessibleContext()
         .setAccessibleDescription(phaseLabel.getText() + ". " + progressLabel.getText());
-    stopButton.getAccessibleContext().setAccessibleName(stopButton.getText());
   }
 
   private JPanel buildContent() {
-    JPanel root = new JPanel(new BorderLayout(0, 18));
+    JPanel root = new JPanel(new BorderLayout(0, 16));
     root.setBackground(BACKGROUND);
-    root.setBorder(BorderFactory.createEmptyBorder(24, 26, 22, 26));
-    root.add(buildHeader(), BorderLayout.NORTH);
-    root.add(buildProgressCard(), BorderLayout.CENTER);
+    root.setBorder(BorderFactory.createEmptyBorder(22, 24, 20, 24));
+
+    JPanel body = new JPanel(new BorderLayout(0, 18));
+    body.setBackground(BACKGROUND);
+    body.add(buildHeader(), BorderLayout.NORTH);
+    body.add(buildProgressCard(), BorderLayout.CENTER);
+
+    JScrollPane scrollPane =
+        new JScrollPane(
+            body, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+    scrollPane.setName("wholeGameScrollPane");
+    scrollPane.setBorder(null);
+    scrollPane.setOpaque(false);
+    scrollPane.getViewport().setOpaque(false);
+    scrollPane.getVerticalScrollBar().setUnitIncrement(18);
+    root.add(scrollPane, BorderLayout.CENTER);
     root.add(buildActions(), BorderLayout.SOUTH);
     return root;
   }
@@ -149,17 +165,13 @@ public final class WholeGameAnalysisDialog extends JDialog
     title.setForeground(TEXT);
     title.setFont(title.getFont().deriveFont(Font.BOLD, 24f));
     title.setAlignmentX(Component.LEFT_ALIGNMENT);
-    JTextArea description = new JTextArea(resources.getString("WholeGameAnalysis.description"));
-    description.setEditable(false);
-    description.setFocusable(false);
-    description.setOpaque(false);
-    description.setLineWrap(true);
-    description.setWrapStyleWord(true);
+    JTextArea description = textArea();
+    description.setText(resources.getString("WholeGameAnalysis.description"));
     description.setRows(2);
+    description.setColumns(47);
     description.setForeground(MUTED);
     description.setFont(title.getFont().deriveFont(Font.PLAIN, 13f));
     description.setAlignmentX(Component.LEFT_ALIGNMENT);
-    description.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
     copy.add(title);
     copy.add(Box.createVerticalStrut(5));
     copy.add(description);
@@ -168,76 +180,197 @@ public final class WholeGameAnalysisDialog extends JDialog
   }
 
   private JComponent buildProgressCard() {
-    JPanel card = new JPanel();
+    JPanel card = new JPanel(new GridBagLayout());
+    card.setName("wholeGameProgressCard");
     card.setBackground(CARD);
-    card.setBorder(new RoundedBorder(BORDER, 16));
-    card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
     card.setBorder(
         BorderFactory.createCompoundBorder(
             new RoundedBorder(BORDER, 16), BorderFactory.createEmptyBorder(20, 22, 18, 22)));
 
+    GridBagConstraints constraints = new GridBagConstraints();
+    constraints.gridx = 0;
+    constraints.gridy = 0;
+    constraints.weightx = 1;
+    constraints.fill = GridBagConstraints.HORIZONTAL;
+    constraints.anchor = GridBagConstraints.WEST;
+
+    phaseLabel.setName("wholeGamePhase");
     phaseLabel.setForeground(TEXT);
     phaseLabel.setFont(phaseLabel.getFont().deriveFont(Font.BOLD, 18f));
-    phaseLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-    phaseLabel.setText(resources.getString("WholeGameAnalysis.preparing"));
-    card.add(phaseLabel);
-    card.add(Box.createVerticalStrut(14));
+    phaseLabel.setText(resources.getString("WholeGameAnalysis.ready"));
+    card.add(phaseLabel, constraints);
 
+    constraints.gridy++;
+    constraints.insets = new Insets(14, 0, 0, 0);
+    progressBar.setName("wholeGameProgressBar");
     progressBar.setValue(0);
     progressBar.setStringPainted(true);
     progressBar.setForeground(ACCENT);
     progressBar.setBackground(ACCENT_SOFT);
     progressBar.setBorderPainted(false);
-    progressBar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 22));
-    progressBar.setPreferredSize(new Dimension(440, 22));
-    progressBar.setAlignmentX(Component.LEFT_ALIGNMENT);
+    progressBar.setPreferredSize(new Dimension(520, 24));
     progressBar
         .getAccessibleContext()
         .setAccessibleName(resources.getString("WholeGameAnalysis.title"));
-    card.add(progressBar);
-    card.add(Box.createVerticalStrut(12));
+    card.add(progressBar, constraints);
 
+    constraints.gridy++;
+    constraints.insets = new Insets(12, 0, 0, 0);
+    progressLabel.setName("wholeGameProgressText");
     progressLabel.setForeground(TEXT);
     progressLabel.setFont(progressLabel.getFont().deriveFont(13f));
-    progressLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
     progressLabel.setText(
         MessageFormat.format(resources.getString("WholeGameAnalysis.progress"), 0, 0, 0));
-    card.add(progressLabel);
-    card.add(Box.createVerticalStrut(12));
+    card.add(progressLabel, constraints);
 
-    JPanel meta = new JPanel(new BorderLayout(12, 0));
-    meta.setOpaque(false);
-    meta.setAlignmentX(Component.LEFT_ALIGNMENT);
-    modeLabel.setForeground(ACCENT);
-    modeLabel.setFont(modeLabel.getFont().deriveFont(Font.BOLD, 12f));
-    remainingLabel.setForeground(MUTED);
-    remainingLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-    remainingLabel.setFont(remainingLabel.getFont().deriveFont(12f));
-    meta.add(modeLabel, BorderLayout.WEST);
-    meta.add(remainingLabel, BorderLayout.EAST);
-    card.add(meta);
+    constraints.gridy++;
+    constraints.insets = new Insets(10, 0, 0, 0);
+    card.add(buildMetadataRow(), constraints);
     return card;
   }
 
+  private JComponent buildMetadataRow() {
+    JPanel metadata = new MetadataPanel();
+    metadata.setOpaque(false);
+
+    GridBagConstraints left = new GridBagConstraints();
+    left.gridx = 0;
+    left.gridy = 0;
+    left.weightx = 1;
+    left.fill = GridBagConstraints.HORIZONTAL;
+    left.anchor = GridBagConstraints.WEST;
+    modeLabel.setName("wholeGameMode");
+    modeLabel.setForeground(ACCENT);
+    modeLabel.setFont(modeLabel.getFont().deriveFont(Font.BOLD, 12f));
+    modeLabel
+        .getAccessibleContext()
+        .setAccessibleName(resources.getString("WholeGameAnalysis.title"));
+    metadata.add(modeLabel, left);
+
+    GridBagConstraints right = new GridBagConstraints();
+    right.gridx = 1;
+    right.gridy = 0;
+    right.weightx = 1;
+    right.fill = GridBagConstraints.HORIZONTAL;
+    right.anchor = GridBagConstraints.EAST;
+    right.insets = new Insets(0, 18, 0, 0);
+    remainingLabel.setName("wholeGameRemaining");
+    remainingLabel.setForeground(MUTED);
+    remainingLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+    remainingLabel.setFont(remainingLabel.getFont().deriveFont(12f));
+    remainingLabel
+        .getAccessibleContext()
+        .setAccessibleName(resources.getString("WholeGameAnalysis.remaining.calculating"));
+    metadata.add(remainingLabel, right);
+    return metadata;
+  }
+
   private JComponent buildActions() {
-    JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+    JPanel actions = new JPanel();
     actions.setOpaque(false);
-    hideButton.setText(resources.getString("WholeGameAnalysis.hide"));
-    styleButton(hideButton, false);
-    hideButton.addActionListener(event -> setVisible(false));
+    actions.setLayout(new BoxLayout(actions, BoxLayout.X_AXIS));
+
+    startButton.setName("wholeGameStart");
+    startButton.setText(resources.getString("WholeGameAnalysis.start"));
+    styleButton(startButton, true);
+    startButton.addActionListener(
+        event -> {
+          if (session != null && ownerFrame.startWholeGameDeepAnalysis(session)) {
+            applyControlState(controlState(WholeGameAnalysisSession.State.PREPARING));
+          }
+        });
+
+    pauseButton.setName("wholeGamePause");
+    pauseButton.setText(resources.getString("WholeGameAnalysis.pause"));
+    styleButton(pauseButton, false);
+    pauseButton.addActionListener(
+        event -> {
+          if (session == null) {
+            return;
+          }
+          if (latestState == WholeGameAnalysisSession.State.PAUSED) {
+            session.resume();
+          } else {
+            session.pause();
+          }
+        });
+
+    stopButton.setName("wholeGameStop");
     stopButton.setText(resources.getString("WholeGameAnalysis.cancel"));
     styleButton(stopButton, false);
     stopButton.addActionListener(
         event -> {
+          if (session == null) {
+            return;
+          }
           if (isTerminal(latestState)) {
-            dispose();
-          } else if (session != null) {
+            ownerFrame.closeWholeGameAnalysisDialog(this, session);
+          } else if (latestState != WholeGameAnalysisSession.State.IDLE) {
             session.cancel();
           }
         });
-    actions.add(hideButton);
+
+    actions.add(Box.createHorizontalGlue());
+    actions.add(startButton);
+    actions.add(Box.createHorizontalStrut(10));
+    actions.add(pauseButton);
+    actions.add(Box.createHorizontalStrut(10));
     actions.add(stopButton);
+    applyControlState(controlState(WholeGameAnalysisSession.State.IDLE));
     return actions;
+  }
+
+  private void applyControlState(ControlState controls) {
+    startButton.setEnabled(controls.startEnabled);
+    pauseButton.setEnabled(controls.pauseEnabled);
+    stopButton.setEnabled(controls.stopEnabled);
+    pauseButton.setText(
+        resources.getString(
+            controls.resumeLabel ? "WholeGameAnalysis.resume" : "WholeGameAnalysis.pause"));
+    stopButton.setText(
+        resources.getString(
+            controls.closeLabel ? "WholeGameAnalysis.close" : "WholeGameAnalysis.cancel"));
+    startButton.setBackground(controls.startEnabled ? ACCENT : DISABLED_SURFACE);
+    startButton.setForeground(controls.startEnabled ? Color.WHITE : MUTED);
+    pauseButton.setBackground(controls.resumeLabel ? ACCENT : CARD);
+    pauseButton.setForeground(controls.resumeLabel ? Color.WHITE : TEXT);
+    stopButton.setBackground(controls.closeLabel ? ACCENT : CARD);
+    stopButton.setForeground(controls.closeLabel ? Color.WHITE : TEXT);
+    updateButtonSize(startButton);
+    updateButtonSize(pauseButton);
+    updateButtonSize(stopButton);
+    startButton.getAccessibleContext().setAccessibleName(startButton.getText());
+    pauseButton.getAccessibleContext().setAccessibleName(pauseButton.getText());
+    stopButton.getAccessibleContext().setAccessibleName(stopButton.getText());
+    if (controls.startEnabled) {
+      getRootPane().setDefaultButton(startButton);
+    } else if (controls.pauseEnabled) {
+      getRootPane().setDefaultButton(pauseButton);
+    } else if (controls.closeLabel) {
+      getRootPane().setDefaultButton(stopButton);
+    } else {
+      getRootPane().setDefaultButton(null);
+    }
+  }
+
+  static ControlState controlState(WholeGameAnalysisSession.State state) {
+    switch (state) {
+      case IDLE:
+        return new ControlState(true, false, false, false, false);
+      case PREPARING:
+      case BASELINE:
+      case DEEP:
+        return new ControlState(false, true, true, false, false);
+      case PAUSING:
+        return new ControlState(false, false, true, false, false);
+      case PAUSED:
+        return new ControlState(false, true, true, true, false);
+      case COMPLETE:
+      case CANCELLED:
+      case FAILED:
+      default:
+        return new ControlState(false, false, true, false, true);
+    }
   }
 
   private void styleButton(JButton button, boolean primary) {
@@ -252,15 +385,33 @@ public final class WholeGameAnalysisDialog extends JDialog
   }
 
   static void installPortableButtonFill(JButton button) {
-    // Windows native LAF can ignore JButton background colors. The completion button uses white
-    // text on an accent fill, so install a cross-platform UI that actually paints that fill.
+    // Windows native LAF can ignore JButton background colors.
     button.setUI(new BasicButtonUI());
     button.setContentAreaFilled(true);
   }
 
   private static void updateButtonSize(JButton button) {
     Dimension natural = button.getUI().getPreferredSize(button);
-    button.setPreferredSize(new Dimension(Math.max(110, natural.width + 18), 38));
+    button.setPreferredSize(new Dimension(Math.max(112, natural.width + 22), 40));
+    button.setMaximumSize(button.getPreferredSize());
+  }
+
+  private void fitToUsableScreen() {
+    Rectangle bounds = getGraphicsConfiguration().getBounds();
+    Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(getGraphicsConfiguration());
+    Dimension usable =
+        new Dimension(
+            Math.max(1, bounds.width - insets.left - insets.right - SCREEN_MARGIN),
+            Math.max(1, bounds.height - insets.top - insets.bottom - SCREEN_MARGIN));
+    Dimension target = clampDialogSize(getSize(), usable);
+    setSize(target);
+    setMinimumSize(target);
+  }
+
+  static Dimension clampDialogSize(Dimension packed, Dimension usable) {
+    return new Dimension(
+        Math.max(1, Math.min(packed.width, usable.width)),
+        Math.max(1, Math.min(packed.height, usable.height)));
   }
 
   private void installWindowBehavior() {
@@ -268,11 +419,7 @@ public final class WholeGameAnalysisDialog extends JDialog
         new WindowAdapter() {
           @Override
           public void windowClosing(WindowEvent event) {
-            if (isTerminal(latestState)) {
-              dispose();
-            } else {
-              setVisible(false);
-            }
+            handleCloseRequest();
           }
         });
     getRootPane()
@@ -285,15 +432,26 @@ public final class WholeGameAnalysisDialog extends JDialog
             new AbstractAction() {
               @Override
               public void actionPerformed(java.awt.event.ActionEvent event) {
-                setVisible(false);
+                handleCloseRequest();
               }
             });
+    getRootPane().setDefaultButton(startButton);
+  }
+
+  private void handleCloseRequest() {
+    if (session != null && session.isActive()) {
+      setVisible(false);
+      ownerFrame.setMainPanelFocus();
+      return;
+    }
+    ownerFrame.closeWholeGameAnalysisDialog(this, session);
   }
 
   private String remainingText(WholeGameAnalysisSession.Snapshot snapshot) {
-    if (snapshot.state == WholeGameAnalysisSession.State.COMPLETE
-        || snapshot.state == WholeGameAnalysisSession.State.CANCELLED
-        || snapshot.state == WholeGameAnalysisSession.State.FAILED) {
+    if (snapshot.state == WholeGameAnalysisSession.State.IDLE
+        || snapshot.state == WholeGameAnalysisSession.State.PAUSED
+        || snapshot.state == WholeGameAnalysisSession.State.PAUSING
+        || isTerminal(snapshot.state)) {
       return "";
     }
     if (snapshot.estimatedRemainingMillis < 0) {
@@ -319,6 +477,60 @@ public final class WholeGameAnalysisDialog extends JDialog
     return state == WholeGameAnalysisSession.State.COMPLETE
         || state == WholeGameAnalysisSession.State.CANCELLED
         || state == WholeGameAnalysisSession.State.FAILED;
+  }
+
+  private static JTextArea textArea() {
+    JTextArea area = new JTextArea();
+    area.setEditable(false);
+    area.setFocusable(false);
+    area.setOpaque(false);
+    area.setLineWrap(true);
+    area.setWrapStyleWord(true);
+    area.setBorder(null);
+    return area;
+  }
+
+  static final class ControlState {
+    final boolean startEnabled;
+    final boolean pauseEnabled;
+    final boolean stopEnabled;
+    final boolean resumeLabel;
+    final boolean closeLabel;
+
+    private ControlState(
+        boolean startEnabled,
+        boolean pauseEnabled,
+        boolean stopEnabled,
+        boolean resumeLabel,
+        boolean closeLabel) {
+      this.startEnabled = startEnabled;
+      this.pauseEnabled = pauseEnabled;
+      this.stopEnabled = stopEnabled;
+      this.resumeLabel = resumeLabel;
+      this.closeLabel = closeLabel;
+    }
+  }
+
+  /** Reserves one current-font line even while running-state labels are empty. */
+  private static final class MetadataPanel extends JPanel {
+    private static final long serialVersionUID = 1L;
+
+    private MetadataPanel() {
+      super(new GridBagLayout());
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+      Dimension preferred = super.getPreferredSize();
+      int lineHeight = 0;
+      for (Component child : getComponents()) {
+        if (child.getFont() != null) {
+          lineHeight =
+              Math.max(lineHeight, child.getFontMetrics(child.getFont()).getHeight());
+        }
+      }
+      return new Dimension(preferred.width, Math.max(preferred.height, lineHeight));
+    }
   }
 
   private static final class RoundedBorder extends AbstractBorder {
