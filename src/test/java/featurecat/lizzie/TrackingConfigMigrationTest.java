@@ -112,4 +112,20 @@ class TrackingConfigMigrationTest {
     assertTrue(dialog.contains("!= previousAnalyzeUpdateIntervalCentisec"));
     assertTrue(dialog.contains("Lizzie.frame.clearTrackingPoints()"));
   }
+
+  @Test
+  void modernGeneralSettingsExposeTheTrackingVisitLimit() throws Exception {
+    String dialog =
+        Files.readString(Path.of("src/main/java/featurecat/lizzie/gui/ConfigDialog2.java"));
+    int engineSectionStart = dialog.indexOf("case MODERN_NAV_ENGINE:");
+    int engineSectionEnd = dialog.indexOf("return analysis;", engineSectionStart);
+
+    assertTrue(engineSectionStart >= 0);
+    assertTrue(engineSectionEnd > engineSectionStart);
+    assertTrue(
+        dialog
+            .substring(engineSectionStart, engineSectionEnd)
+            .contains("txtTrackingAnalysisMaxVisits"),
+        "综合设置的引擎与分析 section 应显示追踪选点计算量");
+  }
 }

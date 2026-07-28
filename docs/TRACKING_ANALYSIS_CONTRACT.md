@@ -111,6 +111,8 @@ Tracking 每点 visits 使用：
 tracking-analysis-max-visits
 ```
 
+该值可在“综合设置 → 引擎与分析”的“追踪选点计算量”中调整。
+
 追踪选点外观使用以下 UI 配置：
 
 ```text

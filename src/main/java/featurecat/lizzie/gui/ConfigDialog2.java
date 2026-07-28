@@ -2846,6 +2846,14 @@ public class ConfigDialog2 extends JDialog {
             chkMaxValueReverseColor);
         addInputRow(
             analysis,
+            configText("ConfigDialog2.modern.analysis.trackingVisits", "追踪选点计算量"),
+            configText(
+                "ConfigDialog2.modern.analysis.trackingVisitsSub",
+                "每个追踪选点达到该计算量后停止分析"),
+            txtTrackingAnalysisMaxVisits,
+            configText("ConfigDialog2.modern.unit.visits", "次"));
+        addInputRow(
+            analysis,
             configText("ConfigDialog2.modern.analysis.suggestionLimit", "选点数量上限"),
             configText("ConfigDialog2.modern.analysis.suggestionLimitSub", "限制主界面推荐选点数量"),
             txtLimitBestMoveNum,
