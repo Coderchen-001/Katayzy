@@ -41,7 +41,7 @@ class WebTrialSingleStreamExclusionTest {
   private Config previousConfig;
   private Board previousBoard;
   private Leelaz engine;
-  private HookedWebBoardManager manager;
+  private WebBoardManager manager;
   private ByteArrayOutputStream output;
   private AtomicInteger overrideMutations;
 
@@ -55,7 +55,7 @@ class WebTrialSingleStreamExclusionTest {
     output = new ByteArrayOutputStream();
     setLeelazField(engine, "outputStream", new BufferedOutputStream(output));
     overrideMutations = new AtomicInteger();
-    manager = new HookedWebBoardManager();
+    manager = new WebBoardManager();
     manager.setOverrideSinkForTest(node -> overrideMutations.incrementAndGet());
     manager.setDesktopRefresherForTest(() -> {});
     manager.setCollectorForTest(stubCollector());
@@ -212,7 +212,7 @@ class WebTrialSingleStreamExclusionTest {
     assertTrue(manager.enterTrial("original-owner", anchor));
     RecordingWebBoardServer server = new RecordingWebBoardServer();
     manager.attachWebSocketServer(server);
-    manager.decisionHook =
+    server.beforeSend =
         () -> {
           manager.exitTrial("original-owner");
           assertTrue(manager.enterTrial("replacement-owner", anchor));
@@ -411,6 +411,7 @@ class WebTrialSingleStreamExclusionTest {
 
   private static final class RecordingWebBoardServer extends WebBoardServer {
     private final AtomicReference<String> lastMessage = new AtomicReference<>();
+    private Runnable beforeSend = () -> {};
 
     private RecordingWebBoardServer() {
       super(new InetSocketAddress("127.0.0.1", 0), 1);
@@ -418,16 +419,8 @@ class WebTrialSingleStreamExclusionTest {
 
     @Override
     public void sendToConnection(WebSocket conn, String json) {
+      beforeSend.run();
       lastMessage.set(json);
-    }
-  }
-
-  private static final class HookedWebBoardManager extends WebBoardManager {
-    private Runnable decisionHook = () -> {};
-
-    @Override
-    void afterTrialDecisionCapturedForTest(TrialEnterResult result) {
-      decisionHook.run();
     }
   }
 

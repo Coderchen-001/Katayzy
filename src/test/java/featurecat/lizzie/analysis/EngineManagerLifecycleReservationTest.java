@@ -63,8 +63,59 @@ class EngineManagerLifecycleReservationTest {
       assertFalse(tracking.lease().isOwned());
       assertTrue(engine.hasExclusiveGtpWorkInProgress());
       assertNotNull(manager.afterSync);
+      assertFalse(engine.isStarted());
+      assertFalse(engine.isLoaded());
+      engine.started = true;
+      engine.isLoaded = true;
       manager.afterSync.run();
+      assertNotNull(engine.confirmation);
+      assertTrue(engine.hasExclusiveGtpWorkInProgress());
+      engine.confirmation.run();
       assertFalse(engine.hasExclusiveGtpWorkInProgress());
+    } finally {
+      Lizzie.leelaz = previousEngine;
+      Lizzie.frame = previousFrame;
+      EngineManager.isEmpty = previousEmpty;
+      EngineManager.currentEngineNo = previousEngineNo;
+    }
+  }
+
+  @Test
+  void activeRestartReleasesLifecycleAfterBoardFenceFailure() throws Exception {
+    Leelaz previousEngine = Lizzie.leelaz;
+    LizzieFrame previousFrame = Lizzie.frame;
+    boolean previousEmpty = EngineManager.isEmpty;
+    int previousEngineNo = EngineManager.currentEngineNo;
+    TrackingRestartActionLeelaz engine = new TrackingRestartActionLeelaz();
+    CountingRestartGateFrame frame = allocate(CountingRestartGateFrame.class);
+    DeferredSwitchEngineManager manager = new DeferredSwitchEngineManager(List.of(engine));
+    setLeelazField(engine, "outputStream", new BufferedOutputStream(new ByteArrayOutputStream()));
+    setCapabilityDiscoveryComplete(engine, true);
+    try {
+      Lizzie.leelaz = engine;
+      Lizzie.frame = frame;
+      EngineManager.isEmpty = false;
+      EngineManager.currentEngineNo = 0;
+      activateTracking(engine);
+
+      manager.reStartEngine(0);
+
+      assertEquals(1, engine.shutdownCount);
+      assertEquals(1, frame.beginCount);
+      assertNotNull(manager.afterSync);
+      assertFalse(engine.isStarted());
+      assertFalse(engine.isLoaded());
+      engine.started = true;
+      engine.isLoaded = true;
+      manager.afterSync.run();
+      assertNotNull(engine.rejection);
+      assertTrue(engine.hasExclusiveGtpWorkInProgress());
+
+      engine.rejection.accept("controlled board fence failure");
+
+      assertFalse(engine.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isLoaded());
+      assertEquals(1, manager.failureCount);
     } finally {
       Lizzie.leelaz = previousEngine;
       Lizzie.frame = previousFrame;
@@ -1031,6 +1082,7 @@ class EngineManagerLifecycleReservationTest {
     private Runnable afterSync;
     private int conflictCount;
     private int switchCount;
+    private int failureCount;
 
     private DeferredSwitchEngineManager(List<Leelaz> engines) {
       super(engines);
@@ -1045,6 +1097,11 @@ class EngineManagerLifecycleReservationTest {
     @Override
     protected void showForegroundEngineLeaseInUse() {
       conflictCount++;
+    }
+
+    @Override
+    protected void showEngineSynchronizationFailure(Leelaz engine) {
+      failureCount++;
     }
   }
 
@@ -1078,6 +1135,8 @@ class EngineManagerLifecycleReservationTest {
 
   private static final class TrackingRestartActionLeelaz extends Leelaz {
     private int shutdownCount;
+    private Runnable confirmation;
+    private Consumer<String> rejection;
 
     private TrackingRestartActionLeelaz() throws Exception {
       super("");
@@ -1091,6 +1150,12 @@ class EngineManagerLifecycleReservationTest {
     public void shutdown() {
       shutdownCount++;
       rebindReader(this);
+    }
+
+    @Override
+    void confirmBoardSynchronization(Runnable onSuccess, Consumer<String> onFailure) {
+      confirmation = onSuccess;
+      rejection = onFailure;
     }
   }
 

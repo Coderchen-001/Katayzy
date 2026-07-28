@@ -212,7 +212,6 @@ public class WebBoardManager {
           BoardHistoryNode anchor = capturedBoard.getHistory().getCurrentHistoryNode();
           TrialEnterResult result =
               enterTrialWithResult(clientId, anchor, capturedBoard, capturedServer, conn);
-          afterTrialDecisionCapturedForTest(result);
           if (!result.isAccepted()) {
             boolean inUse = result.kind() == TrialEnterResult.Kind.IN_USE;
             JSONObject denied =
@@ -701,10 +700,6 @@ public class WebBoardManager {
 
   void setCollectorForTest(WebBoardDataCollector c) {
     this.collector = c;
-  }
-
-  void afterTrialDecisionCapturedForTest(TrialEnterResult result) {
-    // Test seam for deterministic protocol-entry race coverage.
   }
 
   String getTrialOwnerForTest() {

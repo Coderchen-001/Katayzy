@@ -2381,8 +2381,8 @@ public class EngineManager {
       boolean isMain,
       boolean allowTargetRecovery,
       EngineLifecycleReservations reservations) {
-    boolean trackingRestart =
-        reservations != null && reservations.isTrackingRestartFirstWinner();
+    boolean trackingFirstWinner =
+        reservations != null && reservations.isTrackingFirstWinner();
     boolean readBoardRecovery =
         (allowTargetRecovery
                 && ((target != null && target.hasUnrestoredReadBoardGmaState())
@@ -2390,7 +2390,10 @@ public class EngineManager {
             || (!allowTargetRecovery
                 && current != null
                 && current.hasUnrestoredReadBoardGmaState());
-    if (!isMain || current == null || target == null || (!trackingRestart && !readBoardRecovery)) {
+    if (!isMain
+        || current == null
+        || target == null
+        || (!trackingFirstWinner && !readBoardRecovery)) {
       return reservations::close;
     }
     return () -> {
@@ -2678,7 +2681,7 @@ public class EngineManager {
   private boolean attachRestartInteractionGate(EngineLifecycleReservations reservations) {
     try {
       if (reservations != null
-          && reservations.isTrackingRestartFirstWinner()
+          && reservations.isTrackingFirstWinner()
           && Lizzie.frame != null
           && Lizzie.frame.isDisplayable()) {
         reservations.interactionGate = Lizzie.frame.beginRestartInteractionGate();
@@ -2707,7 +2710,7 @@ public class EngineManager {
       this.target = target;
     }
 
-    private boolean isTrackingRestartFirstWinner() {
+    private boolean isTrackingFirstWinner() {
       return current != null && current.isTrackingFirstWinner();
     }
 
