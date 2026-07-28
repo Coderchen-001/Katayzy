@@ -1154,10 +1154,10 @@ public class AnalysisEngine {
     return true;
   }
 
-  private void activateForegroundRequest(ForegroundRequestTarget target) {
+  private boolean activateForegroundRequest(ForegroundRequestTarget target) {
     synchronized (this) {
       if (pendingForegroundRequest != target || target.generation != foregroundRequestGeneration) {
-        return;
+        return false;
       }
       pendingForegroundRequest = null;
       sharedForegroundHandoffOwner = target;
@@ -1177,12 +1177,13 @@ public class AnalysisEngine {
     }
     if (!requestDispatchFailed && analyzeMap.isEmpty()) {
       finishSuccessfulEmptyForegroundRequest();
-      return;
+      return true;
     }
     if (!beginSharedForegroundRulesCapture()) {
       requestDispatchFailed = true;
       finishFailedRequestDispatch(target.showProgressDialog);
     }
+    return true;
   }
 
   private void finishSuccessfulEmptyForegroundRequest() {
@@ -2439,7 +2440,9 @@ public class AnalysisEngine {
         return;
       }
       settled.set(true);
-      owner.activateForegroundRequest(this);
+      if (!owner.activateForegroundRequest(this)) {
+        owner.sharedForegroundEngine.endForegroundAnalysisLease(this, null, null);
+      }
     }
 
     @Override

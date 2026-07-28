@@ -691,6 +691,10 @@ class EngineManagerLifecycleReservationTest {
       assertEquals(1, manager.failureCount);
       assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
       assertFalse((boolean) getLeelazField(engine, "exclusiveGtpLifecycleTransition"));
+      assertTrue(dispatchExclusiveLine(engine, ""));
+      assertTrue(dispatchExclusiveLine(engine, "=800000002"));
+      assertTrue(dispatchExclusiveLine(engine, ""));
+      assertFalse(tracking.lease().isOwned());
     } finally {
       Lizzie.leelaz = previousEngine;
       Lizzie.frame = previousFrame;

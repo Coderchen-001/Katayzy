@@ -130,8 +130,10 @@ class WebTrialSingleStreamExclusionTest {
     assertTrue(anchor.variations.isEmpty());
     assertEquals(0, overrideMutations.get());
 
+    assertTrue(dispatchExclusiveLine(engine, ""));
     assertTrue(dispatchExclusiveLine(engine, "=800000002"));
     assertTrue(dispatchExclusiveLine(engine, ""));
+    assertFalse(tracking.lease().isOwned());
   }
 
   @Test

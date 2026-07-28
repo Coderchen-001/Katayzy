@@ -38,7 +38,10 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -384,6 +387,53 @@ class AnalysisEngineRequestTest {
 
       assertEquals(Leelaz.TrackingHandoffState.FAILED, claim.state());
       assertNull(getField(AnalysisEngine.class, engine, "pendingForegroundRequest"));
+    }
+  }
+
+  @Test
+  void shutdownAfterForegroundActivationCheckReleasesNewHandoffSession() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      BoardHistoryNode requestedNode = singleUnanalyzedMoveNode();
+      ActivationBarrierLeelaz foreground =
+          reusableForegroundEngine(new ActivationBarrierLeelaz(), true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false, AnalysisEngine.Workload.WHOLE_GAME, 500);
+
+      assertEquals(1, engine.startWholeGameRequest(List.of(requestedNode), 500, false));
+      AtomicReference<Throwable> workerFailure = new AtomicReference<>();
+      Thread finalFence =
+          new Thread(
+              () -> {
+                try {
+                  assertTrue(dispatchExclusiveLine(foreground, ""));
+                  assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+                  assertTrue(dispatchExclusiveLine(foreground, ""));
+                } catch (Throwable failure) {
+                  workerFailure.set(failure);
+                }
+              },
+              "tracking-handoff-final-fence");
+
+      finalFence.start();
+      foreground.awaitForegroundActivation();
+      engine.requestShutdown();
+      foreground.continueForegroundActivation();
+      finalFence.join(2000);
+
+      assertFalse(finalFence.isAlive(), "final-fence worker did not finish");
+      assertNull(workerFailure.get());
+      assertTrue(foreground.cleanupUsedOriginalTarget());
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).endsWith("800000004 stop\n"),
+          output.toString(StandardCharsets.UTF_8));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000004"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      completeForegroundRestore(foreground);
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
     }
   }
 
@@ -3235,7 +3285,10 @@ class AnalysisEngineRequestTest {
   }
 
   private Leelaz reusableForegroundEngine(boolean katago) throws Exception {
-    Leelaz engine = new Leelaz("");
+    return reusableForegroundEngine(new Leelaz(""), katago);
+  }
+
+  private <T extends Leelaz> T reusableForegroundEngine(T engine, boolean katago) throws Exception {
     engine.isLoaded = true;
     engine.started = true;
     engine.isKatago = katago;
@@ -3484,6 +3537,98 @@ class AnalysisEngineRequestTest {
       afterRestore = null;
       afterRestoreFailure = null;
       failure.run();
+    }
+  }
+
+  private static final class ActivationBarrierLeelaz extends Leelaz {
+    private final CountDownLatch foregroundActivationReached = new CountDownLatch(1);
+    private final CountDownLatch foregroundActivationMayContinue = new CountDownLatch(1);
+    private volatile TrackingHandoffTarget originalTarget;
+    private volatile TrackingHandoffTarget installedTarget;
+    private volatile boolean cleanupUsedOriginalTarget;
+
+    private ActivationBarrierLeelaz() throws IOException {
+      super("");
+    }
+
+    @Override
+    public TrackingHandoffClaim claimTrackingHandoff(TrackingHandoffTarget target) {
+      TrackingHandoffTarget barrierTarget =
+          new TrackingHandoffTarget() {
+            @Override
+            public TrackingHandoffKind kind() {
+              return target.kind();
+            }
+
+            @Override
+            public boolean isCurrent() {
+              return target.isCurrent();
+            }
+
+            @Override
+            public void activate(TrackingHandoffActivation activation) {
+              target.activate(
+                  new TrackingHandoffActivation() {
+                    @Override
+                    public boolean activateForegroundAnalysis(
+                        java.util.function.Consumer<String> lineConsumer, Runnable onClosed) {
+                      foregroundActivationReached.countDown();
+                      awaitForegroundActivationRelease();
+                      return activation.activateForegroundAnalysis(lineConsumer, onClosed);
+                    }
+
+                    @Override
+                    public boolean completeRetainedEngineMode() {
+                      return activation.completeRetainedEngineMode();
+                    }
+
+                    @Override
+                    public EngineModeReservation beginRetainedEngineModeReservation() {
+                      return activation.beginRetainedEngineModeReservation();
+                    }
+                  });
+            }
+
+            @Override
+            public void fail(TrackingHandoffFailure failure) {
+              target.fail(failure);
+            }
+          };
+      originalTarget = target;
+      installedTarget = barrierTarget;
+      return super.claimTrackingHandoff(barrierTarget);
+    }
+
+    @Override
+    public boolean endForegroundAnalysisLease(Object owner, Runnable completion, Runnable failure) {
+      cleanupUsedOriginalTarget = owner == originalTarget;
+      return super.endForegroundAnalysisLease(
+          cleanupUsedOriginalTarget ? installedTarget : owner, completion, failure);
+    }
+
+    private void awaitForegroundActivation() throws InterruptedException {
+      assertTrue(
+          foregroundActivationReached.await(2, TimeUnit.SECONDS),
+          "foreground activation did not reach the barrier");
+    }
+
+    private void continueForegroundActivation() {
+      foregroundActivationMayContinue.countDown();
+    }
+
+    private boolean cleanupUsedOriginalTarget() {
+      return cleanupUsedOriginalTarget;
+    }
+
+    private void awaitForegroundActivationRelease() {
+      try {
+        if (!foregroundActivationMayContinue.await(2, TimeUnit.SECONDS)) {
+          throw new AssertionError("foreground activation barrier was not released");
+        }
+      } catch (InterruptedException interrupted) {
+        Thread.currentThread().interrupt();
+        throw new AssertionError("foreground activation barrier was interrupted", interrupted);
+      }
     }
   }
 
