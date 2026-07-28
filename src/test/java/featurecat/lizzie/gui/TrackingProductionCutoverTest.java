@@ -10,6 +10,8 @@ import featurecat.lizzie.ExtraMode;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.analysis.EngineManager;
 import featurecat.lizzie.analysis.Leelaz;
+import featurecat.lizzie.analysis.MoveData;
+import featurecat.lizzie.analysis.MoveRankEvaluationMode;
 import featurecat.lizzie.analysis.ReadBoard;
 import featurecat.lizzie.analysis.ReadBoardTrackingEligibilityAdapter;
 import featurecat.lizzie.analysis.TrackingAnalysisController;
@@ -17,6 +19,7 @@ import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardData;
 import featurecat.lizzie.rules.BoardHistoryList;
 import featurecat.lizzie.rules.BoardHistoryNode;
+import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -141,6 +144,159 @@ class TrackingProductionCutoverTest {
   }
 
   @Test
+  void trackingResultUsesLiveOrdinaryBestCandidateQualityColor() throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      environment.installOrdinaryBestMove("B2", 1000, 60.0, 5.0);
+      assertEquals(
+          TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
+      environment.completeInitialFence(800000000);
+      environment.sendTrackingInfo("info move A1 visits 10 winrate 0.50 scoreLead 2.0 pv A1");
+
+      BufferedImage rendered = renderMainBoard();
+
+      assertTrue(
+          countOpaqueRgb(rendered, new Color(200, 140, 50)) > 40,
+          "a 10-point winrate and 3-point score loss should use the established inaccuracy color");
+    }
+  }
+
+  @Test
+  void trackingResultUsesNeutralGrayUntilAnOrdinaryBaselineExists() throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      assertEquals(
+          TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
+      environment.completeInitialFence(800000000);
+      environment.sendTrackingInfo("info move A1 visits 10 winrate 0.50 scoreLead 2.0 pv A1");
+
+      BufferedImage rendered = renderMainBoard();
+
+      assertTrue(
+          countOpaqueRgb(rendered, Color.GRAY) > 40,
+          "a tracking result without an ordinary best candidate should remain neutral gray");
+    }
+  }
+
+  @Test
+  void trackingResultRecolorsWhenTheOrdinaryBaselineChanges() throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      environment.installOrdinaryBestMove("B2", 1000, 60.0, 5.0);
+      assertEquals(
+          TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
+      environment.completeInitialFence(800000000);
+      environment.sendTrackingInfo("info move A1 visits 10 winrate 0.50 scoreLead 2.0 pv A1");
+      assertTrue(countOpaqueRgb(renderMainBoard(), new Color(200, 140, 50)) > 40);
+
+      environment.installOrdinaryBestMove("B2", 1000, 50.0, 2.0);
+
+      assertTrue(
+          countOpaqueRgb(renderMainBoard(), new Color(0, 180, 0)) > 40,
+          "the existing tracking result should be recolored from the current ordinary baseline");
+    }
+  }
+
+  @Test
+  void trackingResultOverridesOrdinaryCandidateAtTheSameCoordinate() throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      environment.installOrdinaryBestMove("A1", 1000, 60.0, 5.0);
+      assertEquals(
+          TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
+      environment.completeInitialFence(800000000);
+      environment.sendTrackingInfo("info move A1 visits 10 winrate 0.50 scoreLead 2.0 pv A1");
+
+      BufferedImage rendered = renderMainBoard();
+
+      assertTrue(
+          countOpaqueRgb(rendered, new Color(200, 140, 50)) > 40,
+          "an available tracking result should replace the ordinary candidate at that coordinate");
+    }
+  }
+
+  @Test
+  void selectedTrackingPointUsesTheFixedDeepBlueMarker() throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      assertEquals(
+          TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
+
+      BufferedImage rendered = renderMainBoard();
+
+      assertTrue(
+          countOpaqueRgbNear(rendered, new Color(57, 111, 177), 2) > 20,
+          "the selected tracking point should use the agreed deep-blue dashed marker");
+    }
+  }
+
+  @Test
+  void darkTrackingQualityBackgroundUsesReadableWhiteText() throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      environment.installOrdinaryBestMove("B2", 1000, 99.0, 20.0);
+      assertEquals(
+          TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
+      environment.completeInitialFence(800000000);
+      environment.sendTrackingInfo("info move A1 visits 100 winrate 0.50 scoreLead 0.0 pv A1");
+
+      BufferedImage rendered = renderMainBoard();
+
+      assertTrue(
+          countOpaqueRgb(rendered, Color.WHITE) > 5,
+          "the established dark-purple blunder background should use readable white text");
+    }
+  }
+
+  @Test
+  void trackingResultReusesOrdinaryCandidateTextLayout() throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      Lizzie.config.useDefaultInfoRowOrder = false;
+      Lizzie.config.suggestionInfoPlayouts = 1;
+      Lizzie.config.suggestionInfoScoreLead = 2;
+      Lizzie.config.suggestionInfoWinrate = 3;
+      Lizzie.config.showSuggestionOrder = false;
+      Lizzie.config.showScoreAsDiff = true;
+      environment.installOrdinaryMoves("B2", 1000000, 60.0, 5.0, "A1", 12345, 50.0, 2.0);
+
+      BufferedImage ordinaryCandidate = renderMainBoard();
+
+      assertEquals(
+          TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
+      environment.completeInitialFence(800000000);
+      environment.sendTrackingInfo("info move A1 visits 12345 winrate 0.50 scoreLead 2.0 pv A1");
+
+      BufferedImage trackingResult = renderMainBoard();
+
+      List<String> differences =
+          opaqueRgbMaskDifferences(ordinaryCandidate, trackingResult, Color.BLACK, 51, 129, 30);
+      assertTrue(
+          differences.isEmpty(),
+          "tracking text should reuse ordinary row order, positions, and score-difference baseline: "
+              + differences);
+    }
+  }
+
+  @Test
+  void trackingResultUsesTheOrdinaryCandidateInformationVisibility() throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      Lizzie.config.showWinrateInSuggestion = false;
+      Lizzie.config.showScoremeanInSuggestion = false;
+      Lizzie.config.showSuggestionOrder = false;
+      environment.installOrdinaryMoves("B2", 1000000, 60.0, 5.0, "A1", 12345, 50.0, 2.0);
+
+      BufferedImage ordinaryCandidate = renderMainBoard();
+
+      assertEquals(
+          TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
+      environment.completeInitialFence(800000000);
+      environment.sendTrackingInfo("info move A1 visits 12345 winrate 0.50 scoreLead 2.0 pv A1");
+
+      BufferedImage trackingResult = renderMainBoard();
+      List<String> differences =
+          opaqueRgbMaskDifferences(ordinaryCandidate, trackingResult, Color.BLACK, 51, 129, 30);
+
+      assertTrue(
+          differences.isEmpty(),
+          "tracking text should honor the ordinary candidate information switches: " + differences);
+    }
+  }
+
+  @Test
   void unsupportedEngineModesAndMissingCapabilitiesAreHiddenBeforeLeaseAcquisition()
       throws Exception {
     try (TestEnvironment environment = TestEnvironment.open()) {
@@ -196,6 +352,84 @@ class TrackingProductionCutoverTest {
       }
     }
     return false;
+  }
+
+  private static BufferedImage renderMainBoard() {
+    Font previousUiFont = LizzieFrame.uiFont;
+    Font previousWinrateFont = LizzieFrame.winrateFont;
+    Font previousPlayoutsFont = LizzieFrame.playoutsFont;
+    LizzieFrame.uiFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+    LizzieFrame.winrateFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+    LizzieFrame.playoutsFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+    try {
+      BoardRenderer renderer = new BoardRenderer(false);
+      renderer.setLocation(0, 0);
+      renderer.setBoardLength(180, 180);
+      BufferedImage image = new BufferedImage(180, 180, BufferedImage.TYPE_INT_ARGB);
+      Graphics2D graphics = image.createGraphics();
+      try {
+        renderer.draw(graphics);
+      } finally {
+        graphics.dispose();
+      }
+      return image;
+    } finally {
+      LizzieFrame.uiFont = previousUiFont;
+      LizzieFrame.winrateFont = previousWinrateFont;
+      LizzieFrame.playoutsFont = previousPlayoutsFont;
+    }
+  }
+
+  private static int countOpaqueRgb(BufferedImage image, Color color) {
+    int expected = color.getRGB() & 0x00FFFFFF;
+    int count = 0;
+    for (int y = 0; y < image.getHeight(); y++) {
+      for (int x = 0; x < image.getWidth(); x++) {
+        int pixel = image.getRGB(x, y);
+        if ((pixel >>> 24) == 0xFF && (pixel & 0x00FFFFFF) == expected) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  private static int countOpaqueRgbNear(BufferedImage image, Color color, int tolerance) {
+    int count = 0;
+    for (int y = 0; y < image.getHeight(); y++) {
+      for (int x = 0; x < image.getWidth(); x++) {
+        Color pixel = new Color(image.getRGB(x, y), true);
+        if (pixel.getAlpha() == 0xFF
+            && Math.abs(pixel.getRed() - color.getRed()) <= tolerance
+            && Math.abs(pixel.getGreen() - color.getGreen()) <= tolerance
+            && Math.abs(pixel.getBlue() - color.getBlue()) <= tolerance) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  private static List<String> opaqueRgbMaskDifferences(
+      BufferedImage first,
+      BufferedImage second,
+      Color color,
+      int centerX,
+      int centerY,
+      int radius) {
+    int expected = color.getRGB() & 0x00FFFFFF;
+    java.util.ArrayList<String> differences = new java.util.ArrayList<>();
+    for (int y = centerY - radius; y <= centerY + radius; y++) {
+      for (int x = centerX - radius; x <= centerX + radius; x++) {
+        int firstPixel = first.getRGB(x, y);
+        int secondPixel = second.getRGB(x, y);
+        boolean firstMatches = (firstPixel >>> 24) == 0xFF && (firstPixel & 0x00FFFFFF) == expected;
+        boolean secondMatches =
+            (secondPixel >>> 24) == 0xFF && (secondPixel & 0x00FFFFFF) == expected;
+        if (firstMatches != secondMatches) differences.add(x + "," + y);
+      }
+    }
+    return differences;
   }
 
   private static void closeExclusiveSessionForTest(Leelaz engine) throws Exception {
@@ -274,6 +508,33 @@ class TrackingProductionCutoverTest {
       config.analyzeUpdateIntervalCentisec = 10;
       config.trackingAnalysisMaxVisits = 100;
       config.currentKataGoRules = "chinese";
+      config.extraMode = ExtraMode.Normal;
+      config.boardStyle = Config.BOARD_STYLE_JAPANESE;
+      config.usePureBoard = true;
+      config.pureBoardColor = new Color(198, 178, 148);
+      config.usePureStone = true;
+      config.showBestMoves = true;
+      config.showBlackCandidates = true;
+      config.showWhiteCandidates = true;
+      config.showWinrateInSuggestion = true;
+      config.showPlayoutsInSuggestion = true;
+      config.showScoremeanInSuggestion = true;
+      config.suggestionInfoWinrate = 1;
+      config.suggestionInfoPlayouts = 2;
+      config.suggestionInfoScoreLead = 3;
+      config.useDefaultInfoRowOrder = true;
+      config.moveRankEvaluationMode = MoveRankEvaluationMode.AUTO;
+      config.winLossThreshold1 = -1;
+      config.winLossThreshold2 = -3;
+      config.winLossThreshold3 = -6;
+      config.winLossThreshold4 = -12;
+      config.winLossThreshold5 = -24;
+      config.scoreLossThreshold1 = -0.5;
+      config.scoreLossThreshold2 = -1.5;
+      config.scoreLossThreshold3 = -3;
+      config.scoreLossThreshold4 = -6;
+      config.scoreLossThreshold5 = -12;
+      config.moveRankMarkLastMove = -1;
       Leelaz engine = new Leelaz("");
       engine.isLoaded = true;
       engine.started = true;
@@ -283,6 +544,9 @@ class TrackingProductionCutoverTest {
       ByteArrayOutputStream output = new ByteArrayOutputStream();
       setField(engine, Leelaz.class, "outputStream", new BufferedOutputStream(output));
       LizzieFrame frame = allocate(TrackingFrame.class);
+      frame.priorityMoveCoords = new java.util.ArrayList<>();
+      frame.clickbadmove = LizzieFrame.outOfBoundCoordinate;
+      frame.mouseOverCoordinate = LizzieFrame.outOfBoundCoordinate;
 
       EngineManager.isEmpty = false;
       EngineManager.isEngineGame = false;
@@ -321,6 +585,38 @@ class TrackingProductionCutoverTest {
           "trackingEligibilityReason",
           ReadBoardTrackingEligibilityAdapter.Reason.STABLE);
       frame.readBoard = readBoard;
+    }
+
+    void installOrdinaryBestMove(String coordinate, int visits, double winrate, double scoreLead) {
+      Lizzie.board.getHistory().getCurrentHistoryNode().getData().bestMoves =
+          List.of(ordinaryMove(coordinate, visits, winrate, scoreLead, 0));
+    }
+
+    void installOrdinaryMoves(
+        String bestCoordinate,
+        int bestVisits,
+        double bestWinrate,
+        double bestScoreLead,
+        String otherCoordinate,
+        int otherVisits,
+        double otherWinrate,
+        double otherScoreLead) {
+      Lizzie.board.getHistory().getCurrentHistoryNode().getData().bestMoves =
+          List.of(
+              ordinaryMove(bestCoordinate, bestVisits, bestWinrate, bestScoreLead, 0),
+              ordinaryMove(otherCoordinate, otherVisits, otherWinrate, otherScoreLead, 1));
+    }
+
+    private static MoveData ordinaryMove(
+        String coordinate, int visits, double winrate, double scoreLead, int order) {
+      MoveData move = new MoveData();
+      move.coordinate = coordinate;
+      move.playouts = visits;
+      move.winrate = winrate;
+      move.scoreMean = scoreLead;
+      move.order = order;
+      move.isKataData = true;
+      return move;
     }
 
     void completeInitialFence(int id) throws Exception {

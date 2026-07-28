@@ -65,6 +65,12 @@ eligibility snapshot 拥有。Tracking 不拦截 helper protocol，不推导或�
   同时等于 current display/history node时绘制。
 - selected point 立即显示虚线环；remove pending 立即隐藏且不影响 current；remove current 或
   clear 立即隐藏全部相应 overlay，后台只完成安全归还。
+- selected point 虚线环固定使用深蓝色；首份 visits 大于零的 current result 到达后立即显示
+  result，不等待 final fence。Result 与普通候选同坐标时由 tracking overlay 覆盖普通候选。
+- Tracking result 以同一局面当前普通最佳候选为动态基准，按 `MoveRankDefinition` 的胜率/目差
+  损失等级绘制不透明背景；普通分析更新时实时重算颜色。没有普通最佳候选时使用中性灰色。
+- Tracking result 文字复用普通候选的显示项、行序、字体缩放和定位；前景色按实际背景在黑/白
+  中选择较高对比度。启用 score diff 时显示 tracking score 减当前普通最佳候选 score。
 - Completed result 可在同一 context 内与新点并存。Tracking result 只画 overlay，不进入
   SGF、普通候选、胜率图或 history node。
 - Strict safe-GTP release 可冻结最后一个仍 valid result snapshot；其他 ordinary、typed
