@@ -111,13 +111,25 @@ def file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def download_with_retries(url: str, target: Path, attempts: int = 5) -> None:
+def download_with_retries(
+    url: str,
+    target: Path,
+    attempts: int = 5,
+    expected_sha256: str = "",
+) -> None:
     tmp = target.with_suffix(target.suffix + ".tmp")
     for attempt in range(1, attempts + 1):
         try:
             request = urllib.request.Request(url, headers={"User-Agent": "LizzieYzy-Next-Packager"})
             with urllib.request.urlopen(request, timeout=180) as response, tmp.open("wb") as out:
                 shutil.copyfileobj(response, out)
+            if expected_sha256:
+                actual_sha256 = file_sha256(tmp)
+                if actual_sha256 != expected_sha256:
+                    raise ValueError(
+                        "Downloaded JCEF checksum mismatch: "
+                        f"expected {expected_sha256}, got {actual_sha256}"
+                    )
             tmp.replace(target)
             return
         except Exception:
@@ -150,6 +162,7 @@ def resolve_native_jar(platform: str, cache_dir: Path, source_jar: str) -> tuple
             download_with_retries(
                 f"{MAVEN_BASE_URL}/{artifact}/{JCEF_RELEASE_TAG}/{jar_name}",
                 jar_path,
+                expected_sha256=expected_sha256,
             )
 
     actual_sha256 = file_sha256(jar_path)
