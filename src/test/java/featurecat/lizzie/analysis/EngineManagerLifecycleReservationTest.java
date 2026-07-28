@@ -37,7 +37,8 @@ class EngineManagerLifecycleReservationTest {
   }
 
   @Test
-  void restartClaimsActiveTrackingAndRetiresItOnReaderRebind() throws Exception {
+  void activeRestartResumesPonderAfterFinalBoardFenceAndRetiresTrackingOnRebind()
+      throws Exception {
     Leelaz previousEngine = Lizzie.leelaz;
     LizzieFrame previousFrame = Lizzie.frame;
     boolean previousEmpty = EngineManager.isEmpty;
@@ -67,11 +68,13 @@ class EngineManagerLifecycleReservationTest {
       assertFalse(engine.isLoaded());
       engine.started = true;
       engine.isLoaded = true;
+      engine.Pondering();
       manager.afterSync.run();
       assertNotNull(engine.confirmation);
       assertTrue(engine.hasExclusiveGtpWorkInProgress());
       engine.confirmation.run();
       assertFalse(engine.hasExclusiveGtpWorkInProgress());
+      assertEquals(1, engine.ponderCount);
     } finally {
       Lizzie.leelaz = previousEngine;
       Lizzie.frame = previousFrame;
@@ -1135,6 +1138,7 @@ class EngineManagerLifecycleReservationTest {
 
   private static final class TrackingRestartActionLeelaz extends Leelaz {
     private int shutdownCount;
+    private int ponderCount;
     private Runnable confirmation;
     private Consumer<String> rejection;
 
@@ -1150,6 +1154,11 @@ class EngineManagerLifecycleReservationTest {
     public void shutdown() {
       shutdownCount++;
       rebindReader(this);
+    }
+
+    @Override
+    public void ponder() {
+      ponderCount++;
     }
 
     @Override

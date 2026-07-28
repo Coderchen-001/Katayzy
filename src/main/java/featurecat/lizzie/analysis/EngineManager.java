@@ -2406,6 +2406,9 @@ public class EngineManager {
             if (allowTargetRecovery && target.hasUnrestoredReadBoardGmaState()) {
               target.completeReadBoardGmaRecoveryAfterBoardSync();
             }
+            if (trackingFirstWinner && target.isPondering()) {
+              target.ponder();
+            }
             reservations.close();
           },
           detail -> {
