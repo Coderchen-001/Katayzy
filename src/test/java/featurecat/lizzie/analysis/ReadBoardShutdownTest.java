@@ -334,6 +334,7 @@ class ReadBoardShutdownTest {
       assertTrue(
           frame.awaitRestart(RESTART_TIMEOUT_MS, TimeUnit.SECONDS),
           "restart should eventually create a replacement readboard.");
+      SwingUtilities.invokeAndWait(() -> {});
       assertFalse(
           frame.startedBeforeShutdownCompleted,
           "replacement readboard should not start before the previous instance finishes shutting down.");
