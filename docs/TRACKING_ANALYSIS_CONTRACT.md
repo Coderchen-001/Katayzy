@@ -70,8 +70,9 @@ eligibility snapshot 拥有。Tracking 不拦截 helper protocol，不推导或�
   tracking overlay 覆盖普通候选。用户关闭外框后，首份结果前不显示占位标记。
 - Tracking result 以同一局面当前普通最佳候选为动态基准，按 `MoveRankDefinition` 的胜率/目差
   损失等级实时绘制虚线外框；普通分析更新时实时重算颜色。没有普通最佳候选时外框使用中性灰。
-- Tracking result 内部使用用户配置的固定颜色和透明度，不随质量等级变化。外框默认开启，颜色
-  由质量等级决定，透明度可配置。
+- Tracking result 内部使用用户配置的固定颜色和不透明度，不随质量等级变化，默认不透明度为
+  100%。外框默认开启，颜色由质量等级决定，不透明度可配置；动态色虚线下方使用固定深色细描边，
+  只增强它与棋盘及内部颜色的对比，不改变质量色语义。
 - Tracking result 文字复用普通候选的显示项、行序、字体缩放和定位；前景色按实际背景在黑/白
   中选择较高对比度，也可关闭自动适配并使用自定义颜色。启用 score diff 时显示 tracking score
   减当前普通最佳候选 score。
@@ -120,6 +121,9 @@ tracking-point-outline-opacity
 tracking-point-text-auto-color
 tracking-point-text-color
 ```
+
+这些外观项位于“主题外观”设置页。两个 `opacity` 百分比均表示不透明度：0 为完全透明，100 为
+完全不透明。
 
 加载旧配置时，若新 key 不存在，则迁移 `tracking-engine-max-visits` 的正值；随后删除旧
 `tracking-engine-max-visits`、`tracking-engine-preload` 和

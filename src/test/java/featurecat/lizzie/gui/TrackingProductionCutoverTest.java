@@ -167,6 +167,9 @@ class TrackingProductionCutoverTest {
       assertTrue(
           countArgb(rendered, new Color(200, 140, 50)) > 20,
           "a 10-point winrate and 3-point score loss should color the dashed outline");
+      assertTrue(
+          countOpaqueRgb(rendered, new Color(30, 34, 38)) > 10,
+          "the dynamic outline should have a dark contrast edge against the board and interior");
     }
   }
 
@@ -593,7 +596,7 @@ class TrackingProductionCutoverTest {
       config.trackingAnalysisMaxVisits = 100;
       config.showTrackingPointOutline = true;
       config.trackingPointInteriorColor = new Color(217, 91, 0);
-      config.trackingPointInteriorOpacityPercent = 43;
+      config.trackingPointInteriorOpacityPercent = 100;
       config.trackingPointOutlineOpacityPercent = 92;
       config.trackingPointTextAutoColor = true;
       config.trackingPointTextColor = Color.BLACK;

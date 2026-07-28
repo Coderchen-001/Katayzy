@@ -1097,7 +1097,7 @@ public class Config {
   public int trackingAnalysisMaxVisits = 500;
   public boolean showTrackingPointOutline = true;
   public Color trackingPointInteriorColor = new Color(217, 91, 0);
-  public int trackingPointInteriorOpacityPercent = 43;
+  public int trackingPointInteriorOpacityPercent = 100;
   public int trackingPointOutlineOpacityPercent = 92;
   public boolean trackingPointTextAutoColor = true;
   public Color trackingPointTextColor = Color.BLACK;
@@ -2946,7 +2946,7 @@ public class Config {
         Theme.array2Color(
             ui.optJSONArray("tracking-point-interior-color"), new Color(217, 91, 0));
     trackingPointInteriorOpacityPercent =
-        clampPercent(ui.optInt("tracking-point-interior-opacity", 43));
+        clampPercent(ui.optInt("tracking-point-interior-opacity", 100));
     trackingPointOutlineOpacityPercent =
         clampPercent(ui.optInt("tracking-point-outline-opacity", 92));
     trackingPointTextAutoColor = ui.optBoolean("tracking-point-text-auto-color", true);

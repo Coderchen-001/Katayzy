@@ -2856,60 +2856,7 @@ public class ConfigDialog2 extends JDialog {
             configText("ConfigDialog2.modern.analysis.variationLimitSub", "限制推荐变化图的展示长度"),
             txtLimitBranchLength,
             configText("ConfigDialog2.modern.unit.moves", "手"));
-        JPanel trackingAppearance =
-            createDesignSettingsCard(
-                configText("ConfigDialog2.modern.trackingAppearance.title", "追踪选点外观"),
-                configText(
-                    "ConfigDialog2.modern.trackingAppearance.subtitle",
-                    "调整追踪结果内部、动态质量外框和文字颜色。"));
-        addToggleRow(
-            trackingAppearance,
-            configText("ConfigDialog2.modern.trackingAppearance.outline", "显示追踪点外框"),
-            configText(
-                "ConfigDialog2.modern.trackingAppearance.outlineSub",
-                "用虚线外框显示等待状态和实时落子质量"),
-            chkShowTrackingPointOutline);
-        addColorRow(
-            trackingAppearance,
-            configText("ConfigDialog2.modern.trackingAppearance.interiorColor", "内部颜色"),
-            lblTrackingPointInteriorColor);
-        addComponentRow(
-            trackingAppearance,
-            configText("ConfigDialog2.modern.trackingAppearance.interiorOpacity", "内部透明度"),
-            configText(
-                "ConfigDialog2.modern.trackingAppearance.interiorOpacitySub",
-                "调整固定内部颜色在棋盘上的透明程度"),
-            pnlTrackingPointInteriorOpacity);
-        addComponentRow(
-            trackingAppearance,
-            configText("ConfigDialog2.modern.trackingAppearance.outlineOpacity", "外框透明度"),
-            configText(
-                "ConfigDialog2.modern.trackingAppearance.outlineOpacitySub",
-                "调整动态质量虚线外框的透明程度"),
-            pnlTrackingPointOutlineOpacity);
-        addToggleRow(
-            trackingAppearance,
-            configText("ConfigDialog2.modern.trackingAppearance.autoTextColor", "文字颜色自动适配"),
-            configText(
-                "ConfigDialog2.modern.trackingAppearance.autoTextColorSub",
-                "根据内部颜色、透明度和棋盘背景自动选择黑字或白字"),
-            chkTrackingPointTextAutoColor);
-        addComponentRow(
-            trackingAppearance,
-            configText("ConfigDialog2.modern.trackingAppearance.textColor", "文字颜色"),
-            configText(
-                "ConfigDialog2.modern.trackingAppearance.textColorSub",
-                "关闭自动适配后使用此颜色"),
-            pnlTrackingPointTextColor);
-        syncTrackingPointTextColorControl();
-
-        JPanel engineSettings = new JPanel();
-        engineSettings.setOpaque(false);
-        engineSettings.setLayout(new javax.swing.BoxLayout(engineSettings, javax.swing.BoxLayout.Y_AXIS));
-        engineSettings.add(analysis);
-        engineSettings.add(javax.swing.Box.createVerticalStrut(12));
-        engineSettings.add(trackingAppearance);
-        return engineSettings;
+        return analysis;
       case MODERN_NAV_PLAY:
         JPanel operation =
             createDesignSettingsCard(
@@ -3385,6 +3332,54 @@ public class ConfigDialog2 extends JDialog {
     addToggleInputRow(
         colors, configText("ConfigDialog2.modern.theme.commentNode", "显示评论节点颜色"), configText("ConfigDialog2.modern.theme.commentNodeSub", "开启后使用自定义评论节点颜色"), chkShowCommentNodeColor, lblCommentNodeColor);
     content.add(colors);
+    content.add(javax.swing.Box.createVerticalStrut(12));
+
+    JPanel trackingAppearance =
+        createDesignSettingsCard(
+            configText("ConfigDialog2.modern.trackingAppearance.title", "追踪选点外观"),
+            configText(
+                "ConfigDialog2.modern.trackingAppearance.subtitle",
+                "调整追踪结果内部、动态质量外框和文字颜色。"));
+    addToggleRow(
+        trackingAppearance,
+        configText("ConfigDialog2.modern.trackingAppearance.outline", "显示追踪点外框"),
+        configText(
+            "ConfigDialog2.modern.trackingAppearance.outlineSub",
+            "用虚线外框显示等待状态和实时落子质量"),
+        chkShowTrackingPointOutline);
+    addColorRow(
+        trackingAppearance,
+        configText("ConfigDialog2.modern.trackingAppearance.interiorColor", "内部颜色"),
+        lblTrackingPointInteriorColor);
+    addComponentRow(
+        trackingAppearance,
+        configText("ConfigDialog2.modern.trackingAppearance.interiorOpacity", "内部不透明度"),
+        configText(
+            "ConfigDialog2.modern.trackingAppearance.interiorOpacitySub",
+            "调整固定内部颜色的不透明程度"),
+        pnlTrackingPointInteriorOpacity);
+    addComponentRow(
+        trackingAppearance,
+        configText("ConfigDialog2.modern.trackingAppearance.outlineOpacity", "外框不透明度"),
+        configText(
+            "ConfigDialog2.modern.trackingAppearance.outlineOpacitySub",
+            "调整动态质量虚线外框的不透明程度"),
+        pnlTrackingPointOutlineOpacity);
+    addToggleRow(
+        trackingAppearance,
+        configText("ConfigDialog2.modern.trackingAppearance.autoTextColor", "文字颜色自动适配"),
+        configText(
+            "ConfigDialog2.modern.trackingAppearance.autoTextColorSub",
+            "根据内部颜色、不透明度和棋盘背景自动选择黑字或白字"),
+        chkTrackingPointTextAutoColor);
+    addComponentRow(
+        trackingAppearance,
+        configText("ConfigDialog2.modern.trackingAppearance.textColor", "文字颜色"),
+        configText(
+            "ConfigDialog2.modern.trackingAppearance.textColorSub", "关闭自动适配后使用此颜色"),
+        pnlTrackingPointTextColor);
+    syncTrackingPointTextColorControl();
+    content.add(trackingAppearance);
     content.add(javax.swing.Box.createVerticalStrut(12));
 
     JPanel blunders = createDesignSettingsCard(configText("ConfigDialog2.modern.theme.blunders", "错误节点"), configText("ConfigDialog2.modern.theme.blundersSub", "管理胜率波动阈值和对应颜色。"));
