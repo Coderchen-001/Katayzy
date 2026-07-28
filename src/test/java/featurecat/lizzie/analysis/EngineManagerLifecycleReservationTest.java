@@ -55,6 +55,7 @@ class EngineManagerLifecycleReservationTest {
       EngineManager.isEmpty = false;
       EngineManager.currentEngineNo = 0;
       Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(engine);
+      engine.emitPonderCommand = true;
 
       manager.reStartEngine(0);
 
@@ -73,10 +74,16 @@ class EngineManagerLifecycleReservationTest {
       assertNotNull(engine.confirmation);
       assertTrue(engine.hasExclusiveGtpWorkInProgress());
       assertEquals(0, engine.ponderCount);
+      setLeelazField(engine, "currentCmdNum", 15);
+      setLeelazField(engine, "cmdNumber", 16);
       engine.confirmation.run();
       assertFalse(engine.hasExclusiveGtpWorkInProgress());
       assertEquals(1, engine.ponderCount);
       assertTrue(engine.ponderWhileLifecycleHeld);
+      assertEquals(17, getLeelazField(engine, "cmdNumber"));
+      assertTrue(
+          engine.isResponseUpToDate(),
+          "post-fence ponder must accept the first analysis info without another board action");
     } finally {
       Lizzie.leelaz = previousEngine;
       Lizzie.frame = previousFrame;
@@ -1146,6 +1153,7 @@ class EngineManagerLifecycleReservationTest {
     private boolean ponderWhileLifecycleHeld;
     private Runnable confirmation;
     private Consumer<String> rejection;
+    private boolean emitPonderCommand;
 
     private TrackingRestartActionLeelaz() throws Exception {
       super("");
@@ -1165,6 +1173,9 @@ class EngineManagerLifecycleReservationTest {
     public void ponder() {
       ponderWhileLifecycleHeld = hasExclusiveGtpWorkInProgress();
       ponderCount++;
+      if (emitPonderCommand) {
+        cmdNumber++;
+      }
     }
 
     @Override

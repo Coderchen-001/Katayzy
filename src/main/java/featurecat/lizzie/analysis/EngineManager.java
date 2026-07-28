@@ -2408,6 +2408,7 @@ public class EngineManager {
             }
             if (trackingFirstWinner && target.isPondering()) {
               target.ponder();
+              target.setResponseUpToDate();
             }
             reservations.close();
           },
