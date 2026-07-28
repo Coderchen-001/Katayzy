@@ -4,12 +4,73 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Color;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
 class TrackingConfigMigrationTest {
+  @Test
+  void trackingPointAppearanceUsesTheAgreedDefaultsWhenSettingsAreAbsent() throws Exception {
+    Config config = ConfigTestHelper.createForTests(Files.createTempDirectory("tracking-style"));
+
+    config.loadTrackingPointAppearanceConfig(new JSONObject());
+
+    assertTrue(config.showTrackingPointOutline);
+    assertEquals(new Color(217, 91, 0), config.trackingPointInteriorColor);
+    assertEquals(43, config.trackingPointInteriorOpacityPercent);
+    assertEquals(92, config.trackingPointOutlineOpacityPercent);
+    assertTrue(config.trackingPointTextAutoColor);
+    assertEquals(Color.BLACK, config.trackingPointTextColor);
+  }
+
+  @Test
+  void trackingPointAppearancePersistsEveryUserAdjustableValue() throws Exception {
+    Config config = ConfigTestHelper.createForTests(Files.createTempDirectory("tracking-style"));
+    config.uiConfig = new JSONObject();
+    config.showTrackingPointOutline = false;
+    config.trackingPointInteriorColor = new Color(10, 20, 30);
+    config.trackingPointInteriorOpacityPercent = 37;
+    config.trackingPointOutlineOpacityPercent = 64;
+    config.trackingPointTextAutoColor = false;
+    config.trackingPointTextColor = new Color(210, 220, 230);
+
+    config.saveTrackingPointAppearanceConfig();
+
+    assertFalse(config.uiConfig.getBoolean("show-tracking-point-outline"));
+    assertEquals(
+        "[10,20,30]", config.uiConfig.getJSONArray("tracking-point-interior-color").toString());
+    assertEquals(37, config.uiConfig.getInt("tracking-point-interior-opacity"));
+    assertEquals(64, config.uiConfig.getInt("tracking-point-outline-opacity"));
+    assertFalse(config.uiConfig.getBoolean("tracking-point-text-auto-color"));
+    assertEquals(
+        "[210,220,230]", config.uiConfig.getJSONArray("tracking-point-text-color").toString());
+  }
+
+  @Test
+  void trackingPointAppearanceLoadsEveryUserAdjustableValue() throws Exception {
+    Config config = ConfigTestHelper.createForTests(Files.createTempDirectory("tracking-style"));
+    JSONObject ui =
+        new JSONObject()
+            .put("show-tracking-point-outline", false)
+            .put("tracking-point-interior-color", new JSONArray().put(10).put(20).put(30))
+            .put("tracking-point-interior-opacity", 37)
+            .put("tracking-point-outline-opacity", 64)
+            .put("tracking-point-text-auto-color", false)
+            .put("tracking-point-text-color", new JSONArray().put(210).put(220).put(230));
+
+    config.loadTrackingPointAppearanceConfig(ui);
+
+    assertFalse(config.showTrackingPointOutline);
+    assertEquals(new Color(10, 20, 30), config.trackingPointInteriorColor);
+    assertEquals(37, config.trackingPointInteriorOpacityPercent);
+    assertEquals(64, config.trackingPointOutlineOpacityPercent);
+    assertFalse(config.trackingPointTextAutoColor);
+    assertEquals(new Color(210, 220, 230), config.trackingPointTextColor);
+  }
+
   @Test
   void legacySecondProcessSettingsMigrateToSingleStreamVisitsOnly() {
     JSONObject ui =

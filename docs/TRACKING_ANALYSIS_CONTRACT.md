@@ -65,12 +65,16 @@ eligibility snapshot 拥有。Tracking 不拦截 helper protocol，不推导或�
   同时等于 current display/history node时绘制。
 - selected point 立即显示虚线环；remove pending 立即隐藏且不影响 current；remove current 或
   clear 立即隐藏全部相应 overlay，后台只完成安全归还。
-- selected point 虚线环固定使用深蓝色；首份 visits 大于零的 current result 到达后立即显示
-  result，不等待 final fence。Result 与普通候选同坐标时由 tracking overlay 覆盖普通候选。
+- selected point 默认立即显示圆角分段虚线外框；尚无结果时使用中性灰。首份 visits 大于零的
+  current result 到达后立即显示 result，不等待 final fence。Result 与普通候选同坐标时由
+  tracking overlay 覆盖普通候选。用户关闭外框后，首份结果前不显示占位标记。
 - Tracking result 以同一局面当前普通最佳候选为动态基准，按 `MoveRankDefinition` 的胜率/目差
-  损失等级绘制不透明背景；普通分析更新时实时重算颜色。没有普通最佳候选时使用中性灰色。
+  损失等级实时绘制虚线外框；普通分析更新时实时重算颜色。没有普通最佳候选时外框使用中性灰。
+- Tracking result 内部使用用户配置的固定颜色和透明度，不随质量等级变化。外框默认开启，颜色
+  由质量等级决定，透明度可配置。
 - Tracking result 文字复用普通候选的显示项、行序、字体缩放和定位；前景色按实际背景在黑/白
-  中选择较高对比度。启用 score diff 时显示 tracking score 减当前普通最佳候选 score。
+  中选择较高对比度，也可关闭自动适配并使用自定义颜色。启用 score diff 时显示 tracking score
+  减当前普通最佳候选 score。
 - Completed result 可在同一 context 内与新点并存。Tracking result 只画 overlay，不进入
   SGF、普通候选、胜率图或 history node。
 - Strict safe-GTP release 可冻结最后一个仍 valid result snapshot；其他 ordinary、typed
@@ -100,10 +104,21 @@ engineArbitrationLock -> commandQueue
 
 ## 配置兼容
 
-唯一保留的 tracking 专用设置是每点 visits：
+Tracking 每点 visits 使用：
 
 ```text
 tracking-analysis-max-visits
+```
+
+追踪选点外观使用以下 UI 配置：
+
+```text
+show-tracking-point-outline
+tracking-point-interior-color
+tracking-point-interior-opacity
+tracking-point-outline-opacity
+tracking-point-text-auto-color
+tracking-point-text-color
 ```
 
 加载旧配置时，若新 key 不存在，则迁移 `tracking-engine-max-visits` 的正值；随后删除旧

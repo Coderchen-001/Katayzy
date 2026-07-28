@@ -144,59 +144,109 @@ class TrackingProductionCutoverTest {
   }
 
   @Test
-  void trackingResultUsesLiveOrdinaryBestCandidateQualityColor() throws Exception {
+  void trackingResultUsesFixedInteriorAndLiveQualityOutline() throws Exception {
     try (TestEnvironment environment = TestEnvironment.open()) {
+      Lizzie.config.trackingPointInteriorColor = new Color(10, 20, 30);
+      Lizzie.config.trackingPointInteriorOpacityPercent = 50;
+      Lizzie.config.showTrackingPointOutline = true;
+      Lizzie.config.trackingPointOutlineOpacityPercent = 100;
+      Lizzie.config.showWinrateInSuggestion = false;
+      Lizzie.config.showPlayoutsInSuggestion = false;
+      Lizzie.config.showScoremeanInSuggestion = false;
       environment.installOrdinaryBestMove("B2", 1000, 60.0, 5.0);
       assertEquals(
           TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
       environment.completeInitialFence(800000000);
       environment.sendTrackingInfo("info move A1 visits 10 winrate 0.50 scoreLead 2.0 pv A1");
 
-      BufferedImage rendered = renderMainBoard();
+      BufferedImage rendered = renderTrackingOverlay(configuredRenderer());
 
       assertTrue(
-          countOpaqueRgb(rendered, new Color(200, 140, 50)) > 40,
-          "a 10-point winrate and 3-point score loss should use the established inaccuracy color");
+          countArgb(rendered, new Color(10, 20, 30, 128)) > 200,
+          "the tracking result disc should use the configured fixed interior");
+      assertTrue(
+          countArgb(rendered, new Color(200, 140, 50)) > 20,
+          "a 10-point winrate and 3-point score loss should color the dashed outline");
+    }
+  }
+
+  @Test
+  void disablingTrackingOutlineKeepsTheResultInteriorWithoutQualityColor() throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      Lizzie.config.trackingPointInteriorColor = new Color(10, 20, 30);
+      Lizzie.config.trackingPointInteriorOpacityPercent = 100;
+      Lizzie.config.showTrackingPointOutline = false;
+      Lizzie.config.trackingPointOutlineOpacityPercent = 100;
+      Lizzie.config.showWinrateInSuggestion = false;
+      Lizzie.config.showPlayoutsInSuggestion = false;
+      Lizzie.config.showScoremeanInSuggestion = false;
+      environment.installOrdinaryBestMove("B2", 1000, 60.0, 5.0);
+      assertEquals(
+          TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
+      environment.completeInitialFence(800000000);
+      environment.sendTrackingInfo("info move A1 visits 10 winrate 0.50 scoreLead 2.0 pv A1");
+
+      BufferedImage rendered = renderTrackingOverlay(configuredRenderer());
+
+      assertTrue(countArgb(rendered, new Color(10, 20, 30)) > 200);
+      assertEquals(0, countArgb(rendered, new Color(200, 140, 50)));
     }
   }
 
   @Test
   void trackingResultUsesNeutralGrayUntilAnOrdinaryBaselineExists() throws Exception {
     try (TestEnvironment environment = TestEnvironment.open()) {
+      Lizzie.config.showTrackingPointOutline = true;
+      Lizzie.config.trackingPointOutlineOpacityPercent = 100;
+      Lizzie.config.showWinrateInSuggestion = false;
+      Lizzie.config.showPlayoutsInSuggestion = false;
+      Lizzie.config.showScoremeanInSuggestion = false;
       assertEquals(
           TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
       environment.completeInitialFence(800000000);
       environment.sendTrackingInfo("info move A1 visits 10 winrate 0.50 scoreLead 2.0 pv A1");
 
-      BufferedImage rendered = renderMainBoard();
+      BufferedImage rendered = renderTrackingOverlay(configuredRenderer());
 
       assertTrue(
-          countOpaqueRgb(rendered, Color.GRAY) > 40,
-          "a tracking result without an ordinary best candidate should remain neutral gray");
+          countArgb(rendered, new Color(112, 118, 124)) > 20,
+          "a tracking result without an ordinary best candidate should keep a neutral outline");
     }
   }
 
   @Test
   void trackingResultRecolorsWhenTheOrdinaryBaselineChanges() throws Exception {
     try (TestEnvironment environment = TestEnvironment.open()) {
+      Lizzie.config.showTrackingPointOutline = true;
+      Lizzie.config.trackingPointOutlineOpacityPercent = 100;
+      Lizzie.config.showWinrateInSuggestion = false;
+      Lizzie.config.showPlayoutsInSuggestion = false;
+      Lizzie.config.showScoremeanInSuggestion = false;
       environment.installOrdinaryBestMove("B2", 1000, 60.0, 5.0);
       assertEquals(
           TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
       environment.completeInitialFence(800000000);
       environment.sendTrackingInfo("info move A1 visits 10 winrate 0.50 scoreLead 2.0 pv A1");
-      assertTrue(countOpaqueRgb(renderMainBoard(), new Color(200, 140, 50)) > 40);
+      assertTrue(
+          countArgb(renderTrackingOverlay(configuredRenderer()), new Color(200, 140, 50)) > 20);
 
       environment.installOrdinaryBestMove("B2", 1000, 50.0, 2.0);
 
       assertTrue(
-          countOpaqueRgb(renderMainBoard(), new Color(0, 180, 0)) > 40,
-          "the existing tracking result should be recolored from the current ordinary baseline");
+          countArgb(renderTrackingOverlay(configuredRenderer()), new Color(0, 180, 0)) > 20,
+          "the existing tracking outline should be recolored from the current ordinary baseline");
     }
   }
 
   @Test
   void trackingResultOverridesOrdinaryCandidateAtTheSameCoordinate() throws Exception {
     try (TestEnvironment environment = TestEnvironment.open()) {
+      Lizzie.config.showTrackingPointOutline = false;
+      Lizzie.config.trackingPointInteriorColor = new Color(33, 44, 55);
+      Lizzie.config.trackingPointInteriorOpacityPercent = 100;
+      Lizzie.config.showWinrateInSuggestion = false;
+      Lizzie.config.showPlayoutsInSuggestion = false;
+      Lizzie.config.showScoremeanInSuggestion = false;
       environment.installOrdinaryBestMove("A1", 1000, 60.0, 5.0);
       assertEquals(
           TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
@@ -206,45 +256,58 @@ class TrackingProductionCutoverTest {
       BufferedImage rendered = renderMainBoard();
 
       assertTrue(
-          countOpaqueRgb(rendered, new Color(200, 140, 50)) > 40,
-          "an available tracking result should replace the ordinary candidate at that coordinate");
+          countOpaqueRgb(rendered, new Color(33, 44, 55)) > 200,
+          "the fixed tracking interior should replace the ordinary candidate at that coordinate");
     }
   }
 
   @Test
-  void selectedTrackingPointUsesTheFixedDeepBlueMarker() throws Exception {
+  void selectedTrackingPointUsesTheNeutralPendingOutline() throws Exception {
     try (TestEnvironment environment = TestEnvironment.open()) {
+      Lizzie.config.showTrackingPointOutline = true;
+      Lizzie.config.trackingPointOutlineOpacityPercent = 100;
       assertEquals(
           TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
 
       BufferedImage rendered = renderMainBoard();
 
       assertTrue(
-          countOpaqueRgbNear(rendered, new Color(57, 111, 177), 2) > 20,
-          "the selected tracking point should use the agreed deep-blue dashed marker");
+          countOpaqueRgb(rendered, new Color(112, 118, 124)) > 20,
+          "a selected point without a result should use the neutral dashed outline");
     }
   }
 
   @Test
-  void darkTrackingQualityBackgroundUsesReadableWhiteText() throws Exception {
+  void transparentDarkInteriorUsesBlackTextAutomaticallyAndAllowsManualOverride() throws Exception {
     try (TestEnvironment environment = TestEnvironment.open()) {
-      environment.installOrdinaryBestMove("B2", 1000, 99.0, 20.0);
+      Lizzie.config.showTrackingPointOutline = false;
+      Lizzie.config.trackingPointInteriorColor = Color.BLACK;
+      Lizzie.config.trackingPointInteriorOpacityPercent = 10;
+      Lizzie.config.showWinrateInSuggestion = true;
+      Lizzie.config.showPlayoutsInSuggestion = false;
+      Lizzie.config.showScoremeanInSuggestion = false;
+      Lizzie.config.trackingPointTextAutoColor = false;
+      Lizzie.config.trackingPointTextColor = Color.WHITE;
+      environment.installOrdinaryBestMove("B2", 1000, 60.0, 5.0);
       assertEquals(
           TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
       environment.completeInitialFence(800000000);
-      environment.sendTrackingInfo("info move A1 visits 100 winrate 0.50 scoreLead 0.0 pv A1");
+      environment.sendTrackingInfo("info move A1 visits 100 winrate 0.50 scoreLead 2.0 pv A1");
 
-      BufferedImage rendered = renderMainBoard();
+      BufferedImage manualWhite = renderMainBoard();
+      Lizzie.config.trackingPointTextAutoColor = true;
+      BufferedImage automatic = renderMainBoard();
 
       assertTrue(
-          countOpaqueRgb(rendered, Color.WHITE) > 5,
-          "the established dark-purple blunder background should use readable white text");
+          opaqueRgbMaskDifferences(manualWhite, automatic, Color.BLACK, 51, 129, 24).size() > 5,
+          "a mostly transparent dark fill over the light board should automatically use black text");
     }
   }
 
   @Test
   void trackingResultReusesOrdinaryCandidateTextLayout() throws Exception {
     try (TestEnvironment environment = TestEnvironment.open()) {
+      Lizzie.config.showTrackingPointOutline = false;
       Lizzie.config.useDefaultInfoRowOrder = false;
       Lizzie.config.suggestionInfoPlayouts = 1;
       Lizzie.config.suggestionInfoScoreLead = 2;
@@ -265,8 +328,9 @@ class TrackingProductionCutoverTest {
       List<String> differences =
           opaqueRgbMaskDifferences(ordinaryCandidate, trackingResult, Color.BLACK, 51, 129, 30);
       assertTrue(
-          differences.isEmpty(),
-          "tracking text should reuse ordinary row order, positions, and score-difference baseline: "
+          differences.size() <= 2,
+          "tracking text should reuse ordinary row order, positions, and score-difference baseline; "
+              + "only antialiasing edge pixels may differ over the translucent interior: "
               + differences);
     }
   }
@@ -274,6 +338,7 @@ class TrackingProductionCutoverTest {
   @Test
   void trackingResultUsesTheOrdinaryCandidateInformationVisibility() throws Exception {
     try (TestEnvironment environment = TestEnvironment.open()) {
+      Lizzie.config.showTrackingPointOutline = false;
       Lizzie.config.showWinrateInSuggestion = false;
       Lizzie.config.showScoremeanInSuggestion = false;
       Lizzie.config.showSuggestionOrder = false;
@@ -291,8 +356,10 @@ class TrackingProductionCutoverTest {
           opaqueRgbMaskDifferences(ordinaryCandidate, trackingResult, Color.BLACK, 51, 129, 30);
 
       assertTrue(
-          differences.isEmpty(),
-          "tracking text should honor the ordinary candidate information switches: " + differences);
+          differences.size() <= 2,
+          "tracking text should honor the ordinary candidate information switches; only "
+              + "antialiasing edge pixels may differ over the translucent interior: "
+              + differences);
     }
   }
 
@@ -326,6 +393,12 @@ class TrackingProductionCutoverTest {
     setField(renderer, BoardRenderer.class, "squareWidth", 40);
     setField(renderer, BoardRenderer.class, "squareHeight", 40);
     setField(renderer, BoardRenderer.class, "stoneRadius", 16);
+    setField(
+        renderer,
+        BoardRenderer.class,
+        "bestMoves",
+        new java.util.ArrayList<>(
+            Lizzie.board.getHistory().getCurrentHistoryNode().getData().bestMoves));
     return renderer;
   }
 
@@ -389,6 +462,17 @@ class TrackingProductionCutoverTest {
         if ((pixel >>> 24) == 0xFF && (pixel & 0x00FFFFFF) == expected) {
           count++;
         }
+      }
+    }
+    return count;
+  }
+
+  private static int countArgb(BufferedImage image, Color color) {
+    int expected = color.getRGB();
+    int count = 0;
+    for (int y = 0; y < image.getHeight(); y++) {
+      for (int x = 0; x < image.getWidth(); x++) {
+        if (image.getRGB(x, y) == expected) count++;
       }
     }
     return count;
@@ -507,6 +591,12 @@ class TrackingProductionCutoverTest {
       Config config = allocate(Config.class);
       config.analyzeUpdateIntervalCentisec = 10;
       config.trackingAnalysisMaxVisits = 100;
+      config.showTrackingPointOutline = true;
+      config.trackingPointInteriorColor = new Color(217, 91, 0);
+      config.trackingPointInteriorOpacityPercent = 43;
+      config.trackingPointOutlineOpacityPercent = 92;
+      config.trackingPointTextAutoColor = true;
+      config.trackingPointTextColor = Color.BLACK;
       config.currentKataGoRules = "chinese";
       config.extraMode = ExtraMode.Normal;
       config.boardStyle = Config.BOARD_STYLE_JAPANESE;
