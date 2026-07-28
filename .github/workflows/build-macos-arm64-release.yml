@@ -86,6 +86,14 @@ jobs:
           test ! -f "dist/macos/app-image/LizzieYzy Next.app/Contents/app/lizzieyzy-next-cds.jsa"
           grep -q -- "Release display version: ${{ inputs.release_tag }}" \
             "dist/release-meta/${{ inputs.date_tag }}-mac-apple-silicon-install.txt"
+          bundle_version="$(python3 scripts/macos_bundle_version.py \
+            --release-tag "${{ inputs.release_tag }}" \
+            --date-tag "${{ inputs.date_tag }}" \
+            --field build)"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' \
+            'dist/macos/app-image/LizzieYzy Next.app/Contents/Info.plist')" = "$bundle_version"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
+            'dist/macos/app-image/LizzieYzy Next.app/Contents/Info.plist')" = "$bundle_version"
           test -f "dist/release-meta/${{ inputs.date_tag }}-mac-apple-silicon-runtime.json"
           grep -q '"optimized": true' "dist/release-meta/${{ inputs.date_tag }}-mac-apple-silicon-runtime.json"
           grep -q '"created": true' "dist/release-meta/${{ inputs.date_tag }}-mac-apple-silicon-runtime.json"
@@ -109,10 +117,10 @@ jobs:
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
-        run: bash ./scripts/sign_macos_release_with_retry.sh dist/release mac-arm64
+        run: bash ./scripts/sign_macos_release_with_retry.sh dist/release mac-arm64 "${{ inputs.release_tag }}"
 
       - name: Validate public macOS arm64 assets
-        run: bash ./scripts/validate_release_assets.sh mac-arm64 dist/release "${{ inputs.date_tag }}"
+        run: bash ./scripts/validate_release_assets.sh mac-arm64 dist/release "${{ inputs.date_tag }}" "${{ inputs.release_tag }}"
 
       - name: Summarize macOS arm64 package size audit
         if: always()

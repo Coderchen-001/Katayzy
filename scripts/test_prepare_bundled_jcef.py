@@ -4,10 +4,13 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
+import io
 import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 
 SCRIPT_PATH = Path(__file__).with_name("prepare_bundled_jcef.py")
@@ -109,6 +112,34 @@ class PrepareBundledJcefTest(unittest.TestCase):
             self.create_bundle(root, package_platform="macosx-arm64")
 
             JCEF.validate_bundle(root, "macosx-arm64")
+
+    def test_download_retries_a_truncated_checksum_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            target = Path(temporary_directory) / "jcef.jar"
+            complete_payload = b"complete-jcef-fixture"
+            expected_sha256 = hashlib.sha256(complete_payload).hexdigest()
+
+            with (
+                mock.patch.object(
+                    JCEF.urllib.request,
+                    "urlopen",
+                    side_effect=[
+                        io.BytesIO(b"truncated"),
+                        io.BytesIO(complete_payload),
+                    ],
+                ) as urlopen,
+                mock.patch.object(JCEF.time, "sleep"),
+            ):
+                JCEF.download_with_retries(
+                    "https://example.invalid/jcef.jar",
+                    target,
+                    attempts=2,
+                    expected_sha256=expected_sha256,
+                )
+
+            self.assertEqual(2, urlopen.call_count)
+            self.assertEqual(complete_payload, target.read_bytes())
+            self.assertFalse(target.with_suffix(".jar.tmp").exists())
 
 
 if __name__ == "__main__":

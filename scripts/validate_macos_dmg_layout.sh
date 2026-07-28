@@ -8,10 +8,11 @@ fi
 
 DMG_PATH="${1:-}"
 if [[ -z "$DMG_PATH" || ! -f "$DMG_PATH" ]]; then
-  echo "Usage: $0 <path-to.dmg> [expected-architecture-label]" >&2
+  echo "Usage: $0 <path-to.dmg> [expected-architecture-label] [release-tag]" >&2
   exit 1
 fi
 EXPECTED_ARCHITECTURE_LABEL="${2:-}"
+EXPECTED_RELEASE_TAG="${3:-}"
 if [[ -z "$EXPECTED_ARCHITECTURE_LABEL" ]]; then
   case "$(basename "$DMG_PATH")" in
     *mac-apple-silicon*)
@@ -187,6 +188,63 @@ if expected_architecture and expected_architecture not in volume_name:
 PY
 
 APP_PATH="$(find "$MOUNT_POINT" -maxdepth 1 -type d -name '*.app' -print -quit)"
+INFO_PLIST="$APP_PATH/Contents/Info.plist"
+if [[ ! -f "$INFO_PLIST" ]]; then
+  echo "macOS app is missing Contents/Info.plist." >&2
+  exit 1
+fi
+
+EXPECTED_BUNDLE_VERSION=""
+if [[ -n "$EXPECTED_RELEASE_TAG" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  EXPECTED_BUNDLE_VERSION="$(
+    python3 "$SCRIPT_DIR/macos_bundle_version.py" \
+      --release-tag "$EXPECTED_RELEASE_TAG" \
+      --field build
+  )"
+fi
+
+python3 - \
+  "$INFO_PLIST" \
+  "$EXPECTED_BUNDLE_VERSION" <<'PY'
+import plistlib
+import re
+import sys
+
+info_path = sys.argv[1]
+expected_version = sys.argv[2]
+with open(info_path, "rb") as handle:
+    info = plistlib.load(handle)
+
+if info.get("CFBundleIdentifier") != "com.wimi321.lizzieyzy.next":
+    raise SystemExit("Unexpected macOS bundle identifier.")
+if info.get("CFBundlePackageType") != "APPL":
+    raise SystemExit("macOS bundle is not registered as an application.")
+if info.get("LSUIElement") in (True, 1, "1", "true", "YES"):
+    raise SystemExit("macOS bundle must be visible in Spotlight and the Dock.")
+
+version_pattern = re.compile(r"^[0-9]+(?:\.[0-9]+){2}$")
+build_version = str(info.get("CFBundleVersion", ""))
+short_version = str(info.get("CFBundleShortVersionString", ""))
+if not version_pattern.fullmatch(build_version):
+    raise SystemExit(f"Invalid CFBundleVersion: {build_version!r}.")
+if not version_pattern.fullmatch(short_version):
+    raise SystemExit(
+        f"Invalid CFBundleShortVersionString: {short_version!r}."
+    )
+if expected_version:
+    if build_version != expected_version:
+        raise SystemExit(
+            f"CFBundleVersion mismatch: expected {expected_version}, "
+            f"found {build_version}."
+        )
+    if short_version != expected_version:
+        raise SystemExit(
+            "CFBundleShortVersionString mismatch: "
+            f"expected {expected_version}, found {short_version}."
+        )
+PY
+
 KATAGO_BUNDLES=()
 while IFS= read -r -d '' katago_path; do
   KATAGO_BUNDLES+=("$(dirname "$katago_path")")
