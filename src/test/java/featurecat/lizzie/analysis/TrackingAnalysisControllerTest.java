@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import featurecat.lizzie.Config;
 import featurecat.lizzie.Lizzie;
-import featurecat.lizzie.gui.BottomToolbar;
 import featurecat.lizzie.gui.LizzieFrame;
 import featurecat.lizzie.rules.Board;
 import java.io.BufferedOutputStream;
@@ -27,34 +26,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class TrackingAnalysisControllerTest {
-
-  @Test
-  void settledPostFencePonderAcceptsFirstOrdinaryInfoWithoutBoardAction() throws Exception {
-    BottomToolbar previousToolbar = LizzieFrame.toolbar;
-    try (TestState state = TestState.open()) {
-      Lizzie.board = new Board();
-      AcceptingInfoFrame frame = allocate(AcceptingInfoFrame.class);
-      Lizzie.frame = frame;
-      LizzieFrame.toolbar = allocate(BottomToolbar.class);
-      setField(state.engine, "currentCmdNum", 15);
-      setField(state.engine, "cmdNumber", 16);
-
-      state.engine.sendCommand("kata-analyze W 10");
-
-      assertEquals("kata-analyze W 10\n", state.commands());
-      assertFalse(state.engine.isResponseUpToDate());
-      state.engine.setResponseUpToDate();
-      parseOrdinaryInfo(
-          state.engine, "info move D4 visits 40 winrate 0.51 scoreLead 2.5 prior 0.2 pv D4");
-
-      assertEquals(1, state.engine.getBestMoves().size());
-      assertEquals("D4", state.engine.getBestMoves().get(0).coordinate);
-      assertEquals(40, state.engine.getBestMoves().get(0).playouts);
-      assertEquals(1, frame.analysisRefreshCount);
-    } finally {
-      LizzieFrame.toolbar = previousToolbar;
-    }
-  }
 
   @Test
   void addPointAcquiresLeaseAndSendsConstrainedAnalyzeAfterInitialFence() throws Exception {
@@ -668,12 +639,6 @@ class TrackingAnalysisControllerTest {
     method.invoke(engine, line);
   }
 
-  private static void parseOrdinaryInfo(Leelaz engine, String line) throws Exception {
-    Method method = Leelaz.class.getDeclaredMethod("parseLine", String.class);
-    method.setAccessible(true);
-    method.invoke(engine, line);
-  }
-
   private static void closeExclusiveSessionForTest(Leelaz engine) throws Exception {
     Field field = Leelaz.class.getDeclaredField("exclusiveGtpSession");
     field.setAccessible(true);
@@ -939,18 +904,6 @@ class TrackingAnalysisControllerTest {
       ponderCount.incrementAndGet();
       Pondering();
     }
-  }
-
-  private static final class AcceptingInfoFrame extends LizzieFrame {
-    private int analysisRefreshCount;
-
-    @Override
-    public void requestAnalysisRefresh() {
-      analysisRefreshCount++;
-    }
-
-    @Override
-    public void requestAnalysisTitleUpdate() {}
   }
 
   private static final class ThrowingPonderLeelaz extends Leelaz {

@@ -2379,15 +2379,15 @@ public class EngineManager {
       Leelaz current,
       Leelaz target,
       boolean isMain,
-      boolean allowTargetRecovery,
+      boolean explicitRestart,
       EngineLifecycleReservations reservations) {
     boolean trackingFirstWinner =
         reservations != null && reservations.isTrackingFirstWinner();
     boolean readBoardRecovery =
-        (allowTargetRecovery
+        (explicitRestart
                 && ((target != null && target.hasUnrestoredReadBoardGmaState())
                     || (current != null && current.hasUnrestoredReadBoardGmaState())))
-            || (!allowTargetRecovery
+            || (!explicitRestart
                 && current != null
                 && current.hasUnrestoredReadBoardGmaState());
     if (!isMain
@@ -2403,10 +2403,10 @@ public class EngineManager {
       }
       target.confirmBoardSynchronization(
           () -> {
-            if (allowTargetRecovery && target.hasUnrestoredReadBoardGmaState()) {
+            if (explicitRestart && target.hasUnrestoredReadBoardGmaState()) {
               target.completeReadBoardGmaRecoveryAfterBoardSync();
             }
-            if (trackingFirstWinner && allowTargetRecovery && target.isPondering()) {
+            if (trackingFirstWinner && explicitRestart && target.isPondering()) {
               target.ponder();
               target.setResponseUpToDate();
             }
