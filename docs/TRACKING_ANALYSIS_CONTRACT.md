@@ -27,8 +27,9 @@ feature flag 或失败 fallback。
 - current stream-only lease handle；
 - immutable `DisplaySnapshot`。
 
-UI 只能提交 add/remove/clear。Controller 不启动、切换、重启或恢复引擎，不写
-Board/history，不写普通 `bestMoves`，也不触发普通分析功能。
+UI 只能提交 add/remove/clear。Controller 不启动、切换或重启引擎，不写 Board/history，也不写
+普通 `bestMoves`；仅本节明确允许的 clean handback 可凭首个 receipt 请求 `Leelaz` 恢复原
+ponder。
 
 每个点使用一个独立 stream-only lease。Initial numbered stop 完整结束后只发送：
 
@@ -38,8 +39,9 @@ kata-analyze <interval> allow B <coord> 1 allow W <coord> 1
 
 只有目标坐标 visits 严格增加才续期 8 秒 progress timeout。达到该点 visits 后发送 final
 numbered stop；只有 final fence 成功关闭后结果才标记 completed，然后调度 newest pending
-point。Clean natural completion 可按首个 receipt 恢复原 ponder；任何 handoff、ordinary
-release、context failure 或 transport failure 都不得恢复。
+point。Clean natural completion，以及用户显式 remove current / clear 后成功关闭的 final
+fence，可按首个 receipt 恢复原 ponder；任何 handoff、ordinary release、context failure 或
+transport failure 都不得恢复。
 
 ## Context 与 ReadBoard
 
@@ -92,6 +94,11 @@ engineArbitrationLock -> commandQueue
 
 - Ordinary command 先进入原 queue，再 claim tracking release；final fence 后由原 writer 按
   FIFO 写出。
+- Active tracking 中的普通落子若在同一次调用排队后续 ponder，只能在 `play` 成功响应后结算
+  tracking stream 不提供的单格 ordinary response watermark；`play` 错误响应不得结算，也不得
+  提前接受新局面的 `info`。
+- Clean ponder handback 只能在 final fence 后排队原 ponder，并在该 streaming analysis 已排队时
+  结算同样的单格 watermark。
 - Safe raw GTP whitelist 仅包含无 caller ID、exact arity 的 `name`、`version`、
   `protocol_version`、`list_commands`、`known_command <name>` 和 `showboard`。
 - Safe query 发布 `SAFE_READ_ONLY_QUERY` 并冻结最后 valid overlay；其他 admitted ordinary

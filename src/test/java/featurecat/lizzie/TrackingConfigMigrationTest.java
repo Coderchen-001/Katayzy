@@ -110,7 +110,8 @@ class TrackingConfigMigrationTest {
     assertTrue(dialog.contains("previousAnalyzeUpdateIntervalCentisec"));
     assertTrue(dialog.contains("Lizzie.config.analyzeUpdateIntervalCentisec"));
     assertTrue(dialog.contains("!= previousAnalyzeUpdateIntervalCentisec"));
-    assertTrue(dialog.contains("Lizzie.frame.clearTrackingPoints()"));
+    assertTrue(dialog.contains("Lizzie.frame.invalidateTrackingAnalysis()"));
+    assertFalse(dialog.contains("Lizzie.frame.clearTrackingPoints()"));
   }
 
   @Test

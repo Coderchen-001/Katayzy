@@ -986,7 +986,7 @@ class EngineManagerLifecycleReservationTest {
       assertEquals(
           "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
           output.toString(StandardCharsets.UTF_8));
-      assertEquals(1, frame.clearTrackingPointsCount);
+      assertEquals(1, frame.trackingInvalidationCount);
       assertTrue(dispatchExclusiveLine(engine, ""));
       assertTrue(dispatchExclusiveLine(engine, "=800000002"));
       assertTrue(dispatchExclusiveLine(engine, ""));
@@ -1197,11 +1197,11 @@ class EngineManagerLifecycleReservationTest {
   }
 
   private static final class LifecycleFrame extends LizzieFrame {
-    private int clearTrackingPointsCount;
+    private int trackingInvalidationCount;
 
     @Override
-    public void clearTrackingPoints() {
-      clearTrackingPointsCount++;
+    public void invalidateTrackingAnalysis() {
+      trackingInvalidationCount++;
     }
 
     @Override

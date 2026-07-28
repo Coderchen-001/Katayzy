@@ -19,6 +19,7 @@ import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardData;
 import featurecat.lizzie.rules.BoardHistoryList;
 import featurecat.lizzie.rules.BoardHistoryNode;
+import featurecat.lizzie.rules.Stone;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -75,9 +76,94 @@ class TrackingProductionCutoverTest {
   }
 
   @Test
+  void removingCurrentTrackingPointResumesPriorNormalAnalysis() throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      LizzieFrame frame = environment.frame;
+      environment.engine.ponder();
+      environment.processCommandResponse("=");
+      assertEquals(TrackingAnalysisController.AddResult.ADDED, frame.addTrackingPoint("A1"));
+      environment.completeInitialFence(800000000);
+
+      assertTrue(frame.removeTrackingPoint("A1"));
+      environment.completeFinalFence(800000002);
+
+      assertTrue(environment.engine.isPondering());
+      assertTrue(environment.commands().endsWith("kata-analyze B 10\n"), environment.commands());
+      assertTrue(environment.engine.isResponseUpToDate());
+      environment.sendOrdinaryInfo(
+          "info move B2 visits 40 winrate 0.51 scoreLead 2.5 prior 0.2 pv B2");
+      assertEquals(1, environment.engine.getBestMoves().size());
+    }
+  }
+
+  @Test
+  void clearingTrackingPointsResumesPriorNormalAnalysis() throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      LizzieFrame frame = environment.frame;
+      environment.engine.ponder();
+      environment.processCommandResponse("=");
+      assertEquals(TrackingAnalysisController.AddResult.ADDED, frame.addTrackingPoint("A1"));
+      environment.completeInitialFence(800000000);
+
+      frame.clearTrackingPoints();
+      environment.completeFinalFence(800000002);
+
+      assertTrue(environment.engine.isPondering());
+      assertTrue(environment.commands().endsWith("kata-analyze B 10\n"), environment.commands());
+      assertTrue(environment.engine.isResponseUpToDate());
+      environment.sendOrdinaryInfo(
+          "info move B2 visits 40 winrate 0.51 scoreLead 2.5 prior 0.2 pv B2");
+      assertEquals(1, environment.engine.getBestMoves().size());
+    }
+  }
+
+  @Test
+  void playingMoveDuringTrackingResumesNormalAnalysisThroughProductionController()
+      throws Exception {
+    assertPlayingMoveDuringTrackingAcceptsNormalAnalysisAfterResponse("=", true);
+  }
+
+  @Test
+  void failedPlayDuringTrackingDoesNotAcceptNormalAnalysisForTheUnplayedPosition()
+      throws Exception {
+    assertPlayingMoveDuringTrackingAcceptsNormalAnalysisAfterResponse("? illegal move", false);
+  }
+
+  private void assertPlayingMoveDuringTrackingAcceptsNormalAnalysisAfterResponse(
+      String playResponse, boolean expectNormalAnalysis) throws Exception {
+    BoardRenderer previousBoardRenderer = LizzieFrame.boardRenderer;
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      LizzieFrame.boardRenderer = new BoardRenderer(false);
+      Lizzie.config.analyzeBlack = true;
+      Lizzie.config.analyzeWhite = true;
+      environment.engine.ponder();
+      environment.processCommandResponse("=");
+      assertEquals(
+          TrackingAnalysisController.AddResult.ADDED,
+          environment.frame.addTrackingPoint("A1"));
+      environment.completeInitialFence(800000000);
+
+      Lizzie.board.place(0, 0, Stone.BLACK);
+      environment.completeFinalFence(800000002);
+      environment.processCommandResponse(playResponse);
+      assertEquals(expectNormalAnalysis, environment.engine.isResponseUpToDate());
+      environment.sendOrdinaryInfo(
+          "info move B2 visits 40 winrate 0.51 scoreLead 2.5 prior 0.2 pv B2");
+
+      String commands = environment.commands();
+      assertTrue(environment.engine.isPondering());
+      assertTrue(commands.lastIndexOf("kata-analyze") > commands.lastIndexOf("play B A1"), commands);
+      assertEquals(expectNormalAnalysis ? 1 : 0, environment.engine.getBestMoves().size());
+    } finally {
+      LizzieFrame.boardRenderer = previousBoardRenderer;
+    }
+  }
+
+  @Test
   void rendererGateSuppressesStaleNodeAndPonderInvalidationDoesNotReacquire() throws Exception {
     try (TestEnvironment environment = TestEnvironment.open()) {
       LizzieFrame frame = environment.frame;
+      environment.engine.Pondering();
       assertEquals(TrackingAnalysisController.AddResult.ADDED, frame.addTrackingPoint("A1"));
       environment.completeInitialFence(800000000);
       TrackingAnalysisController.DisplaySnapshot original = frame.trackingDisplaySnapshot();
@@ -91,6 +177,26 @@ class TrackingProductionCutoverTest {
       assertTrue(frame.trackingDisplaySnapshot().selectedPoints().isEmpty());
       assertTrue(environment.commands().contains("800000002 stop\n"));
       assertFalse(environment.commands().contains("800000003 stop\n"));
+      environment.completeFinalFence(800000002);
+      assertFalse(environment.engine.isPondering());
+    }
+  }
+
+  @Test
+  void internalTrackingInvalidationDoesNotRestorePriorNormalAnalysis() throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      LizzieFrame frame = environment.frame;
+      environment.engine.ponder();
+      environment.processCommandResponse("=");
+      assertEquals(TrackingAnalysisController.AddResult.ADDED, frame.addTrackingPoint("A1"));
+      environment.completeInitialFence(800000000);
+
+      frame.invalidateTrackingAnalysis();
+      environment.completeFinalFence(800000002);
+
+      assertFalse(environment.engine.isPondering());
+      assertTrue(frame.trackingDisplaySnapshot().selectedPoints().isEmpty());
+      assertFalse(environment.commands().endsWith("kata-analyze B 10\n"));
     }
   }
 
@@ -563,6 +669,8 @@ class TrackingProductionCutoverTest {
     private final Board previousBoard;
     private final Config previousConfig;
     private final LizzieFrame previousFrame;
+    private final Menu previousMenu;
+    private final BottomToolbar previousToolbar;
     private final boolean previousEmpty;
     private final boolean previousEngineGame;
     private final int previousWidth;
@@ -576,6 +684,8 @@ class TrackingProductionCutoverTest {
         Board previousBoard,
         Config previousConfig,
         LizzieFrame previousFrame,
+        Menu previousMenu,
+        BottomToolbar previousToolbar,
         boolean previousEmpty,
         boolean previousEngineGame,
         int previousWidth,
@@ -587,6 +697,8 @@ class TrackingProductionCutoverTest {
       this.previousBoard = previousBoard;
       this.previousConfig = previousConfig;
       this.previousFrame = previousFrame;
+      this.previousMenu = previousMenu;
+      this.previousToolbar = previousToolbar;
       this.previousEmpty = previousEmpty;
       this.previousEngineGame = previousEngineGame;
       this.previousWidth = previousWidth;
@@ -601,6 +713,8 @@ class TrackingProductionCutoverTest {
       Board previousBoard = Lizzie.board;
       Config previousConfig = Lizzie.config;
       LizzieFrame previousFrame = Lizzie.frame;
+      Menu previousMenu = LizzieFrame.menu;
+      BottomToolbar previousToolbar = LizzieFrame.toolbar;
       boolean previousEmpty = EngineManager.isEmpty;
       boolean previousEngineGame = EngineManager.isEngineGame;
       int previousWidth = Board.boardWidth;
@@ -608,7 +722,7 @@ class TrackingProductionCutoverTest {
 
       Board.boardWidth = 2;
       Board.boardHeight = 2;
-      Board board = allocate(Board.class);
+      Board board = allocate(TrackingBoard.class);
       board.setHistory(new BoardHistoryList(BoardData.empty(2, 2)));
       Config config = allocate(Config.class);
       config.analyzeUpdateIntervalCentisec = 10;
@@ -666,11 +780,15 @@ class TrackingProductionCutoverTest {
       Lizzie.config = config;
       Lizzie.leelaz = engine;
       Lizzie.frame = frame;
+      LizzieFrame.menu = allocate(SilentMenu.class);
+      LizzieFrame.toolbar = allocate(BottomToolbar.class);
       return new TestEnvironment(
           previousEngine,
           previousBoard,
           previousConfig,
           previousFrame,
+          previousMenu,
+          previousToolbar,
           previousEmpty,
           previousEngineGame,
           previousWidth,
@@ -761,6 +879,12 @@ class TrackingProductionCutoverTest {
       method.invoke(engine, line);
     }
 
+    private void sendOrdinaryInfo(String line) throws Exception {
+      java.lang.reflect.Method method = Leelaz.class.getDeclaredMethod("parseLine", String.class);
+      method.setAccessible(true);
+      method.invoke(engine, line);
+    }
+
     String commands() {
       return output.toString(StandardCharsets.UTF_8);
     }
@@ -772,6 +896,8 @@ class TrackingProductionCutoverTest {
       Lizzie.board = previousBoard;
       Lizzie.config = previousConfig;
       Lizzie.frame = previousFrame;
+      LizzieFrame.menu = previousMenu;
+      LizzieFrame.toolbar = previousToolbar;
       EngineManager.isEmpty = previousEmpty;
       EngineManager.isEngineGame = previousEngineGame;
       Board.boardWidth = previousWidth;
@@ -789,6 +915,19 @@ class TrackingProductionCutoverTest {
     public void requestAnalysisRefresh() {
       analysisRefreshRequests++;
     }
+
+    @Override
+    public void clearSelectImage() {}
+  }
+
+  private static final class TrackingBoard extends Board {
+    @Override
+    public void clearAfterMove() {}
+  }
+
+  private static final class SilentMenu extends Menu {
+    @Override
+    public void toggleEngineMenuStatus(boolean isPondering, boolean isThinking) {}
   }
 
   private static void setField(Object target, Class<?> owner, String name, Object value)

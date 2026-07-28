@@ -6099,7 +6099,7 @@ public class ConfigDialog2 extends JDialog {
               || Lizzie.config.analyzeUpdateIntervalCentisec
                   != previousAnalyzeUpdateIntervalCentisec)
           && Lizzie.frame != null) {
-        Lizzie.frame.clearTrackingPoints();
+        Lizzie.frame.invalidateTrackingAnalysis();
       }
 
       int[] size = getBoardSize();

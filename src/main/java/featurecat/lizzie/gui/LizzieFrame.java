@@ -14188,6 +14188,14 @@ public class LizzieFrame extends JFrame {
     refresh();
   }
 
+  public void invalidateTrackingAnalysis() {
+    TrackingAnalysisController controller = trackingAnalysisController;
+    if (controller != null) {
+      controller.contextChanged(null);
+    }
+    refresh();
+  }
+
   public boolean isTrackingPoint(String coordinate) {
     TrackingAnalysisController controller = trackingAnalysisController;
     return controller != null && controller.snapshot().selectedPoints().contains(coordinate);
@@ -14283,12 +14291,7 @@ public class LizzieFrame extends JFrame {
     if (controller == null) {
       return;
     }
-    TrackingAnalysisController.Context context = currentTrackingContext();
-    if (context == null) {
-      controller.clear();
-    } else {
-      controller.contextChanged(context);
-    }
+    controller.contextChanged(currentTrackingContext());
   }
 
   public void flashAnalyzeGameBatch(int firstMove, int lastMove, boolean isAllBranches) {

@@ -459,6 +459,24 @@ class TrackingAnalysisControllerTest {
   }
 
   @Test
+  void unavailableContextInvalidatesWithoutRestoringPriorPonder() throws Exception {
+    try (TestState state = TestState.open()) {
+      state.engine.Pondering();
+      TrackingAnalysisController controller =
+          new TrackingAnalysisController(new ManualTimeoutScheduler());
+      assertEquals(
+          TrackingAnalysisController.AddResult.ADDED, controller.addPoint("D4", state.context()));
+      completeInitialFence(state.engine, 800000000);
+
+      controller.contextChanged(null);
+      completeFinalFence(state.engine, 800000002);
+
+      assertFalse(state.engine.isPondering());
+      assertTrue(controller.snapshot().selectedPoints().isEmpty());
+    }
+  }
+
+  @Test
   void productionCutoverReferencesControllerAndHasNoLegacyTrackingRuntime() throws Exception {
     Path productionRoot = Path.of("src/main/java");
     List<Path> productionReferences;
@@ -535,6 +553,9 @@ class TrackingAnalysisControllerTest {
       assertTrue(controller.snapshot().selectedPoints().isEmpty());
       assertTrue(controller.snapshot().results().isEmpty());
       assertFalse(controller.snapshot().active());
+      assertEquals(
+          TrackingAnalysisController.AddResult.LEASE_UNAVAILABLE,
+          controller.addPoint("F6", context));
       assertTrue(state.commands().endsWith("800000005 stop\n"));
       completeFinalFence(state.engine, 800000005);
       assertFalse(state.commands().contains("800000006 stop"));

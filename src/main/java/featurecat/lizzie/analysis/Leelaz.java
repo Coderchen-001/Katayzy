@@ -1541,7 +1541,11 @@ public class Leelaz {
             return false;
           }
           claimed = true;
+          int commandNumberBeforePonder = cmdNumber;
           ponder();
+          if (cmdNumber > commandNumberBeforePonder) {
+            settleTrackingPonderResponseWatermark();
+          }
           restored = true;
         }
       }
@@ -8547,6 +8551,21 @@ public class Leelaz {
     //	ignoreCmdNumber=cmdNumber-1;
   }
 
+  private void settleTrackingPonderAfterPlayResponse() {
+    if (currentCommandResponseError) {
+      return;
+    }
+    settleTrackingPonderResponseWatermark();
+  }
+
+  private void settleTrackingPonderResponseWatermark() {
+    synchronized (commandQueue()) {
+      if (currentCmdNum < cmdNumber - 1) {
+        currentCmdNum++;
+      }
+    }
+  }
+
   /**
    * @param color color of stone to play
    * @param move coordinate of the coordinate
@@ -8579,7 +8598,17 @@ public class Leelaz {
         //              "The stone color must be B or W, but was " + color.toString());
     }
     boolean continuePonderAfterMove = isPonderingOrWasPonderingBeforeTracking();
-    sendCommand("play " + colorString + " " + move);
+    boolean resumeAnalysisAfterMove = stopByLimit || continuePonderAfterMove;
+    boolean ponderAfterMove =
+        resumeAnalysisAfterMove
+            && !Lizzie.frame.isPlayingAgainstLeelaz
+            && (Lizzie.config.isAutoAna
+                || ((Lizzie.config.analyzeBlack && color == Stone.WHITE)
+                    || (Lizzie.config.analyzeWhite && color == Stone.BLACK)));
+    boolean settleTrackingPonder = hasTrackingStreamSession() && ponderAfterMove;
+    sendCommand(
+        "play " + colorString + " " + move,
+        settleTrackingPonder ? this::settleTrackingPonderAfterPlayResponse : null);
     bestMoves = new ArrayList<>();
     currentTotalPlayouts = 0;
     if (Lizzie.frame.isPlayingAgainstLeelaz) this.canGetSummaryInfo = true;
@@ -8587,10 +8616,8 @@ public class Leelaz {
     if (Lizzie.frame.isAnaPlayingAgainstLeelaz
         && !Lizzie.frame.bothSync
         && Lizzie.frame.playerIsBlack == blackToPlay) return;
-    if ((stopByLimit || continuePonderAfterMove) && !Lizzie.frame.isPlayingAgainstLeelaz)
-      if (Lizzie.config.isAutoAna
-          || ((Lizzie.config.analyzeBlack && color == Stone.WHITE)
-              || (Lizzie.config.analyzeWhite && color == Stone.BLACK)))
+    if (resumeAnalysisAfterMove && !Lizzie.frame.isPlayingAgainstLeelaz)
+      if (ponderAfterMove)
         ponder(addPlayer, blackToPlay);
       else {
         nameCmdfornoponder();
