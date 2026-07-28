@@ -65,14 +65,14 @@ eligibility snapshot 拥有。Tracking 不拦截 helper protocol，不推导或�
   同时等于 current display/history node时绘制。
 - selected point 立即显示虚线环；remove pending 立即隐藏且不影响 current；remove current 或
   clear 立即隐藏全部相应 overlay，后台只完成安全归还。
-- selected point 默认立即显示圆角分段虚线外框；尚无结果时使用中性灰。首份 visits 大于零的
-  current result 到达后立即显示 result，不等待 final fence。Result 与普通候选同坐标时由
-  tracking overlay 覆盖普通候选。用户关闭外框后，首份结果前不显示占位标记。
+- selected point 立即占用该坐标并隐藏同坐标普通候选，默认显示圆角分段虚线外框；尚无结果时
+  使用中性灰。首份 visits 大于零的 current result 到达后立即显示 result，不等待 final
+  fence。用户关闭外框后，首份结果前不显示占位标记。
 - Tracking result 以同一局面当前普通最佳候选为动态基准，按 `MoveRankDefinition` 的胜率/目差
   损失等级实时绘制虚线外框；普通分析更新时实时重算颜色。没有普通最佳候选时外框使用中性灰。
-- Tracking result 内部使用用户配置的固定颜色和不透明度，不随质量等级变化，默认不透明度为
-  100%。外框默认开启，颜色由质量等级决定，不透明度可配置；动态色虚线下方使用固定深色细描边，
-  只增强它与棋盘及内部颜色的对比，不改变质量色语义。
+- Tracking result 内部使用用户配置的固定颜色和不透明度，不随质量等级变化，默认颜色为
+  `RGB(255, 156, 156)`，默认不透明度为 100%。外框默认开启，颜色由质量等级决定，不透明度
+  可配置。
 - Tracking result 文字复用普通候选的显示项、行序、字体缩放和定位；前景色按实际背景在黑/白
   中选择较高对比度，也可关闭自动适配并使用自定义颜色。启用 score diff 时显示 tracking score
   减当前普通最佳候选 score。

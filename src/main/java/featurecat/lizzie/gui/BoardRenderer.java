@@ -2253,6 +2253,14 @@ public class BoardRenderer {
     BoardHistoryNode displayNode = Lizzie.frame.getDisplayNode();
     boolean showHeatmap = Lizzie.frame.shouldShowHeatmapFor(displayNode);
     boolean showPolicy = Lizzie.frame.shouldShowPolicyFor(displayNode);
+    Set<String> selectedTrackingPoints = java.util.Collections.emptySet();
+    if (boardIndex == 0 && !isShowingBranch) {
+      TrackingAnalysisController.DisplaySnapshot trackingSnapshot =
+          Lizzie.frame.trackingDisplaySnapshot();
+      if (Lizzie.frame.isTrackingDisplayCurrent(trackingSnapshot)) {
+        selectedTrackingPoints = trackingSnapshot.selectedPoints();
+      }
+    }
     if (this.boardIndex == 0) {
       long now = System.currentTimeMillis();
       if (now - lastSuggestLogMs > 1000) {
@@ -2509,6 +2517,7 @@ public class BoardRenderer {
             }
             continue; // This actually can happen
           }
+          if (selectedTrackingPoints.contains(move.coordinate)) continue;
           Optional<int[]> coordsOpt = Board.asCoordinates(move.coordinate);
           if (!coordsOpt.isPresent()) {
             continue;
@@ -3104,22 +3113,14 @@ public class BoardRenderer {
       float ringWidth = Math.max(2.2f, squareWidth * 0.055f);
       float dash = Math.max(4.5f, squareWidth * 0.14f);
       float gap = Math.max(3.0f, squareWidth * 0.09f);
-      BasicStroke qualityStroke =
+      g.setStroke(
           new BasicStroke(
               ringWidth,
               BasicStroke.CAP_ROUND,
               BasicStroke.JOIN_ROUND,
               10.0f,
               new float[] {dash, gap},
-              0.0f);
-      BasicStroke contrastStroke =
-          new BasicStroke(
-              ringWidth + Math.max(3.0f, squareWidth * 0.075f),
-              BasicStroke.CAP_ROUND,
-              BasicStroke.JOIN_ROUND,
-              10.0f,
-              new float[] {dash, gap},
-              0.0f);
+              0.0f));
       g.setComposite(
           AlphaComposite.getInstance(
               AlphaComposite.SRC_OVER, Lizzie.config.trackingPointOutlineOpacityPercent / 100.0f));
@@ -3136,10 +3137,6 @@ public class BoardRenderer {
         int centerX = x + scaledMarginWidth + squareWidth * coords[0];
         int centerY = y + scaledMarginHeight + squareHeight * coords[1];
         TrackingAnalysisController.PointResult result = trackingResults.get(coordName);
-        g.setStroke(contrastStroke);
-        g.setColor(new Color(30, 34, 38));
-        g.drawOval(centerX - radius, centerY - radius, radius * 2, radius * 2);
-        g.setStroke(qualityStroke);
         g.setColor(
             result != null && result.visits() > 0
                 ? trackingResultColor(ordinaryBestMove, result)

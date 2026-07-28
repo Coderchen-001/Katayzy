@@ -19,7 +19,7 @@ class TrackingConfigMigrationTest {
     config.loadTrackingPointAppearanceConfig(new JSONObject());
 
     assertTrue(config.showTrackingPointOutline);
-    assertEquals(new Color(217, 91, 0), config.trackingPointInteriorColor);
+    assertEquals(new Color(255, 156, 156), config.trackingPointInteriorColor);
     assertEquals(100, config.trackingPointInteriorOpacityPercent);
     assertEquals(92, config.trackingPointOutlineOpacityPercent);
     assertTrue(config.trackingPointTextAutoColor);

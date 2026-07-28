@@ -167,9 +167,6 @@ class TrackingProductionCutoverTest {
       assertTrue(
           countArgb(rendered, new Color(200, 140, 50)) > 20,
           "a 10-point winrate and 3-point score loss should color the dashed outline");
-      assertTrue(
-          countOpaqueRgb(rendered, new Color(30, 34, 38)) > 10,
-          "the dynamic outline should have a dark contrast edge against the board and interior");
     }
   }
 
@@ -261,6 +258,28 @@ class TrackingProductionCutoverTest {
       assertTrue(
           countOpaqueRgb(rendered, new Color(33, 44, 55)) > 200,
           "the fixed tracking interior should replace the ordinary candidate at that coordinate");
+    }
+  }
+
+  @Test
+  void selectedTrackingPointSuppressesTheOrdinaryCandidateWhenOutlineIsDisabled()
+      throws Exception {
+    try (TestEnvironment environment = TestEnvironment.open()) {
+      Lizzie.config.showTrackingPointOutline = false;
+      Lizzie.config.showWinrateInSuggestion = false;
+      Lizzie.config.showPlayoutsInSuggestion = false;
+      Lizzie.config.showScoremeanInSuggestion = false;
+      Lizzie.config.showBlueRing = true;
+      environment.installOrdinaryBestMove("A1", 1000, 60.0, 5.0);
+
+      assertTrue(countOpaqueRgb(renderMainBoard(), Color.BLUE) > 10);
+      assertEquals(
+          TrackingAnalysisController.AddResult.ADDED, environment.frame.addTrackingPoint("A1"));
+
+      assertEquals(
+          0,
+          countOpaqueRgb(renderMainBoard(), Color.BLUE),
+          "the selected tracking point should own the coordinate before its first result arrives");
     }
   }
 
@@ -595,7 +614,7 @@ class TrackingProductionCutoverTest {
       config.analyzeUpdateIntervalCentisec = 10;
       config.trackingAnalysisMaxVisits = 100;
       config.showTrackingPointOutline = true;
-      config.trackingPointInteriorColor = new Color(217, 91, 0);
+      config.trackingPointInteriorColor = new Color(255, 156, 156);
       config.trackingPointInteriorOpacityPercent = 100;
       config.trackingPointOutlineOpacityPercent = 92;
       config.trackingPointTextAutoColor = true;
