@@ -364,7 +364,7 @@ class EngineManagerLifecycleReservationTest {
     LizzieFrame previousFrame = Lizzie.frame;
     Config previousConfig = Lizzie.config;
     TrackingKillLeelaz current = new TrackingKillLeelaz();
-    Leelaz target = new Leelaz("");
+    TrackingRestartActionLeelaz target = new TrackingRestartActionLeelaz();
     LifecycleFrame frame = allocate(LifecycleFrame.class);
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     setLeelazField(current, "outputStream", new BufferedOutputStream(output));
@@ -377,6 +377,10 @@ class EngineManagerLifecycleReservationTest {
       activateTracking(current);
 
       manager.switchEngine(1, true);
+      target.started = true;
+      target.isLoaded = true;
+      target.Pondering();
+      Lizzie.leelaz = target;
 
       assertEquals(1, manager.switchCount);
       assertNotNull(manager.afterSync);
@@ -385,6 +389,9 @@ class EngineManagerLifecycleReservationTest {
           output.toString(StandardCharsets.UTF_8));
       current.sendCommand("stop");
       manager.afterSync.run();
+      assertNotNull(target.confirmation);
+      target.confirmation.run();
+      assertEquals(0, target.ponderCount, "regular switch must preserve its existing ponder path");
       assertEquals(
           "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
           output.toString(StandardCharsets.UTF_8));

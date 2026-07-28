@@ -2406,7 +2406,7 @@ public class EngineManager {
             if (allowTargetRecovery && target.hasUnrestoredReadBoardGmaState()) {
               target.completeReadBoardGmaRecoveryAfterBoardSync();
             }
-            if (trackingFirstWinner && target.isPondering()) {
+            if (trackingFirstWinner && allowTargetRecovery && target.isPondering()) {
               target.ponder();
               target.setResponseUpToDate();
             }
