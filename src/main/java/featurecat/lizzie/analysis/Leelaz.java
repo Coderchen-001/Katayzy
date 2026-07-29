@@ -8616,13 +8616,12 @@ public class Leelaz {
     if (Lizzie.frame.isAnaPlayingAgainstLeelaz
         && !Lizzie.frame.bothSync
         && Lizzie.frame.playerIsBlack == blackToPlay) return;
-    if (resumeAnalysisAfterMove && !Lizzie.frame.isPlayingAgainstLeelaz)
-      if (ponderAfterMove)
-        ponder(addPlayer, blackToPlay);
-      else {
-        nameCmdfornoponder();
-        underPonder = true;
-      }
+    if (ponderAfterMove) {
+      ponder(addPlayer, blackToPlay);
+    } else if (resumeAnalysisAfterMove && !Lizzie.frame.isPlayingAgainstLeelaz) {
+      nameCmdfornoponder();
+      underPonder = true;
+    }
     if (!isPondering && !Lizzie.config.playponder && isKatago) sendCommand("stop-ponder");
   }
 

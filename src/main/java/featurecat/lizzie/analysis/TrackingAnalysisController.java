@@ -388,9 +388,7 @@ public final class TrackingAnalysisController {
       return AddResult.LEASE_UNAVAILABLE;
     }
     if (current == null && snapshot.frozen()) {
-      selectedPoints.clear();
-      pendingPoints.clear();
-      results.clear();
+      clearPointState();
       initialReceipt = null;
       publishEmptySnapshot();
     }
@@ -435,9 +433,7 @@ public final class TrackingAnalysisController {
 
   public synchronized void clear() {
     PointAttempt attempt = current;
-    pendingPoints.clear();
-    selectedPoints.clear();
-    results.clear();
+    clearPointState();
     if (attempt == null) {
       context = null;
       initialReceipt = null;
@@ -467,9 +463,7 @@ public final class TrackingAnalysisController {
       attempt.cancelled = true;
       cancelTimeout(attempt);
     }
-    pendingPoints.clear();
-    selectedPoints.clear();
-    results.clear();
+    clearPointState();
     context = null;
     initialReceipt = null;
     publishEmptySnapshot();
@@ -504,9 +498,7 @@ public final class TrackingAnalysisController {
       if (current == attempt) {
         current = null;
       }
-      pendingPoints.clear();
-      selectedPoints.clear();
-      results.clear();
+      clearPointState();
       context = null;
       initialReceipt = null;
       publishEmptySnapshot();
@@ -522,9 +514,7 @@ public final class TrackingAnalysisController {
       }
       if (current == attempt) {
         current = null;
-        pendingPoints.clear();
-        selectedPoints.clear();
-        results.clear();
+        clearPointState();
         context = null;
         initialReceipt = null;
         publishEmptySnapshot();
@@ -694,13 +684,12 @@ public final class TrackingAnalysisController {
     attempt.disposition = disposition;
     initialReceipt = null;
     cancelTimeout(attempt);
-    pendingPoints.clear();
     if (disposition == Leelaz.TrackingReleaseDisposition.FROZEN_BY_SAFE) {
+      pendingPoints.clear();
       selectedPoints.retainAll(results.keySet());
       publishSnapshot(false, !results.isEmpty());
     } else {
-      selectedPoints.clear();
-      results.clear();
+      clearPointState();
       publishSnapshot(false, false);
     }
   }
@@ -711,6 +700,12 @@ public final class TrackingAnalysisController {
       attempt.timeout.cancel();
       attempt.timeout = null;
     }
+  }
+
+  private void clearPointState() {
+    pendingPoints.clear();
+    selectedPoints.clear();
+    results.clear();
   }
 
   private void publishSnapshot(boolean active, boolean frozen) {
