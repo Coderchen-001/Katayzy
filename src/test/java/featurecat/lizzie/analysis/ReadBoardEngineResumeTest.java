@@ -12,6 +12,7 @@ import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.gui.BoardRenderer;
 import featurecat.lizzie.gui.BottomToolbar;
 import featurecat.lizzie.gui.LizzieFrame;
+import featurecat.lizzie.gui.Menu;
 import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardData;
 import featurecat.lizzie.rules.BoardHistoryList;
@@ -79,6 +80,50 @@ class ReadBoardEngineResumeTest {
 
       assertEquals(1, harness.frame.scheduleResumeAnalysisCount);
       assertNotNull(harness.frame.lastScheduledResumeAction);
+    }
+  }
+
+  @Test
+  void ordinaryReadBoardSyncStartsAnalysisWithoutInstallingGameMoveTime() throws Exception {
+    Menu previousMenu = LizzieFrame.menu;
+    boolean previousEngineGame = EngineManager.isEngineGame;
+    boolean previousPreEngineGame = EngineManager.isPreEngineGame;
+    try (EngineResumeHarness harness =
+        EngineResumeHarness.create(rootHistory(emptyStones(), true))) {
+      LizzieFrame.menu = allocate(SilentMenu.class);
+      LizzieFrame.toolbar = allocate(SilentBottomToolbar.class);
+      EngineManager.isEngineGame = false;
+      EngineManager.isPreEngineGame = false;
+      harness.frame.isPlayingAgainstLeelaz = false;
+      harness.frame.isAnaPlayingAgainstLeelaz = false;
+      harness.leelaz.isKatago = true;
+      Lizzie.config.maxGameThinkingTimeSeconds = 2;
+      Lizzie.config.notStartPondering = true;
+
+      SnapshotTrackingLeelaz previousPrimaryEngine = SnapshotTrackingLeelaz.create();
+      Lizzie.leelaz = previousPrimaryEngine;
+      try {
+        Lizzie.initializeAfterVersionCheck(false, harness.leelaz);
+      } finally {
+        Lizzie.leelaz = harness.leelaz;
+      }
+      harness.readBoard.parseLine("sync");
+      SwingUtilities.invokeAndWait(() -> {});
+
+      assertEquals(1, harness.leelaz.togglePonderCount);
+      assertEquals(1, harness.leelaz.ponderCount);
+      assertFalse(
+          harness.leelaz.sentCommands.stream()
+              .anyMatch(
+                  command ->
+                      command.startsWith("time_settings ")
+                          || command.startsWith("kata-time_settings ")
+                          || command.startsWith("kata-set-param maxTime ")),
+          "ordinary ReadBoard analysis must not inherit per-move game time commands.");
+    } finally {
+      LizzieFrame.menu = previousMenu;
+      EngineManager.isEngineGame = previousEngineGame;
+      EngineManager.isPreEngineGame = previousPreEngineGame;
     }
   }
 
@@ -2234,6 +2279,19 @@ class ReadBoardEngineResumeTest {
     void showForegroundEngineLeaseConflict() {}
   }
 
+  private static final class SilentMenu extends Menu {
+    @Override
+    public void showPda(boolean show) {}
+
+    @Override
+    public void updateMenuStatusForEngine() {}
+  }
+
+  private static final class SilentBottomToolbar extends BottomToolbar {
+    @Override
+    public void reSetButtonLocation() {}
+  }
+
   private static final class TrackingBoard extends Board {
     private int clearCount;
     private boolean clearCalledOnEdt;
@@ -2332,6 +2390,14 @@ class ReadBoardEngineResumeTest {
 
     @Override
     public void refresh() {}
+
+    @Override
+    public void reSetLoc() {}
+
+    @Override
+    public boolean resetMovelistFrameandAnalysisFrame() {
+      return false;
+    }
 
     @Override
     public void onMainEnginePonder() {}
