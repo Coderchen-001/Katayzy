@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import featurecat.lizzie.analysis.EngineManager;
 import featurecat.lizzie.analysis.Leelaz;
+import featurecat.lizzie.analysis.ReadBoard;
 import featurecat.lizzie.gui.LizzieFrame;
 import featurecat.lizzie.gui.Menu;
 import java.io.IOException;
@@ -31,6 +32,17 @@ class LizzieInitializationTimeControlTest {
 
       assertEquals(
           List.of("kata-time_settings none", "kata-set-param maxTime 2"), harness.engine.commands);
+    }
+  }
+
+  @Test
+  void readBoardGmaInitializationDoesNotOverwriteGmaTime() throws Exception {
+    try (Harness harness = Harness.open()) {
+      harness.frame.isAnaPlayingAgainstLeelaz = true;
+      harness.frame.readBoard = allocate(ActiveGmaReadBoard.class);
+      harness.initialize(false);
+
+      assertEquals(List.of(), harness.engine.commands);
     }
   }
 
@@ -121,6 +133,17 @@ class LizzieInitializationTimeControlTest {
   private static final class SilentMenu extends Menu {
     @Override
     public void showPda(boolean show) {}
+  }
+
+  private static final class ActiveGmaReadBoard extends ReadBoard {
+    private ActiveGmaReadBoard() throws Exception {
+      super(false, false);
+    }
+
+    @Override
+    public boolean isReadBoardGmaAutoPlayActive() {
+      return true;
+    }
   }
 
   private static final class RecordingLeelaz extends Leelaz {
