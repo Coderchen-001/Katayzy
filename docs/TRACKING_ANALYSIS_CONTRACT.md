@@ -1,5 +1,8 @@
 # Tracking Analysis Contract
 
+面向维护者的架构、取舍、踩坑与扩展说明见
+[`TRACKING_ANALYSIS_DEVELOPER_GUIDE.md`](TRACKING_ANALYSIS_DEVELOPER_GUIDE.md)。
+
 “评估此点”复用当前前台本地 KataGo 的唯一 GTP stream。Production 不再创建第二个
 tracking KataGo 进程，也不保留 legacy runtime、console、preload、warning、keep-tracking、
 feature flag 或失败 fallback。
