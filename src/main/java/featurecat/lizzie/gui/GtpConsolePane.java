@@ -425,16 +425,18 @@ public class GtpConsolePane extends JDialog {
               Config.frameFontSize);
         }
       } else if ("showboard".equals(commandToLower)) {
-        Lizzie.leelaz.sendCommand(command);
-        if (Lizzie.leelaz.isPondering()) Lizzie.leelaz.ponder();
+        if (Lizzie.leelaz.sendRawConsoleCommand(command) && Lizzie.leelaz.isPondering()) {
+          Lizzie.leelaz.ponder();
+        }
       } else if ("clear_board".equals(commandToLower)) {
         Lizzie.board.clear(false);
         Lizzie.frame.refresh();
       } else if ("heatmap".equals(commandToLower)) {
         Lizzie.leelaz.toggleHeatmap(false);
       } else if (commandToLower.startsWith("kata-raw")) {
+        if (Lizzie.leelaz.sendRawConsoleCommand(command)) {
         Lizzie.leelaz.setHeatmap();
-        Lizzie.leelaz.sendCommand(command);
+        }
       } else if (commandToLower.startsWith("boardsize")) {
         String cmdParams[] = command.split(" ");
         if (cmdParams.length >= 2) {
@@ -523,7 +525,7 @@ public class GtpConsolePane extends JDialog {
         Lizzie.leelaz.sendCommand(command);
         if (Lizzie.leelaz.isPondering()) Lizzie.leelaz.ponder();
       } else {
-        Lizzie.leelaz.sendCommand(command);
+        Lizzie.leelaz.sendRawConsoleCommand(command);
       }
     }
   }

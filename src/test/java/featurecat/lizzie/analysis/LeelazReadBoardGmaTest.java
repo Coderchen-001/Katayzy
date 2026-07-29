@@ -35,6 +35,88 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class LeelazReadBoardGmaTest {
   @Test
+  void readBoardGmaUsesRetainedHandoffWhenTrackingOwnsTheStream() throws Exception {
+    try (Harness harness = Harness.open()) {
+      Leelaz engine = readyReadBoardGmaEngine();
+      Lizzie.leelaz = engine;
+      RecordingOutputStream output = new RecordingOutputStream();
+      setOutputStream(engine, output);
+      Leelaz.TrackingStreamLeaseAcquisition tracking =
+          engine.acquireTrackingStreamLease(
+              line -> {},
+              lease -> lease.send("kata-analyze 10 allow B D4 1 allow W D4 1"),
+              lease -> {},
+              disposition -> {});
+      completeTrackingInitialFence(engine, 800000000);
+      AtomicInteger activations = new AtomicInteger();
+      AtomicInteger failures = new AtomicInteger();
+      Leelaz.TrackingHandoffTarget target =
+          new Leelaz.TrackingHandoffTarget() {
+            @Override
+            public Leelaz.TrackingHandoffKind kind() {
+              return Leelaz.TrackingHandoffKind.RETAINED_ENGINE_MODE;
+            }
+
+            @Override
+            public boolean isCurrent() {
+              return true;
+            }
+
+            @Override
+            public void activate(Leelaz.TrackingHandoffActivation activation) {
+              engine.activateReadBoardGmaAfterTracking(this, "B", 5, 1000, true, activation);
+              activations.incrementAndGet();
+            }
+
+            @Override
+            public void fail(Leelaz.TrackingHandoffFailure failure) {
+              failures.incrementAndGet();
+            }
+          };
+
+      Leelaz.TrackingHandoffClaim claim = engine.claimTrackingHandoff(target);
+
+      assertEquals(Leelaz.TrackingHandoffAvailability.ACCEPTED_PENDING, claim.availability());
+      assertEquals(
+          Leelaz.TrackingHandoffAvailability.BUSY,
+          engine.claimTrackingHandoff(target).availability());
+      assertFalse(
+          output.commands().stream().anyMatch(command -> command.contains("kata-get-param")));
+
+      completeTrackingFinalFence(engine, 800000002);
+
+      assertEquals(Leelaz.TrackingHandoffState.ACTIVE, claim.state());
+      assertEquals(1, activations.get());
+      assertEquals(0, failures.get());
+      assertTrue(output.commands().contains("kata-get-param ponderingEnabled"));
+      assertEquals(
+          Leelaz.ExclusiveGtpLeaseAvailability.READBOARD_GMA,
+          engine.previewForegroundAnalysisLeaseAvailability());
+      assertTrue(tracking.lease().failureReason().isEmpty());
+    }
+  }
+
+  @Test
+  void retiringActiveReadBoardGmaReleasesReservationAndQuarantinesDirtyRuntimeState()
+      throws Exception {
+    try (Harness harness = Harness.open()) {
+      Leelaz engine = readyReadBoardGmaEngine();
+      Lizzie.leelaz = engine;
+      setOutputStream(engine, new RecordingOutputStream());
+      assertTrue(engine.genmoveAnalyzeForReadBoard("B", 0, 0, false));
+
+      engine.retireReadBoardGmaSession();
+      engine.retireReadBoardGmaSession();
+
+      assertEquals(
+          Leelaz.ExclusiveGtpLeaseAvailability.ENGINE_STATE_UNRESTORED,
+          engine.previewForegroundAnalysisLeaseAvailability());
+      assertTrue(engine.hasUnrestoredReadBoardGmaState());
+      assertFalse(engine.isThinking);
+    }
+  }
+
+  @Test
   void supportsReadBoardGmaRequiresKatagoAndRequiredCommands() throws Exception {
     Leelaz engine = new Leelaz("");
     setBooleanField(engine, "endGetCommandList", true);
@@ -1864,10 +1946,65 @@ class LeelazReadBoardGmaTest {
     }
   }
 
+  @Test
+  void lateGmaPlayIsDeliveredToTheRetiredHelperOwnerAfterReplacement() throws Exception {
+    try (Harness harness = Harness.open()) {
+      Leelaz engine = new Leelaz("");
+      Lizzie.leelaz = engine;
+      ReadBoard retired = allocate(ReadBoard.class);
+      ReadBoard replacement = allocate(ReadBoard.class);
+      setBooleanField(retired, "retiredReadBoardGmaTerminalPending", true);
+      setBooleanField(replacement, "readBoardGmaPending", true);
+      Lizzie.frame.readBoard = replacement;
+      engine.bindReadBoardGmaResponseOwner(retired);
+
+      invokeParseLine(engine, "play D4");
+
+      assertFalse(getBooleanField(retired, "retiredReadBoardGmaTerminalPending"));
+      assertTrue(
+          getBooleanField(replacement, "readBoardGmaPending"),
+          "late old-helper play must not consume the replacement helper's pending GMA.");
+    }
+  }
+
+  @Test
+  void lateGmaGenerationCannotConsumeTheCurrentHelpersPendingRequest() throws Exception {
+    ReadBoard readBoard = allocate(ReadBoard.class);
+    Object currentIdentity = new Object();
+    setBooleanField(readBoard, "readBoardGmaPending", true);
+    setObjectField(readBoard, "readBoardGmaPendingIdentity", currentIdentity);
+    setLongField(readBoard, "readBoardGmaPendingGeneration", 12L);
+
+    assertFalse(readBoard.handleReadBoardGmaEnginePlay(currentIdentity, 11L, "D4"));
+    assertTrue(getBooleanField(readBoard, "readBoardGmaPending"));
+
+    assertTrue(readBoard.handleReadBoardGmaEnginePlay(currentIdentity, 12L, "D4"));
+    assertFalse(getBooleanField(readBoard, "readBoardGmaPending"));
+  }
+
   private static Leelaz readyReadBoardGmaEngine() throws Exception {
     Leelaz engine = new Leelaz("");
     configureReadyReadBoardGmaEngine(engine);
     return engine;
+  }
+
+  private static void completeTrackingInitialFence(Leelaz engine, int commandId) throws Exception {
+    assertFalse(dispatchExclusiveGtpLine(engine, "=" + commandId));
+    invokeProcessCommandResponseLine(engine, "=" + commandId);
+    assertTrue(dispatchExclusiveGtpLine(engine, ""));
+  }
+
+  private static void completeTrackingFinalFence(Leelaz engine, int commandId) throws Exception {
+    assertTrue(dispatchExclusiveGtpLine(engine, ""));
+    assertTrue(dispatchExclusiveGtpLine(engine, "=" + commandId));
+    assertTrue(dispatchExclusiveGtpLine(engine, ""));
+  }
+
+  private static boolean dispatchExclusiveGtpLine(Leelaz engine, String line) throws Exception {
+    java.lang.reflect.Method method =
+        Leelaz.class.getDeclaredMethod("dispatchExclusiveGtpLine", String.class);
+    method.setAccessible(true);
+    return (boolean) method.invoke(engine, line);
   }
 
   private static void configureReadyReadBoardGmaEngine(Leelaz engine) throws Exception {
@@ -2141,6 +2278,12 @@ class LeelazReadBoardGmaTest {
     Field field = target.getClass().getDeclaredField(fieldName);
     field.setAccessible(true);
     field.setBoolean(target, value);
+  }
+
+  private static void setLongField(Object target, String fieldName, long value) throws Exception {
+    Field field = target.getClass().getDeclaredField(fieldName);
+    field.setAccessible(true);
+    field.setLong(target, value);
   }
 
   private static void setStringField(Object target, String fieldName, String value)

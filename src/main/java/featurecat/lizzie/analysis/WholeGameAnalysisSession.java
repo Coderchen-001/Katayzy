@@ -1,5 +1,6 @@
 package featurecat.lizzie.analysis;
 
+import featurecat.lizzie.Config;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.gui.LizzieFrame;
 import featurecat.lizzie.rules.Board;
@@ -186,11 +187,21 @@ public final class WholeGameAnalysisSession {
   }
 
   private boolean awaitForegroundLeaseHandoff(int generation) throws InterruptedException {
-    while (isEngineStartCurrent(generation)
-        && Lizzie.config != null
-        && Lizzie.config.analysisReuseCurrentEngine
-        && Lizzie.leelaz != null
-        && Lizzie.leelaz.hasExclusiveGtpWorkInProgress()) {
+    while (isEngineStartCurrent(generation)) {
+      Config config = Lizzie.config;
+      Leelaz foreground = Lizzie.leelaz;
+      if (config == null || !config.analysisReuseCurrentEngine || foreground == null) {
+        break;
+      }
+      boolean exclusiveWork = foreground.hasExclusiveGtpWorkInProgress();
+      Leelaz.ExclusiveGtpLeaseAvailability availability =
+          exclusiveWork ? foreground.previewForegroundAnalysisLeaseAvailability() : null;
+      if (foreground != Lizzie.leelaz) {
+        continue;
+      }
+      if (!exclusiveWork || availability == Leelaz.ExclusiveGtpLeaseAvailability.AVAILABLE) {
+        break;
+      }
       Thread.sleep(50L);
     }
     return isEngineStartCurrent(generation);

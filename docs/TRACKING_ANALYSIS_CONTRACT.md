@@ -1,93 +1,168 @@
 # Tracking Analysis Contract
 
-补充《Tracking Analysis Design》中未明确的契约边界，作为后续修复和审查的基线。
+面向维护者的架构、取舍、踩坑与扩展说明见
+[`TRACKING_ANALYSIS_DEVELOPER_GUIDE.md`](TRACKING_ANALYSIS_DEVELOPER_GUIDE.md)。
 
-## 线程模型
+“评估此点”复用当前前台本地 KataGo 的唯一 GTP stream。Production 不再创建第二个
+tracking KataGo 进程，也不保留 legacy runtime、console、preload、warning、keep-tracking、
+feature flag 或失败 fallback。
 
-| 线程 | 调用 |
-|------|------|
-| EDT | 用户交互（菜单、右键、键盘）、`BoardRenderer` 渲染 |
-| 引擎 readLoop | `TrackingEngine` 内部的 `inputStream.readLine()` 循环 |
-| Leelaz read 线程 | 主引擎日志解析，可能调用 `Lizzie.frame.ensureTrackingEngine()`（预加载） |
-| 后台启动线程 | `ensureTrackingEngine` 中创建用于 `engine.startEngine(cmd)` |
-| 后台关闭线程 | `destroyTrackingEngine` 中创建用于 `te.shutdown()` |
+本合同补充 `docs/SNAPSHOT_NODE_KIND.md`；tracking 只显示 transient overlay，不改变其中的
+`MOVE`、`PASS`、`SNAPSHOT` 或 ReadBoard history 语义。
 
-## 字段可见性合约
+## Production 入口
 
-| 字段 | 修饰 | 原因 |
-|------|------|------|
-| `LizzieFrame.trackingEngine` | `volatile` | 多线程写读（EDT/引擎线程/启动线程） |
-| `LizzieFrame.trackingConsolePane` | 普通字段 | 只在 EDT 内 `SwingUtilities.invokeLater` 中访问 |
-| `LizzieFrame.trackedCoords` | `Collections.synchronizedSet` | 多线程添加/删除/迭代，迭代必须用调用者持锁或拷贝 |
-| `LizzieFrame.isKeepTracking` | `volatile` | 引擎线程读，EDT/菜单写 |
-| `TrackingEngine.isLoaded` | `volatile` | 引擎线程写、UI 线程读 |
-| `TrackingEngine.currentTrackedMoves` | `volatile` 整体替换 | `getCurrentTrackedMoves` 必须返回快照拷贝 |
-| `TrackingEngine.requestId` | `AtomicInteger` | sendTrackingRequest / clearTrackedMoves 并发递增 |
-| `TrackingEngine.consolePane` | `volatile` | EDT 写、引擎线程读 |
-| `TrackingEngine.engineReady` | `volatile` | 引擎线程读写、状态指示 |
+- `LizzieFrame` 在一个 frame 生命周期内只实例化一个 `TrackingAnalysisController`。
+- 本地右键入口把 add/remove/clear 意图提交给该 controller。
+- 当前 `ReadBoard` 存在时，同一右键入口必须先通过
+  `ReadBoardTrackingEligibilityAdapter` 复验 stable accepted frame；不稳定 frame 不发送
+  tracking request，也不重试。
+- 两个入口只复用 `Lizzie.leelaz`。引擎必须 started、loaded、local direct、KataGo，且不在
+  engine-game mode；Remote/WebSocket/SSH/double-engine 不在本合同范围。
+- Add 失败不显示 tracking-specific popup、`X` 或 retry 文案。
 
-## 启动顺序合约
+## Controller ownership
 
-`TrackingEngine.startEngine` 必须保证：
-1. 进程启动成功后**先**初始化 `inputStream`/`outputStream`/`executor`
-2. **最后**才设置 `isLoaded = true`
-3. 启动失败时调用 `updateConsoleTitle("启动失败")` 而非保持"启动中"
+`TrackingAnalysisController` 唯一拥有：
 
-## 调用者合约
+- selected points、newest-first pending points 和每点 current attempt；
+- immutable context、request generation 和 progress timeout；
+- current stream-only lease handle；
+- immutable `DisplaySnapshot`。
 
-- `ensureTrackingEngine()` 是异步的：返回不代表引擎已 ready。调用者若要立刻 sendCommand，必须先检查 `isLoaded()` 或接受请求被丢弃
-- `ensureTrackingEngineWithWarning()` 返回 `false` 仅表示用户在警告对话框点了取消，返回 `true` 不代表引擎可用
-- `ensureTrackingEngineWithWarning()` 内部会调用 `JOptionPane.showConfirmDialog`，**必须** 从 EDT 调用。当前唯一调用点是 `RightClickMenu.trackPointAction`（菜单 ActionListener，本身就在 EDT）。如果未来有从非 EDT 线程触发警告的需求，必须用 `SwingUtilities.invokeAndWait` 包装
-- `triggerTrackingAnalysis` 在 `sendTrackingRequest` 内部已对 `trackedCoords` 做防御拷贝（见 `LinkedHashSet` 拷贝），调用者无需额外加锁
-- `clearTrackedMoves()` 必须递增 `requestId` 以失效旧响应
-- `getCurrentTrackedMoves()` 返回的是 List 拷贝，但其中的 `MoveData` 元素是引用共享的——渲染端读字段时应一次性提取到局部变量
+UI 只能提交 add/remove/clear。Controller 不启动、切换或重启引擎，不写 Board/history，也不写
+普通 `bestMoves`；仅本节明确允许的 clean handback 可凭首个 receipt 请求 `Leelaz` 恢复原
+ponder。
 
-## 资源清理合约
+每个点使用一个独立 stream-only lease。Initial numbered stop 完整结束后只发送：
 
-- `Font.createFont(stream)` 必须使用 try-with-resources 关闭流
-- `process.destroyForcibly()` 后必须 `waitFor(2, SECONDS)` 等待
-- `destroyTrackingEngine` 异步 shutdown 必须有 try-catch 防止异常静默逃逸
-- `TrackingConsolePane.addLine` 必须节流，避免 KataGo tuning 阶段每行一次 `invokeLater` 堆积 EDT 队列
-- `addLine` 累积缓冲超过 `MAX_BUFFER_BYTES`（默认 8192）时丢弃多余行，避免巨量日志一次性插入冻结 EDT
-- `startEngine` 在创建流之后任何步骤失败时必须释放已创建的流和 process
+```text
+kata-analyze <interval> allow B <coord> 1 allow W <coord> 1
+```
 
-## 引擎销毁/创建顺序合约
+只有目标坐标 visits 严格增加才续期 8 秒 progress timeout。达到该点 visits 后发送 final
+numbered stop；只有 final fence 成功关闭后结果才标记 completed，然后调度 newest pending
+point。Clean natural completion，以及用户显式 remove current / clear 后成功关闭的 final
+fence，可按首个 receipt 恢复原 ponder；任何 handoff、ordinary release、context failure 或
+transport failure 都不得恢复。
 
-`destroyTrackingEngine` 是异步的（后台线程做 shutdown）。如需在销毁后立即调 `ensureTrackingEngine`，必须确保新引擎不会在旧引擎 shutdown 完成前启动。
-当前实现：`ensureTrackingEngine` 通过 `trackingEngineStarting` CAS 防重入；调用方应避免在 100ms 内连续 destroy + ensure。
+## Context 与 ReadBoard
 
-## 错误传播合约
+Tracking context 至少绑定：
 
-- `sendCommand` 写流失败（IOException）必须把 `isLoaded` 置为 false 并 `updateConsoleTitle("已关闭")`，让 UI 立刻反映引擎不可用
-- `parseResult` 中比对 `requestId` 必须在函数入口缓存到局部变量；解析完成准备写入 `currentTrackedMoves` 前再次校验 ID 仍然匹配，否则丢弃
-- `parseResult` 中所有访问 `Lizzie.board` / `Lizzie.frame` 必须先缓存到局部变量再做 null 检查，避免两次读之间字段被外部置为 null
+- history identity 与 current display/history node identity；
+- board size、完整 stones fingerprint、to-play、rules、komi；
+- engine identity/incarnation；
+- interval 与每点 visits；
+- 可选 ReadBoard helper identity、revision、accepted node 与 board revision。
 
-## 启停时序合约
+第一个点建立 context；后续 add 必须匹配。局面、history/display node、board size、stones、
+to-play、rules、komi、engine/incarnation、参数或 ReadBoard identity/revision/node 任一变化都
+立即清 selected/pending/result 并 release 当前 lease。
 
-- `startEngine` 调用 `executor.execute(this::readLoop)` 时必须用 try-catch 包围，应对并发 shutdown 已经 `shutdownNow()` 的情况；rejected 时回到失败路径（`isLoaded=false` + 控制台"启动失败"）
-- `shutdown` 是幂等的，可以多次调用不会引发异常
+ReadBoard stable 条件与失效顺序由 `ReadBoardTrackingEligibilityAdapter` 和 `ReadBoard`
+eligibility snapshot 拥有。Tracking 不拦截 helper protocol，不推导或补造 `MOVE/PASS`。
 
-## 重置警告对话框
+## Display 与 renderer
 
-`tracking-engine-skip-warning` 配置必须可在 ConfigDialog2 中重置，否则用户无法恢复警告。
-重置操作必须遵循 ConfigDialog2 标准的 OK/Cancel 流程——点重置按钮只暂存意图，OK 时才真正写入 config，Cancel 时不生效。
+- `DisplaySnapshot` 是 immutable value；renderer 不读取 controller 内部 mutable state。
+- Renderer 只在 snapshot 的 history identity 与 current history 相同，且 display node identity
+  同时等于 current display/history node时绘制。
+- selected point 立即显示虚线环；remove pending 立即隐藏且不影响 current；remove current 或
+  clear 立即隐藏全部相应 overlay，后台只完成安全归还。
+- selected point 立即占用该坐标并隐藏同坐标普通候选，默认显示圆角分段虚线外框；尚无结果时
+  使用中性灰。首份 visits 大于零的 current result 到达后立即显示 result，不等待 final
+  fence。用户关闭外框后，首份结果前不显示占位标记。
+- Tracking result 以同一局面当前普通最佳候选为动态基准，按 `MoveRankDefinition` 的胜率/目差
+  损失等级实时绘制虚线外框；普通分析更新时实时重算颜色。没有普通最佳候选时外框使用中性灰。
+- Tracking result 内部使用用户配置的固定颜色和不透明度，不随质量等级变化，默认颜色为
+  `RGB(255, 156, 156)`，默认不透明度为 100%。外框默认开启，颜色由质量等级决定，不透明度
+  可配置。
+- Tracking result 文字复用普通候选的显示项、行序、字体缩放和定位；前景色按实际背景在黑/白
+  中选择较高对比度，也可关闭自动适配并使用自定义颜色。启用 score diff 时显示 tracking score
+  减当前普通最佳候选 score。
+- Completed result 可在同一 context 内与新点并存。Tracking result 只画 overlay，不进入
+  SGF、普通候选、胜率图或 history node。
+- Strict safe-GTP release 可冻结最后一个仍 valid result snapshot；其他 ordinary、typed
+  handoff、lifecycle、context 或 transport release 清空 selected/display。
 
-## 命令转换合约
+## Stream arbitration
 
-`TrackingEngine.toAnalysisCommand` 必须把主引擎命令中的 `gtp` 子命令 token 替换为 `analysis`，并补充 analysis 模式必需参数：
-- 使用 `(\\s)gtp(\\s|$)` 而非 `\\bgtp\\b` 进行匹配，确保只替换"两侧均为空白或行尾"的独立 token
-- 路径中含 `gtp` 字符串（如 `/usr/local/gtp/bin/katago`）不得被破坏
-- `numAnalysisThreads=1` 与 `nnMaxBatchSize=8` 必须出现在最终命令中（追加到 `-override-config`，已存在则跳过）
-- **已知限制**：如果可执行路径**目录名含空格且包含 gtp 子串**（如 `/path with gtp dir/katago gtp ...`），`replaceFirst` 会优先匹配路径里的 `gtp`。生产环境中 KataGo 通常装在简单路径下，此 case 不在保障范围；如需支持需切换到 `Utils.splitCommand` token 级解析。
+`Leelaz` 唯一拥有 stream arbitration、initial/final fence、ordinary queue、typed handoff 和
+transport terminal/rebind settlement。锁序保持：
 
-## EDT 防御
+```text
+engineArbitrationLock -> commandQueue
+```
 
-`TrackingConsolePane` 的按钮事件回调可能在主窗口尚未完全初始化或正在销毁时触发。所有访问 `Lizzie.frame.xxx` 的回调都必须先做 `Lizzie.frame != null` 防御。
+- Ordinary command 先进入原 queue，再 claim tracking release；final fence 后由原 writer 按
+  FIFO 写出。
+- Active tracking 中的普通落子若在同一次调用排队后续 ponder，只能在 `play` 成功响应后结算
+  tracking stream 不提供的单格 ordinary response watermark；`play` 错误响应不得结算，也不得
+  提前接受新局面的 `info`。
+- Clean ponder handback 只能在 final fence 后排队原 ponder，并在该 streaming analysis 已排队时
+  结算同样的单格 watermark。
+- Safe raw GTP whitelist 仅包含无 caller ID、exact arity 的 `name`、`version`、
+  `protocol_version`、`list_commands`、`known_command <name>` 和 `showboard`。
+- Safe query 发布 `SAFE_READ_ONLY_QUERY` 并冻结最后 valid overlay；其他 admitted ordinary
+  发布 `ORDINARY_OPERATION` 并清空，二者都不自动 reacquire。
+- Typed foreground/retained-mode first winner 在 claim 时立即清 display，final fence 后激活
+  existing target owner。第二 typed/lifecycle contender沿用 existing busy。
+- Destructive lifecycle 继续使用 existing reservation并立即执行原 action；不得保存 callback、
+  continuation 或 user intent。
+- Final fence、terminal 或 transport 输出不确定时 fail-closed，ordinary queue 不能穿过可能
+  仍开放的 analysis stream。
 
-## 不在范围内（已被 spec 排除）
+## 配置兼容
 
-- 持久化追踪结果（spec 明确为 transient）
-- 追踪点显示 PV（spec 排除）
-- 非 KataGo 引擎支持（spec 排除）
-- SSH 远程追踪引擎（spec 排除）
-- `MoveData.playouts` int 溢出（项目原有类型，不属本任务）
+Tracking 每点 visits 使用：
+
+```text
+tracking-analysis-max-visits
+```
+
+该值可在“综合设置 → 引擎与分析”的“选点评估计算量”中调整。
+
+选点评估结果外观使用以下 UI 配置：
+
+```text
+show-tracking-point-outline
+tracking-point-interior-color
+tracking-point-interior-opacity
+tracking-point-outline-opacity
+tracking-point-text-auto-color
+tracking-point-text-color
+```
+
+这些外观项位于“主题外观”设置页。两个 `opacity` 百分比均表示不透明度：0 为完全透明，100 为
+完全不透明。
+
+加载旧配置时，若新 key 不存在，则迁移 `tracking-engine-max-visits` 的正值；随后删除旧
+`tracking-engine-max-visits`、`tracking-engine-preload` 和
+`tracking-engine-skip-warning`。旧 preload/engine command 不能启动第二进程。
+
+## 测试与发布边界
+
+- Production-entry tests 必须同时覆盖 local 与 stable ReadBoard route，并证明二者共享同一
+  controller/current engine。
+- Controller、lease、ordinary、handoff、lifecycle、ReadBoard GMA、renderer stale-node gate
+  和配置迁移必须有 deterministic headless coverage。
+- Windows integration harness 只存在于 test source，通过 public controller/lease/handoff
+  seam 使用 monotonic clock 输出原始 CSV/JSON；它必须捕获并恢复 default uncaught handler
+  与 EDT EventQueue，Executor task 必须显式取得 `Future` 或 join。
+- 未设置真实引擎时，`TrackingWindowsIntegrationHarnessTest` 运行 controlled transport
+  characterization。Ticket 07 通过 `tracking.real.command` system property 或
+  `TRACKING_REAL_COMMAND` environment variable 提供已批准的真实 KataGo 命令；harness 先做
+  3 次 warm-up，再采集 30 个 acquisition/handoff/target-operation 原始样本，输出
+  `real-samples.csv`、`real-samples.json` 及 P50/P95/max。可用
+  `tracking.real.output` 指定输出目录。
+- Windows GUI、真实 KataGo/OpenCL 与实际进程数仍需 Ticket 07 验收；本 source candidate 在
+  该 gate 前不得 merge 或 release。
+
+## Out of scope
+
+- Remote Compute/WebSocket、Java SSH、外部 ssh/plink、double-engine tracking。
+- 第二 tracking process、dual-runtime route、feature flag 或 fallback。
+- Cross-point persistent lease、跨 context 恢复、结果持久化、PV overlay、SGF tracking 字段。
+- Ordinary response ledger、第二 queue、generic transaction/callback registry、rollback 或
+  自动重试。

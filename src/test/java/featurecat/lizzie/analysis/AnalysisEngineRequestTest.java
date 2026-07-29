@@ -4,11 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import featurecat.lizzie.Config;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.gui.HumanSlGameController;
+import featurecat.lizzie.gui.GtpConsolePane;
 import featurecat.lizzie.gui.LizzieFrame;
 import featurecat.lizzie.gui.WaitForAnalysis;
 import featurecat.lizzie.rules.Board;
@@ -20,9 +22,12 @@ import featurecat.lizzie.rules.SGFParser;
 import featurecat.lizzie.rules.Stone;
 import featurecat.lizzie.rules.Zobrist;
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.StringReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -33,14 +38,27 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class AnalysisEngineRequestTest {
   private static final int BOARD_SIZE = 3;
+  private final List<Leelaz> createdForegroundEngines = new ArrayList<>();
+
+  @AfterEach
+  void closeCreatedForegroundSessions() throws Exception {
+    for (Leelaz engine : createdForegroundEngines) {
+      closeExclusiveSessionForTest(engine);
+    }
+    createdForegroundEngines.clear();
+  }
   private static final int BOARD_AREA = BOARD_SIZE * BOARD_SIZE;
 
   @Test
@@ -201,6 +219,629 @@ class AnalysisEngineRequestTest {
   }
 
   @Test
+  void terminatedSharedForegroundAnalysisEngineIsNotRunning() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      Lizzie.leelaz = reusableForegroundEngine(true);
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      engine.normalQuit();
+
+      assertFalse(engine.isRunning());
+    }
+  }
+
+  @Test
+  void reuseModeClaimsAcquiringTrackingBeforeStartingTheForegroundRequest() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      Leelaz.TrackingStreamLeaseAcquisition tracking =
+          foreground.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+
+      AnalysisEngine engine = new AnalysisEngine(false);
+      engine.startRequest(1, -1, false);
+
+      assertTrue(engine.isLoaded(), "tracking should be a competitive foreground handoff");
+      assertEquals("800000000 stop\n", output.toString(StandardCharsets.UTF_8));
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+
+      processCommandResponse(foreground, "=800000000");
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).contains("830000000 kata-get-rules\n"),
+          "foreground request must activate only after the tracking fence");
+      closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
+  void reuseModeClaimsActiveTrackingBeforeStartingTheForegroundRequest() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      engine.startRequest(1, -1, false);
+
+      assertEquals(
+          "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
+          output.toString(StandardCharsets.UTF_8));
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).contains("kata-get-rules\n"),
+          output.toString(StandardCharsets.UTF_8));
+      closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
+  void reuseModeClaimsActiveTrackingBeforeStartingMissingMainlineRequest() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      assertEquals(
+          Leelaz.ExclusiveGtpLeaseAvailability.AVAILABLE,
+          foreground.previewForegroundAnalysisLeaseAvailability(),
+          "preview remains competitive so the business owner can create a typed handoff target");
+      assertEquals(
+          Leelaz.ExclusiveGtpLeaseAvailability.EXISTING_LEASE,
+          foreground.beginForegroundAnalysisLease(new Object(), line -> {}, () -> {}, () -> {}),
+          "direct acquisition must not overwrite the active tracking session");
+      int requested = engine.startRequestMissingMainline(false);
+
+      assertEquals(1, requested);
+      assertEquals(
+          "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
+          output.toString(StandardCharsets.UTF_8));
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).contains("kata-get-rules\n"),
+          output.toString(StandardCharsets.UTF_8));
+      closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
+  void reuseModeClaimsActiveTrackingBeforeStartingWholeGameRequest() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      BoardHistoryNode requestedNode = singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(foreground);
+      AnalysisEngine engine =
+          new AnalysisEngine(false, AnalysisEngine.Workload.WHOLE_GAME, 500);
+
+      assertEquals(1, engine.startWholeGameRequest(List.of(requestedNode), 500, false));
+      assertEquals(
+          "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
+          output.toString(StandardCharsets.UTF_8));
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+
+      assertTrue(Lizzie.board.getHistory().previous().isPresent());
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(Lizzie.board.getHistory().next().isPresent());
+
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).contains("kata-get-rules\n"),
+          output.toString(StandardCharsets.UTF_8));
+      String originalRules =
+          "{\"koRule\":\"POSITIONAL\",\"scoringRule\":\"AREA\",\"taxRule\":\"NONE\"}";
+      assertTrue(dispatchExclusiveLine(foreground, "=830000000 " + originalRules));
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).endsWith("830000001 boardsize 3\n"),
+          output.toString(StandardCharsets.UTF_8));
+      closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
+  void shutdownRequestCancelsPendingWholeGameTrackingHandoff() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      BoardHistoryNode requestedNode = singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      Lizzie.leelaz = foreground;
+      activateTracking(foreground);
+      AnalysisEngine engine =
+          new AnalysisEngine(false, AnalysisEngine.Workload.WHOLE_GAME, 500);
+
+      assertEquals(1, engine.startWholeGameRequest(List.of(requestedNode), 500, false));
+      Object target = getField(AnalysisEngine.class, engine, "pendingForegroundRequest");
+      Leelaz.TrackingHandoffClaim claim =
+          (Leelaz.TrackingHandoffClaim) getField(target.getClass(), target, "claim");
+      assertEquals(Leelaz.TrackingHandoffState.ACCEPTED_PENDING, claim.state());
+
+      engine.requestShutdown();
+
+      assertEquals(Leelaz.TrackingHandoffState.FAILED, claim.state());
+      assertNull(getField(AnalysisEngine.class, engine, "pendingForegroundRequest"));
+    }
+  }
+
+  @Test
+  void shutdownAfterForegroundActivationCheckReleasesNewHandoffSession() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      BoardHistoryNode requestedNode = singleUnanalyzedMoveNode();
+      ActivationBarrierLeelaz foreground =
+          reusableForegroundEngine(new ActivationBarrierLeelaz(), true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false, AnalysisEngine.Workload.WHOLE_GAME, 500);
+
+      assertEquals(1, engine.startWholeGameRequest(List.of(requestedNode), 500, false));
+      AtomicReference<Throwable> workerFailure = new AtomicReference<>();
+      Thread finalFence =
+          new Thread(
+              () -> {
+                try {
+                  assertTrue(dispatchExclusiveLine(foreground, ""));
+                  assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+                  assertTrue(dispatchExclusiveLine(foreground, ""));
+                } catch (Throwable failure) {
+                  workerFailure.set(failure);
+                }
+              },
+              "tracking-handoff-final-fence");
+
+      finalFence.start();
+      foreground.awaitForegroundActivation();
+      engine.requestShutdown();
+      foreground.continueForegroundActivation();
+      finalFence.join(2000);
+
+      assertFalse(finalFence.isAlive(), "final-fence worker did not finish");
+      assertNull(workerFailure.get());
+      assertTrue(foreground.cleanupUsedOriginalTarget());
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).endsWith("800000004 stop\n"),
+          output.toString(StandardCharsets.UTF_8));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000004"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      completeForegroundRestore(foreground);
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
+    }
+  }
+
+  @Test
+  void wholeGameTrackingHandoffReportsFinalFenceFailureOnce() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      BoardHistoryNode requestedNode = singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      activateTracking(foreground);
+      AnalysisEngine engine =
+          new AnalysisEngine(false, AnalysisEngine.Workload.WHOLE_GAME, 500);
+      AtomicInteger failures = new AtomicInteger();
+      engine.setFailureCallback(failures::incrementAndGet);
+
+      assertEquals(1, engine.startWholeGameRequest(List.of(requestedNode), 500, false));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "?800000002 simulated final stop failure"));
+      javax.swing.SwingUtilities.invokeAndWait(() -> {});
+
+      assertEquals(1, failures.get());
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
+    }
+  }
+
+  @Test
+  void mainlineCompletesAfterTrackingHandoffWhenEmptyBoardHasNoRequests() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      boardWithHistory(new BoardHistoryList(BoardData.empty(BOARD_SIZE, BOARD_SIZE)));
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+      TrackingWaitForAnalysis waitFrame = allocate(TrackingWaitForAnalysis.class);
+      waitFrame.setVisible(true);
+      engine.waitFrame = waitFrame;
+      AtomicInteger completions = new AtomicInteger();
+      engine.setCompletionCallback(completions::incrementAndGet);
+
+      engine.startRequest(-1, -1, true);
+
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).endsWith("800000004 stop\n"),
+          output.toString(StandardCharsets.UTF_8));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000004"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      completeForegroundRestore(foreground);
+      javax.swing.SwingUtilities.invokeAndWait(() -> {});
+
+      assertEquals(2, waitFrame.visibilityCalls);
+      assertFalse(waitFrame.lastVisible);
+      assertEquals(1, completions.get(), output.toString(StandardCharsets.UTF_8));
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
+    }
+  }
+
+  @Test
+  void allBranchesCompletesAfterTrackingHandoffWhenEmptyBoardHasNoRequests() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      boardWithHistory(new BoardHistoryList(BoardData.empty(BOARD_SIZE, BOARD_SIZE)));
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      Leelaz.TrackingStreamLeaseAcquisition tracking = activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+      AtomicInteger completions = new AtomicInteger();
+      engine.setCompletionCallback(completions::incrementAndGet);
+
+      engine.startRequestAllBranches(false);
+
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+
+      assertTrue(
+          output.toString(StandardCharsets.UTF_8).endsWith("800000004 stop\n"),
+          output.toString(StandardCharsets.UTF_8));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000004"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      completeForegroundRestore(foreground);
+      javax.swing.SwingUtilities.invokeAndWait(() -> {});
+
+      assertEquals(1, completions.get(), output.toString(StandardCharsets.UTF_8));
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
+    }
+  }
+
+  @Test
+  void missingMainlineCompletesWhenAcquiringTrackingFillsLastRequestBeforeInitialFence()
+      throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      BoardHistoryNode requestedNode = singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      Leelaz.TrackingStreamLeaseAcquisition tracking =
+          foreground.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      AnalysisEngine engine = new AnalysisEngine(false);
+      AtomicInteger completions = new AtomicInteger();
+      engine.setCompletionCallback(completions::incrementAndGet);
+
+      assertEquals(1, engine.startRequestMissingMainline(false));
+      requestedNode.getData().setPlayouts(120);
+      assertEquals("800000000 stop\n", output.toString(StandardCharsets.UTF_8));
+
+      processCommandResponse(foreground, "=800000000");
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      completeForegroundRestore(foreground);
+      javax.swing.SwingUtilities.invokeAndWait(() -> {});
+
+      assertEquals(1, completions.get(), output.toString(StandardCharsets.UTF_8));
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-analyze"));
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertEquals(Leelaz.TrackingReleaseDisposition.CLEARED, tracking.lease().disposition());
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
+    }
+  }
+
+  @Test
+  void missingMainlineCompletesWhenTrackingFillsLastRequestBeforeActivation() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      BoardHistoryNode requestedNode = singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+      AtomicInteger completions = new AtomicInteger();
+      engine.setCompletionCallback(completions::incrementAndGet);
+
+      assertEquals(1, engine.startRequestMissingMainline(false));
+      requestedNode.getData().setPlayouts(120);
+
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000004"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      completeForegroundRestore(foreground);
+      javax.swing.SwingUtilities.invokeAndWait(() -> {});
+
+      assertEquals(1, completions.get(), output.toString(StandardCharsets.UTF_8));
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
+    }
+  }
+
+  @Test
+  void activeTrackingForegroundRequestFailsWithoutActivationAfterReaderRebind() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      engine.startRequest(1, -1, false);
+      initializeStreams(foreground, new ByteArrayOutputStream());
+
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
+    }
+  }
+
+  @Test
+  void activeTrackingForegroundRequestFailsWithoutActivationAfterCurrentTerminal()
+      throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      GtpConsolePane previousConsole = Lizzie.gtpConsole;
+      try {
+        Lizzie.config.analysisReuseCurrentEngine = true;
+        singleUnanalyzedMoveNode();
+        Leelaz foreground = reusableForegroundEngine(true);
+        ByteArrayOutputStream output = installLeelazOutput(foreground);
+        setField(
+            Leelaz.class, foreground, "inputStream", new BufferedReader(new StringReader("")));
+        Lizzie.gtpConsole = allocate(SilentGtpConsole.class);
+        Lizzie.leelaz = foreground;
+        activateTracking(foreground);
+        AnalysisEngine engine = new AnalysisEngine(false);
+
+        engine.startRequest(1, -1, false);
+        foreground.isNormalEnd = true;
+        invokeRead(foreground);
+
+        assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+        assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+        assertFalse(engine.isAnalysisInProgress());
+      } finally {
+        Lizzie.gtpConsole = previousConsole;
+      }
+    }
+  }
+
+  @Test
+  void activeTrackingForegroundRequestFailsWithoutActivationAfterFinalFenceFailure()
+      throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      engine.startRequest(1, -1, false);
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "?800000002 simulated final stop failure"));
+
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+      assertFalse(engine.isAnalysisInProgress());
+    }
+  }
+
+  @Test
+  void foregroundRetainedAndLifecycleContendersShareOneTrackingWinner() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      activateTracking(foreground);
+      AnalysisEngine engine = new AnalysisEngine(false);
+      TrackingLizzieFrame frame = (TrackingLizzieFrame) Lizzie.frame;
+
+      engine.startRequest(1, -1, false);
+      frame.startNewGame();
+      Leelaz.ExclusiveGtpLifecycleReservation lifecycle =
+          foreground.beginExclusiveGtpLifecycleReservation();
+
+      assertNull(lifecycle);
+      assertEquals(1, frame.retainedModeConflictCount);
+
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(foreground.hasExclusiveGtpLease());
+      closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
+  void reuseModeClaimsActiveTrackingBeforeStartingAllBranchesRequest() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      foreground.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+
+      AnalysisEngine engine = new AnalysisEngine(false);
+      engine.startRequestAllBranches(false);
+
+      assertEquals("800000000 stop\n", output.toString(StandardCharsets.UTF_8));
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+
+      processCommandResponse(foreground, "=800000000");
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+
+      assertTrue(output.toString(StandardCharsets.UTF_8).contains("830000000 kata-get-rules\n"));
+      closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
+  void reuseModeAllowsOnlyTheFirstForegroundRequestToClaimTracking() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      foreground.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      AnalysisEngine first = new AnalysisEngine(false);
+      AnalysisEngine second = new AnalysisEngine(false);
+
+      first.startRequest(1, -1, false);
+      second.startRequest(1, -1, false);
+
+      assertEquals("800000000 stop\n", output.toString(StandardCharsets.UTF_8));
+      assertEquals(
+          Leelaz.ExclusiveGtpLeaseAvailability.EXISTING_LEASE,
+          second.getForegroundLeaseAvailability());
+
+      processCommandResponse(foreground, "=800000000");
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(output.toString(StandardCharsets.UTF_8).contains("830000000 kata-get-rules\n"));
+      closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
+  void reuseModeDoesNotStartForegroundRequestAfterBoardContextChanges() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      foreground.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      engine.startRequest(1, -1, false);
+      singleUnanalyzedMoveNode();
+      processCommandResponse(foreground, "=800000000");
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+    }
+  }
+
+  @Test
+  void reuseModeDoesNotStartForegroundRequestAfterCurrentPositionChangesInPlace()
+      throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      foreground.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      engine.startRequest(1, -1, false);
+      Lizzie.board.getHistory().setStone(new int[] {0, 0}, Stone.BLACK);
+      processCommandResponse(foreground, "=800000000");
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+    }
+  }
+
+  @Test
+  void reuseModeDoesNotStartForegroundRequestAfterNavigationReturnsToSameNode()
+      throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      BoardHistoryNode requestedNode = singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      foreground.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      engine.startRequest(1, -1, false);
+      assertTrue(Lizzie.board.previousMove(false));
+      assertTrue(Lizzie.board.nextMove(false));
+      assertSame(requestedNode, Lizzie.board.getHistory().getCurrentHistoryNode());
+      processCommandResponse(foreground, "=800000000");
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+
+      assertFalse(output.toString(StandardCharsets.UTF_8).contains("kata-get-rules"));
+      assertFalse(foreground.hasExclusiveGtpWorkInProgress());
+    }
+  }
+
+  @Test
+  void failedNavigationAttemptDoesNotInvalidateForegroundRequest() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      singleUnanalyzedMoveNode();
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      foreground.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+      AnalysisEngine engine = new AnalysisEngine(false);
+
+      engine.startRequest(1, -1, false);
+      assertFalse(Lizzie.board.nextMove(false));
+      processCommandResponse(foreground, "=800000000");
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+
+      assertTrue(output.toString(StandardCharsets.UTF_8).contains("830000000 kata-get-rules\n"));
+      closeExclusiveSessionForTest(foreground);
+    }
+  }
+
+  @Test
   void reuseModeRejectsHumanSlAndContributionModes() throws Exception {
     try (TestEnvironment env = TestEnvironment.open()) {
       Lizzie.config.analysisReuseCurrentEngine = true;
@@ -237,6 +878,29 @@ class AnalysisEngineRequestTest {
       assertNull(frame.contributeEngine);
       assertTrue(foreground.hasExclusiveGtpLease());
       foreground.endExclusiveGtpSession();
+    }
+  }
+
+  @Test
+  void activeTrackingLetsContributionLifecycleRunImmediatelyOnce() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Leelaz foreground = reusableForegroundEngine(true);
+      ByteArrayOutputStream output = installLeelazOutput(foreground);
+      Lizzie.leelaz = foreground;
+      activateTracking(foreground);
+      TrackingLizzieFrame frame = (TrackingLizzieFrame) Lizzie.frame;
+
+      frame.startContributeEngine();
+
+      assertEquals(1, frame.contributionStarts);
+      assertEquals(0, frame.foregroundReservationConflictCount);
+      assertEquals(
+          "800000000 stop\n800000001 kata-analyze B 10\n800000002 stop\n",
+          output.toString(StandardCharsets.UTF_8));
+      assertNull(foreground.beginExclusiveGtpLifecycleReservation());
+      assertTrue(dispatchExclusiveLine(foreground, ""));
+      assertTrue(dispatchExclusiveLine(foreground, "=800000002"));
+      assertTrue(dispatchExclusiveLine(foreground, ""));
     }
   }
 
@@ -2418,6 +3082,12 @@ class AnalysisEngineRequestTest {
     field.set(target, value);
   }
 
+  private static Object getField(Class<?> owner, Object target, String name) throws Exception {
+    Field field = owner.getDeclaredField(name);
+    field.setAccessible(true);
+    return field.get(target);
+  }
+
   private static Leelaz.ForegroundAnalysisLease foregroundLease(Leelaz engine) throws Exception {
     java.lang.reflect.Constructor<Leelaz.ForegroundAnalysisLease> constructor =
         Leelaz.ForegroundAnalysisLease.class.getDeclaredConstructor(Leelaz.class);
@@ -2614,8 +3284,11 @@ class AnalysisEngineRequestTest {
     }
   }
 
-  private static Leelaz reusableForegroundEngine(boolean katago) throws Exception {
-    Leelaz engine = new Leelaz("");
+  private Leelaz reusableForegroundEngine(boolean katago) throws Exception {
+    return reusableForegroundEngine(new Leelaz(""), katago);
+  }
+
+  private <T extends Leelaz> T reusableForegroundEngine(T engine, boolean katago) throws Exception {
     engine.isLoaded = true;
     engine.started = true;
     engine.isKatago = katago;
@@ -2636,6 +3309,7 @@ class AnalysisEngineRequestTest {
     Field capabilityDiscovery = Leelaz.class.getDeclaredField("endGetCommandList");
     capabilityDiscovery.setAccessible(true);
     capabilityDiscovery.set(engine, true);
+    createdForegroundEngines.add(engine);
     return engine;
   }
 
@@ -2643,6 +3317,70 @@ class AnalysisEngineRequestTest {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     setField(Leelaz.class, engine, "outputStream", new BufferedOutputStream(output));
     return output;
+  }
+
+  private static Leelaz.TrackingStreamLeaseAcquisition activateTracking(Leelaz engine)
+      throws Exception {
+    Leelaz.TrackingStreamLeaseAcquisition tracking =
+        engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
+    processCommandResponse(engine, "=800000000");
+    assertTrue(dispatchExclusiveLine(engine, ""));
+    assertTrue(tracking.lease().send("kata-analyze B 10"));
+    return tracking;
+  }
+
+  private static void initializeStreams(Leelaz engine, ByteArrayOutputStream output)
+      throws Exception {
+    Method method =
+        Leelaz.class.getDeclaredMethod(
+            "initializeStreams",
+            java.io.InputStream.class,
+            java.io.OutputStream.class,
+            java.io.InputStream.class);
+    method.setAccessible(true);
+    method.invoke(
+        engine,
+        new ByteArrayInputStream(new byte[0]),
+        output,
+        new ByteArrayInputStream(new byte[0]));
+  }
+
+  private static void invokeRead(Leelaz engine) throws Exception {
+    Method method = Leelaz.class.getDeclaredMethod("read");
+    method.setAccessible(true);
+    method.invoke(engine);
+  }
+
+  private static void closeExclusiveSessionForTest(Leelaz engine) throws Exception {
+    if (engine == null) {
+      return;
+    }
+    Field field = Leelaz.class.getDeclaredField("exclusiveGtpSession");
+    field.setAccessible(true);
+    Object session = field.get(engine);
+    if (session == null) {
+      return;
+    }
+    Method cancelInitial =
+        Leelaz.class.getDeclaredMethod("cancelExclusiveGtpInitialStopTimeout", session.getClass());
+    cancelInitial.setAccessible(true);
+    cancelInitial.invoke(engine, session);
+    Method cancelRelease =
+        Leelaz.class.getDeclaredMethod("cancelExclusiveGtpReleaseStopTimeout", session.getClass());
+    cancelRelease.setAccessible(true);
+    cancelRelease.invoke(engine, session);
+    Method method = Leelaz.class.getDeclaredMethod("closeExclusiveGtpSession", session.getClass());
+    method.setAccessible(true);
+    method.invoke(engine, session);
+  }
+
+  private static void completeForegroundRestore(Leelaz engine) throws Exception {
+    Field sessionField = Leelaz.class.getDeclaredField("foregroundRestoreSession");
+    sessionField.setAccessible(true);
+    Object session = sessionField.get(engine);
+    Method method = Leelaz.class.getDeclaredMethod("completeForegroundRestore", session.getClass());
+    method.setAccessible(true);
+    method.invoke(engine, session);
   }
 
   private static final class TestEnvironment implements AutoCloseable {
@@ -2717,7 +3455,8 @@ class AnalysisEngineRequestTest {
     }
 
     @Override
-    public void close() {
+    public void close() throws Exception {
+      closeExclusiveSessionForTest(Lizzie.leelaz);
       Board.boardWidth = previousBoardWidth;
       Board.boardHeight = previousBoardHeight;
       Zobrist.init();
@@ -2731,6 +3470,8 @@ class AnalysisEngineRequestTest {
   private static final class TrackingLizzieFrame extends LizzieFrame {
     private int flashAutoAnaSaveAndLoadCalls;
     private int foregroundReservationConflictCount;
+    private int contributionStarts;
+    private int retainedModeConflictCount;
 
     private TrackingLizzieFrame() {}
 
@@ -2749,6 +3490,25 @@ class AnalysisEngineRequestTest {
     protected void showForegroundEngineModeReservationConflict() {
       foregroundReservationConflictCount++;
     }
+
+    @Override
+    protected void showForegroundEngineLeaseConflict() {
+      retainedModeConflictCount++;
+    }
+
+    @Override
+    protected void startContributeEngineReserved() {
+      contributionStarts++;
+    }
+  }
+
+  private static final class SilentGtpConsole extends GtpConsolePane {
+    private SilentGtpConsole() {
+      super(null);
+    }
+
+    @Override
+    public void addCommand(String command, int commandNumber, String engineName) {}
   }
 
   private static final class DeferredRestoreLeelaz extends Leelaz {
@@ -2780,10 +3540,104 @@ class AnalysisEngineRequestTest {
     }
   }
 
+  private static final class ActivationBarrierLeelaz extends Leelaz {
+    private final CountDownLatch foregroundActivationReached = new CountDownLatch(1);
+    private final CountDownLatch foregroundActivationMayContinue = new CountDownLatch(1);
+    private volatile TrackingHandoffTarget originalTarget;
+    private volatile TrackingHandoffTarget installedTarget;
+    private volatile boolean cleanupUsedOriginalTarget;
+
+    private ActivationBarrierLeelaz() throws IOException {
+      super("");
+    }
+
+    @Override
+    public TrackingHandoffClaim claimTrackingHandoff(TrackingHandoffTarget target) {
+      TrackingHandoffTarget barrierTarget =
+          new TrackingHandoffTarget() {
+            @Override
+            public TrackingHandoffKind kind() {
+              return target.kind();
+            }
+
+            @Override
+            public boolean isCurrent() {
+              return target.isCurrent();
+            }
+
+            @Override
+            public void activate(TrackingHandoffActivation activation) {
+              target.activate(
+                  new TrackingHandoffActivation() {
+                    @Override
+                    public boolean activateForegroundAnalysis(
+                        java.util.function.Consumer<String> lineConsumer, Runnable onClosed) {
+                      foregroundActivationReached.countDown();
+                      awaitForegroundActivationRelease();
+                      return activation.activateForegroundAnalysis(lineConsumer, onClosed);
+                    }
+
+                    @Override
+                    public boolean completeRetainedEngineMode() {
+                      return activation.completeRetainedEngineMode();
+                    }
+
+                    @Override
+                    public EngineModeReservation beginRetainedEngineModeReservation() {
+                      return activation.beginRetainedEngineModeReservation();
+                    }
+                  });
+            }
+
+            @Override
+            public void fail(TrackingHandoffFailure failure) {
+              target.fail(failure);
+            }
+          };
+      originalTarget = target;
+      installedTarget = barrierTarget;
+      return super.claimTrackingHandoff(barrierTarget);
+    }
+
+    @Override
+    public boolean endForegroundAnalysisLease(Object owner, Runnable completion, Runnable failure) {
+      cleanupUsedOriginalTarget = owner == originalTarget;
+      return super.endForegroundAnalysisLease(
+          cleanupUsedOriginalTarget ? installedTarget : owner, completion, failure);
+    }
+
+    private void awaitForegroundActivation() throws InterruptedException {
+      assertTrue(
+          foregroundActivationReached.await(2, TimeUnit.SECONDS),
+          "foreground activation did not reach the barrier");
+    }
+
+    private void continueForegroundActivation() {
+      foregroundActivationMayContinue.countDown();
+    }
+
+    private boolean cleanupUsedOriginalTarget() {
+      return cleanupUsedOriginalTarget;
+    }
+
+    private void awaitForegroundActivationRelease() {
+      try {
+        if (!foregroundActivationMayContinue.await(2, TimeUnit.SECONDS)) {
+          throw new AssertionError("foreground activation barrier was not released");
+        }
+      } catch (InterruptedException interrupted) {
+        Thread.currentThread().interrupt();
+        throw new AssertionError("foreground activation barrier was interrupted", interrupted);
+      }
+    }
+  }
+
   private static final class TrackingWaitForAnalysis extends WaitForAnalysis {
     private int progressCalls;
     private int currentMove;
     private int totalMoves;
+    private int visibilityCalls;
+    private boolean lastVisible;
 
     private TrackingWaitForAnalysis() {}
 
@@ -2795,7 +3649,10 @@ class AnalysisEngineRequestTest {
     }
 
     @Override
-    public void setVisible(boolean visible) {}
+    public void setVisible(boolean visible) {
+      visibilityCalls++;
+      lastVisible = visible;
+    }
   }
 
   private static final class TrackingAnalysisEngine extends AnalysisEngine {

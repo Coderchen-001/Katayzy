@@ -294,9 +294,18 @@ public class ConfigDialog2 extends JDialog {
   private JCheckBox chkSgfLoadLast;
   private JCheckBox chkAutoQuickAnalyzeOnLoad;
   private JCheckBox chkAutoLoadEstimate;
-  private JCheckBox chkTrackingEnginePreload;
-  private JTextField txtTrackingEngineMaxVisits;
-  private boolean pendingResetTrackingWarning = false;
+  private JTextField txtTrackingAnalysisMaxVisits;
+  private JCheckBox chkShowTrackingPointOutline;
+  private ColorLabel lblTrackingPointInteriorColor;
+  private JSlider sldTrackingPointInteriorOpacity;
+  private JLabel lblTrackingPointInteriorOpacityValue;
+  private JPanel pnlTrackingPointInteriorOpacity;
+  private JSlider sldTrackingPointOutlineOpacity;
+  private JLabel lblTrackingPointOutlineOpacityValue;
+  private JPanel pnlTrackingPointOutlineOpacity;
+  private JCheckBox chkTrackingPointTextAutoColor;
+  private ColorLabel lblTrackingPointTextColor;
+  private JPanel pnlTrackingPointTextColor;
   private JCheckBox chkShowMoveList;
   private JLabel lblShowMoveNumInVariationPane;
   private JLabel lblLoadEstimate;
@@ -1512,52 +1521,40 @@ public class ConfigDialog2 extends JDialog {
     estimateEngineGroup.add(rdbtnKatago);
     estimateEngineGroup.add(rdbtnZen);
 
-    JLabel lblTrackingPreload =
-        new JLabel(resourceBundle.getString("LizzieConfig.lblTrackingPreload"));
-    lblTrackingPreload.setBounds(10, 727, 290, 15);
-    uiTab.add(lblTrackingPreload);
-
-    chkTrackingEnginePreload = new JCheckBox();
-    chkTrackingEnginePreload.setBounds(312, 724, 30, 23);
-    chkTrackingEnginePreload.setSelected(Lizzie.config.trackingEnginePreload);
-    chkTrackingEnginePreload.addActionListener(
-        e -> {
-          if (chkTrackingEnginePreload.isSelected()) {
-            int ret =
-                javax.swing.JOptionPane.showConfirmDialog(
-                    ConfigDialog2.this,
-                    resourceBundle.getString("LizzieFrame.trackingEngineWarning"),
-                    resourceBundle.getString("LizzieFrame.trackingEngineWarningTitle"),
-                    javax.swing.JOptionPane.OK_CANCEL_OPTION,
-                    javax.swing.JOptionPane.WARNING_MESSAGE);
-            if (ret != javax.swing.JOptionPane.OK_OPTION) {
-              chkTrackingEnginePreload.setSelected(false);
-            }
-          }
-        });
-    uiTab.add(chkTrackingEnginePreload);
-
     JLabel lblTrackingMaxVisits =
         new JLabel(resourceBundle.getString("LizzieConfig.lblTrackingMaxVisits"));
-    lblTrackingMaxVisits.setBounds(380, 727, 214, 15);
+    lblTrackingMaxVisits.setBounds(10, 727, 290, 15);
     uiTab.add(lblTrackingMaxVisits);
 
-    txtTrackingEngineMaxVisits = new JTextField();
-    txtTrackingEngineMaxVisits.setBounds(570, 724, 60, 23);
-    txtTrackingEngineMaxVisits.setText(String.valueOf(Lizzie.config.trackingEngineMaxVisits));
-    uiTab.add(txtTrackingEngineMaxVisits);
+    txtTrackingAnalysisMaxVisits = new JTextField();
+    txtTrackingAnalysisMaxVisits.setBounds(312, 724, 60, 23);
+    txtTrackingAnalysisMaxVisits.setText(
+        String.valueOf(Lizzie.config.trackingAnalysisMaxVisits));
+    uiTab.add(txtTrackingAnalysisMaxVisits);
 
-    JButton btnResetTrackingWarning =
-        new JButton(resourceBundle.getString("LizzieConfig.btnResetTrackingWarning"));
-    btnResetTrackingWarning.setBounds(640, 724, 130, 23);
-    btnResetTrackingWarning.setMargin(new java.awt.Insets(0, 0, 0, 0));
-    btnResetTrackingWarning.addActionListener(
-        e -> {
-          pendingResetTrackingWarning = true;
-          javax.swing.JOptionPane.showMessageDialog(
-              ConfigDialog2.this, resourceBundle.getString("LizzieConfig.trackingWarningReset"));
-        });
-    uiTab.add(btnResetTrackingWarning);
+    chkShowTrackingPointOutline = new JCheckBox();
+    chkShowTrackingPointOutline.setSelected(Lizzie.config.showTrackingPointOutline);
+    lblTrackingPointInteriorColor = new ColorLabel(this, false);
+    lblTrackingPointInteriorColor.setColor(Lizzie.config.trackingPointInteriorColor);
+    sldTrackingPointInteriorOpacity =
+        new JSlider(0, 100, Lizzie.config.trackingPointInteriorOpacityPercent);
+    lblTrackingPointInteriorOpacityValue = new JLabel();
+    pnlTrackingPointInteriorOpacity =
+        createPercentSliderControl(
+            sldTrackingPointInteriorOpacity, lblTrackingPointInteriorOpacityValue);
+    sldTrackingPointOutlineOpacity =
+        new JSlider(0, 100, Lizzie.config.trackingPointOutlineOpacityPercent);
+    lblTrackingPointOutlineOpacityValue = new JLabel();
+    pnlTrackingPointOutlineOpacity =
+        createPercentSliderControl(
+            sldTrackingPointOutlineOpacity, lblTrackingPointOutlineOpacityValue);
+    chkTrackingPointTextAutoColor = new JCheckBox();
+    chkTrackingPointTextAutoColor.setSelected(Lizzie.config.trackingPointTextAutoColor);
+    lblTrackingPointTextColor = new ColorLabel(this, false);
+    lblTrackingPointTextColor.setColor(Lizzie.config.trackingPointTextColor);
+    pnlTrackingPointTextColor = createColorControl(lblTrackingPointTextColor);
+    chkTrackingPointTextAutoColor.addItemListener(e -> syncTrackingPointTextColorControl());
+    syncTrackingPointTextColorControl();
 
     JLabel lblShowMoveList = new JLabel(resourceBundle.getString("LizzieConfig.lblShowMoveList"));
     lblShowMoveList.setBounds(608, 78, 173, 15);
@@ -2849,6 +2846,14 @@ public class ConfigDialog2 extends JDialog {
             chkMaxValueReverseColor);
         addInputRow(
             analysis,
+            configText("ConfigDialog2.modern.analysis.trackingVisits", "选点评估计算量"),
+            configText(
+                "ConfigDialog2.modern.analysis.trackingVisitsSub",
+                "每个选点达到该计算量后停止评估"),
+            txtTrackingAnalysisMaxVisits,
+            configText("ConfigDialog2.modern.unit.visits", "次"));
+        addInputRow(
+            analysis,
             configText("ConfigDialog2.modern.analysis.suggestionLimit", "选点数量上限"),
             configText("ConfigDialog2.modern.analysis.suggestionLimitSub", "限制主界面推荐选点数量"),
             txtLimitBestMoveNum,
@@ -3337,6 +3342,54 @@ public class ConfigDialog2 extends JDialog {
     content.add(colors);
     content.add(javax.swing.Box.createVerticalStrut(12));
 
+    JPanel trackingAppearance =
+        createDesignSettingsCard(
+            configText("ConfigDialog2.modern.trackingAppearance.title", "选点评估结果外观"),
+            configText(
+                "ConfigDialog2.modern.trackingAppearance.subtitle",
+                "调整评估结果的底色、动态质量外框和文字颜色。"));
+    addToggleRow(
+        trackingAppearance,
+        configText("ConfigDialog2.modern.trackingAppearance.outline", "显示评估结果外框"),
+        configText(
+            "ConfigDialog2.modern.trackingAppearance.outlineSub",
+            "用虚线外框显示等待状态和实时落子质量"),
+        chkShowTrackingPointOutline);
+    addColorRow(
+        trackingAppearance,
+        configText("ConfigDialog2.modern.trackingAppearance.interiorColor", "内部颜色"),
+        lblTrackingPointInteriorColor);
+    addComponentRow(
+        trackingAppearance,
+        configText("ConfigDialog2.modern.trackingAppearance.interiorOpacity", "内部不透明度"),
+        configText(
+            "ConfigDialog2.modern.trackingAppearance.interiorOpacitySub",
+            "调整固定内部颜色的不透明程度"),
+        pnlTrackingPointInteriorOpacity);
+    addComponentRow(
+        trackingAppearance,
+        configText("ConfigDialog2.modern.trackingAppearance.outlineOpacity", "外框不透明度"),
+        configText(
+            "ConfigDialog2.modern.trackingAppearance.outlineOpacitySub",
+            "调整动态质量虚线外框的不透明程度"),
+        pnlTrackingPointOutlineOpacity);
+    addToggleRow(
+        trackingAppearance,
+        configText("ConfigDialog2.modern.trackingAppearance.autoTextColor", "文字颜色自动适配"),
+        configText(
+            "ConfigDialog2.modern.trackingAppearance.autoTextColorSub",
+            "根据内部颜色、不透明度和棋盘背景自动选择黑字或白字"),
+        chkTrackingPointTextAutoColor);
+    addComponentRow(
+        trackingAppearance,
+        configText("ConfigDialog2.modern.trackingAppearance.textColor", "文字颜色"),
+        configText(
+            "ConfigDialog2.modern.trackingAppearance.textColorSub", "关闭自动适配后使用此颜色"),
+        pnlTrackingPointTextColor);
+    syncTrackingPointTextColorControl();
+    content.add(trackingAppearance);
+    content.add(javax.swing.Box.createVerticalStrut(12));
+
     JPanel blunders = createDesignSettingsCard(configText("ConfigDialog2.modern.theme.blunders", "错误节点"), configText("ConfigDialog2.modern.theme.blundersSub", "管理胜率波动阈值和对应颜色。"));
     pnlScrollBlunderNodes.setPreferredSize(new Dimension(440, 116));
     addLargeComponentRow(
@@ -3425,6 +3478,36 @@ public class ConfigDialog2 extends JDialog {
     choose.addActionListener(e -> swatch.chooseColor());
     controls.add(choose);
     return controls;
+  }
+
+  private JPanel createPercentSliderControl(JSlider slider, JLabel valueLabel) {
+    JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+    controls.setOpaque(false);
+    slider.setPreferredSize(new Dimension(170, 30));
+    slider.setOpaque(false);
+    valueLabel.setPreferredSize(new Dimension(42, 30));
+    valueLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+    Runnable updateValue = () -> valueLabel.setText(slider.getValue() + "%");
+    slider.addChangeListener(e -> updateValue.run());
+    updateValue.run();
+    controls.add(slider);
+    controls.add(valueLabel);
+    return controls;
+  }
+
+  private void syncTrackingPointTextColorControl() {
+    if (pnlTrackingPointTextColor == null || chkTrackingPointTextAutoColor == null) return;
+    setComponentTreeEnabled(
+        pnlTrackingPointTextColor, !chkTrackingPointTextAutoColor.isSelected());
+  }
+
+  private void setComponentTreeEnabled(Component component, boolean enabled) {
+    component.setEnabled(enabled);
+    if (component instanceof java.awt.Container) {
+      for (Component child : ((java.awt.Container) component).getComponents()) {
+        setComponentTreeEnabled(child, enabled);
+      }
+    }
   }
 
   private void addToggleInputRow(
@@ -5922,17 +6005,25 @@ public class ConfigDialog2 extends JDialog {
       Lizzie.config.uiConfig.put("use-zen-estimate", Lizzie.config.useZenEstimate);
       Lizzie.config.loadEstimateEngine = chkAutoLoadEstimate.isSelected();
       Lizzie.config.uiConfig.put("load-estimate-engine", Lizzie.config.loadEstimateEngine);
-      Lizzie.config.trackingEnginePreload = chkTrackingEnginePreload.isSelected();
-      Lizzie.config.uiConfig.put("tracking-engine-preload", Lizzie.config.trackingEnginePreload);
-      Lizzie.config.trackingEngineMaxVisits =
-          Utils.parseTextToInt(txtTrackingEngineMaxVisits, Lizzie.config.trackingEngineMaxVisits);
-      if (Lizzie.config.trackingEngineMaxVisits <= 0) Lizzie.config.trackingEngineMaxVisits = 500;
+      int previousTrackingAnalysisMaxVisits = Lizzie.config.trackingAnalysisMaxVisits;
+      int previousAnalyzeUpdateIntervalCentisec =
+          Lizzie.config.analyzeUpdateIntervalCentisec;
+      Lizzie.config.trackingAnalysisMaxVisits =
+          Utils.parseTextToInt(
+              txtTrackingAnalysisMaxVisits, Lizzie.config.trackingAnalysisMaxVisits);
+      if (Lizzie.config.trackingAnalysisMaxVisits <= 0)
+        Lizzie.config.trackingAnalysisMaxVisits = 500;
       Lizzie.config.uiConfig.put(
-          "tracking-engine-max-visits", Lizzie.config.trackingEngineMaxVisits);
-      if (pendingResetTrackingWarning) {
-        Lizzie.config.trackingEngineSkipWarning = false;
-        Lizzie.config.uiConfig.put("tracking-engine-skip-warning", false);
-      }
+          "tracking-analysis-max-visits", Lizzie.config.trackingAnalysisMaxVisits);
+      Lizzie.config.showTrackingPointOutline = chkShowTrackingPointOutline.isSelected();
+      Lizzie.config.trackingPointInteriorColor = lblTrackingPointInteriorColor.getColor();
+      Lizzie.config.trackingPointInteriorOpacityPercent =
+          sldTrackingPointInteriorOpacity.getValue();
+      Lizzie.config.trackingPointOutlineOpacityPercent =
+          sldTrackingPointOutlineOpacity.getValue();
+      Lizzie.config.trackingPointTextAutoColor = chkTrackingPointTextAutoColor.isSelected();
+      Lizzie.config.trackingPointTextColor = lblTrackingPointTextColor.getColor();
+      Lizzie.config.saveTrackingPointAppearanceConfig();
       Lizzie.config.loadSgfLast = chkSgfLoadLast.isSelected();
       Lizzie.config.uiConfig.put("load-sgf-last", Lizzie.config.loadSgfLast);
       Lizzie.config.autoQuickAnalyzeOnLoad = chkAutoQuickAnalyzeOnLoad.isSelected();
@@ -6004,6 +6095,12 @@ public class ConfigDialog2 extends JDialog {
           "analyze-update-interval-centisec", Lizzie.config.analyzeUpdateIntervalCentisec);
       leelazConfig.putOpt(
           "analyze-update-interval-centisecssh", Lizzie.config.analyzeUpdateIntervalCentisecSSH);
+      if ((Lizzie.config.trackingAnalysisMaxVisits != previousTrackingAnalysisMaxVisits
+              || Lizzie.config.analyzeUpdateIntervalCentisec
+                  != previousAnalyzeUpdateIntervalCentisec)
+          && Lizzie.frame != null) {
+        Lizzie.frame.invalidateTrackingAnalysis();
+      }
 
       int[] size = getBoardSize();
       if (size[0] == size[1]) {
@@ -6162,6 +6259,7 @@ public class ConfigDialog2 extends JDialog {
       return false;
     }
     LizzieFrame.menu.updateFastLinks();
+    if (Lizzie.frame != null) Lizzie.frame.repaint();
     return true;
   }
 

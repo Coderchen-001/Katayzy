@@ -189,6 +189,80 @@ class WholeGameAnalysisSessionTest {
   }
 
   @Test
+  void competitiveTrackingDoesNotDelayWholeGameRequestDispatch() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      SessionAnalysisEngine engine = SessionFixture.newEngine();
+      CountDownLatch engineCreated = new CountDownLatch(1);
+      SessionFixture fixture =
+          SessionFixture.createWithFactory(
+              () -> {
+                engineCreated.countDown();
+                return engine;
+              });
+      Leelaz previousLeelaz = Lizzie.leelaz;
+      CompetitiveTrackingLeelaz foreground = new CompetitiveTrackingLeelaz();
+      Lizzie.leelaz = foreground;
+
+      try {
+        fixture.session.start();
+
+        assertTrue(
+            foreground.previewed.await(2, TimeUnit.SECONDS),
+            "whole-game session did not inspect the competitive tracking owner");
+        assertTrue(
+            engineCreated.await(2, TimeUnit.SECONDS),
+            "whole-game session waited for competitive tracking to end");
+        waitForState(fixture.session, WholeGameAnalysisSession.State.BASELINE);
+        waitForRequest(engine);
+      } finally {
+        fixture.session.cancel();
+        engine.quitCalled.await(2, TimeUnit.SECONDS);
+        Lizzie.leelaz = previousLeelaz;
+        drainEdt();
+      }
+      assertEquals(0L, engine.quitCalled.getCount(), "whole-game analysis closer did not finish");
+    }
+  }
+
+  @Test
+  void engineSwapCannotSplitExclusiveAndPreviewAcrossInstances() throws Exception {
+    try (TestEnvironment env = TestEnvironment.open()) {
+      Lizzie.config.analysisReuseCurrentEngine = true;
+      SessionAnalysisEngine engine = SessionFixture.newEngine();
+      CountDownLatch engineCreated = new CountDownLatch(1);
+      SessionFixture fixture =
+          SessionFixture.createWithFactory(
+              () -> {
+                engineCreated.countDown();
+                return engine;
+              });
+      Leelaz previousLeelaz = Lizzie.leelaz;
+      CompetitiveTrackingLeelaz replacement = new CompetitiveTrackingLeelaz();
+      CompetitiveTrackingLeelaz foreground = new CompetitiveTrackingLeelaz(replacement);
+      Lizzie.leelaz = foreground;
+
+      try {
+        fixture.session.start();
+
+        assertTrue(
+            foreground.previewed.await(2, TimeUnit.SECONDS),
+            "whole-game session split one availability check across two engine instances");
+        assertTrue(
+            replacement.previewed.await(2, TimeUnit.SECONDS),
+            "whole-game session used an availability result from a replaced engine");
+        assertTrue(engineCreated.await(2, TimeUnit.SECONDS));
+      } finally {
+        fixture.session.cancel();
+        engine.quitCalled.await(2, TimeUnit.SECONDS);
+        Lizzie.leelaz = previousLeelaz;
+        drainEdt();
+      }
+      assertEquals(0L, engine.quitCalled.getCount(), "whole-game analysis closer did not finish");
+    }
+  }
+
+  @Test
   void komiChangeInvalidatesTheSessionSemanticSnapshot() throws Exception {
     try (TestEnvironment env = TestEnvironment.open()) {
       SessionFixture fixture = SessionFixture.create();
@@ -392,6 +466,34 @@ class WholeGameAnalysisSessionTest {
       this.requestedNodes = List.copyOf(requestedNodes);
       requestedVisits = targetVisits;
       return requestedNodes.size();
+    }
+  }
+
+  private static final class CompetitiveTrackingLeelaz extends Leelaz {
+    private final CountDownLatch previewed = new CountDownLatch(1);
+    private final Leelaz replacementOnBusyCheck;
+
+    private CompetitiveTrackingLeelaz() throws IOException {
+      this(null);
+    }
+
+    private CompetitiveTrackingLeelaz(Leelaz replacementOnBusyCheck) throws IOException {
+      super("");
+      this.replacementOnBusyCheck = replacementOnBusyCheck;
+    }
+
+    @Override
+    public boolean hasExclusiveGtpWorkInProgress() {
+      if (replacementOnBusyCheck != null) {
+        Lizzie.leelaz = replacementOnBusyCheck;
+      }
+      return true;
+    }
+
+    @Override
+    public ExclusiveGtpLeaseAvailability previewForegroundAnalysisLeaseAvailability() {
+      previewed.countDown();
+      return ExclusiveGtpLeaseAvailability.AVAILABLE;
     }
   }
 

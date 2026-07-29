@@ -2,6 +2,7 @@ package featurecat.lizzie.gui.web;
 
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.analysis.EngineFollowController;
+import featurecat.lizzie.analysis.Leelaz;
 import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardData;
 import featurecat.lizzie.rules.BoardHistoryNode;
@@ -49,6 +50,43 @@ public class WebBoardManager {
       this.anchorNode = anchor;
       this.displayNode = anchor;
       this.lastActivityMs = System.currentTimeMillis();
+    }
+  }
+
+  public static final class TrialEnterResult {
+    public enum Kind {
+      ENTERED,
+      IDEMPOTENT,
+      IN_USE,
+      ENGINE_BUSY
+    }
+
+    public static final TrialEnterResult ENTERED = new TrialEnterResult(Kind.ENTERED, "");
+    public static final TrialEnterResult IDEMPOTENT = new TrialEnterResult(Kind.IDEMPOTENT, "");
+    public static final TrialEnterResult ENGINE_BUSY = new TrialEnterResult(Kind.ENGINE_BUSY, "");
+
+    private final Kind kind;
+    private final String capturedOwnerClientId;
+
+    private TrialEnterResult(Kind kind, String capturedOwnerClientId) {
+      this.kind = kind;
+      this.capturedOwnerClientId = capturedOwnerClientId;
+    }
+
+    private static TrialEnterResult inUse(String ownerClientId) {
+      return new TrialEnterResult(Kind.IN_USE, ownerClientId);
+    }
+
+    public Kind kind() {
+      return kind;
+    }
+
+    public String capturedOwnerClientId() {
+      return capturedOwnerClientId;
+    }
+
+    private boolean isAccepted() {
+      return kind == Kind.ENTERED || kind == Kind.IDEMPOTENT;
     }
   }
 
@@ -154,7 +192,7 @@ public class WebBoardManager {
     collector = new WebBoardDataCollector();
     collector.setServer(wsServer);
 
-    wsServer.setMessageHandler(this::handleClientMessage);
+    attachWebSocketServer(wsServer);
 
     String ip = getLanIp();
     accessUrl = "http://" + ip + ":" + actualHttpPort;
@@ -169,15 +207,18 @@ public class WebBoardManager {
       case "enter_trial":
         {
           String clientId = msg.optString("clientId");
-          BoardHistoryNode anchor = Lizzie.board.getHistory().getCurrentHistoryNode();
-          boolean ok = enterTrial(clientId, anchor);
-          if (!ok) {
-            String reason = desktopPlayingProbe.getAsBoolean() ? "engine_busy" : "in_use";
+          Board capturedBoard = Lizzie.board;
+          WebBoardServer capturedServer = wsServer;
+          BoardHistoryNode anchor = capturedBoard.getHistory().getCurrentHistoryNode();
+          TrialEnterResult result =
+              enterTrialWithResult(clientId, anchor, capturedBoard, capturedServer, conn);
+          if (!result.isAccepted()) {
+            boolean inUse = result.kind() == TrialEnterResult.Kind.IN_USE;
             JSONObject denied =
                 new JSONObject()
                     .put("type", "trial_denied")
-                    .put("reason", reason)
-                    .put("ownerClientId", getCurrentTrialOwner());
+                    .put("reason", inUse ? "in_use" : "engine_busy")
+                    .put("ownerClientId", result.capturedOwnerClientId());
             wsServer.sendToConnection(conn, denied.toString());
           } else {
             collector.broadcastTrialState(activeSession);
@@ -211,6 +252,11 @@ public class WebBoardManager {
       default:
         // unknown type — ignore
     }
+  }
+
+  void attachWebSocketServer(WebBoardServer server) {
+    wsServer = server;
+    server.setMessageHandler(this::handleClientMessage);
   }
 
   public synchronized void stop() {
@@ -286,33 +332,92 @@ public class WebBoardManager {
     return activeSession != null ? activeSession.ownerClientId : "";
   }
 
-  public synchronized boolean enterTrial(String clientId, BoardHistoryNode anchor) {
-    if (desktopPlayingProbe.getAsBoolean()) {
-      return false;
+  public boolean enterTrial(String clientId, BoardHistoryNode anchor) {
+    TrialEnterResult result = enterTrialWithResult(clientId, anchor);
+    return result.isAccepted();
+  }
+
+  public TrialEnterResult enterTrialWithResult(String clientId, BoardHistoryNode anchor) {
+    return enterTrialWithResult(clientId, anchor, null, null, null);
+  }
+
+  private TrialEnterResult enterTrialWithResult(
+      String clientId,
+      BoardHistoryNode anchor,
+      Board capturedBoard,
+      WebBoardServer capturedServer,
+      org.java_websocket.WebSocket capturedConnection) {
+    Leelaz capturedEngine;
+    synchronized (this) {
+      if (activeSession != null) {
+        return activeSession.ownerClientId.equals(clientId)
+            ? TrialEnterResult.IDEMPOTENT
+            : TrialEnterResult.inUse(activeSession.ownerClientId);
+      }
+      if (desktopPlayingProbe.getAsBoolean()) {
+        return TrialEnterResult.ENGINE_BUSY;
+      }
+      capturedEngine = Lizzie.leelaz;
     }
-    if (activeSession != null) {
-      return activeSession.ownerClientId.equals(clientId);
+    if (capturedEngine == null) {
+      return TrialEnterResult.ENGINE_BUSY;
     }
-    TrialSession s = new TrialSession(clientId, anchor);
-    // 试下子要走分叉而非接续 mainline。若 anchor 是 mainline 末端（无主线下一手），
-    // 先插一个 dummy 占据 variations[0]，让后续试下子永远 add 到 index>=1。
-    // ReadBoard 同步推进 mainline 时会识别 dummy 并把它替换走（line ~1035），互不干扰。
-    if (anchor.variations.isEmpty()) {
-      BoardData dummyData = anchor.getData().clone();
-      dummyData.dummy = true;
-      // 清掉 lastMove，否则 BoardRenderer 画 variations[0] 的 ghost 时会落在 anchor 真实棋子位置。
-      dummyData.lastMove = java.util.Optional.empty();
-      BoardHistoryNode dummy = new BoardHistoryNode(dummyData);
-      anchor.variations.add(dummy);
-      anchor.setPreviousForChild(dummy);
-      s.mainlineDummy = dummy;
+    Leelaz.EngineModeReservation reservation = capturedEngine.beginEngineModeReservation();
+    if (reservation == null) {
+      return TrialEnterResult.ENGINE_BUSY;
     }
-    activeSession = s;
-    applyOverrideAndRefresh(anchor);
-    EngineFollowController c = engineController;
-    if (c != null) c.onTrialEnter(anchor);
-    scheduleIdleTimeout(activeSession);
-    return true;
+    boolean reservationClosed = false;
+    try {
+      synchronized (this) {
+        if (activeSession != null) {
+          return activeSession.ownerClientId.equals(clientId)
+              ? TrialEnterResult.IDEMPOTENT
+              : TrialEnterResult.inUse(activeSession.ownerClientId);
+        }
+        if (desktopPlayingProbe.getAsBoolean()
+            || Lizzie.leelaz != capturedEngine
+            || (capturedBoard != null
+                && (Lizzie.board != capturedBoard
+                    || capturedBoard.getHistory().getCurrentHistoryNode() != anchor
+                    || wsServer != capturedServer
+                    || (capturedConnection != null && !capturedConnection.isOpen())))) {
+          return TrialEnterResult.ENGINE_BUSY;
+        }
+        TrialSession session = new TrialSession(clientId, anchor);
+        // 试下子要走分叉而非接续 mainline。若 anchor 是 mainline 末端（无主线下一手），
+        // 先插一个 dummy 占据 variations[0]，让后续试下子永远 add 到 index>=1。
+        // ReadBoard 同步推进 mainline 时会识别 dummy 并把它替换走（line ~1035），互不干扰。
+        if (anchor.variations.isEmpty()) {
+          BoardData dummyData = anchor.getData().clone();
+          dummyData.dummy = true;
+          // 清掉 lastMove，否则 BoardRenderer 画 variations[0] 的 ghost 时会落在 anchor 真实棋子位置。
+          dummyData.lastMove = java.util.Optional.empty();
+          BoardHistoryNode dummy = new BoardHistoryNode(dummyData);
+          anchor.variations.add(dummy);
+          anchor.setPreviousForChild(dummy);
+          session.mainlineDummy = dummy;
+        }
+        activeSession = session;
+        applyOverrideAndRefresh(anchor);
+        scheduleIdleTimeout(session);
+        EngineFollowController controller = engineController;
+        reservation.close();
+        reservationClosed = true;
+        if (controller != null) {
+          controller.onTrialEnter(anchor);
+        }
+        return TrialEnterResult.ENTERED;
+      }
+    } finally {
+      if (!reservationClosed) {
+        reservation.close();
+      }
+    }
+  }
+
+  public boolean isEngineOperationExcludedByTrial() {
+    EngineFollowController controller = engineController;
+    return activeSession != null || (controller != null && controller.isTrialActive());
   }
 
   public synchronized void exitTrial(String clientId) {

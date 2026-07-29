@@ -20,7 +20,62 @@ Web 试下骨架已实现：用户在浏览器试下时，桌面端通过 `displ
 | 5 | 胜率曲线仍仅画 anchor 之前 mainline；当前节点胜率/目差数字与候选点跟随 displayNode 实时显示 |
 | 6 | 所有引擎切换（含退出）异步发 GTP；视图层 `displayNodeOverride` 立即清除，候选点慢半拍刷新 |
 | 7 | controller 通过 `EngineCommandSink` 接口注入；单元测试用 fake sink 断言 GTP 序列 |
-| 8 | Tracking analysis 用独立引擎实例（见 `TRACKING_ANALYSIS_CONTRACT.md`），与本设计无冲突，不在范围内 |
+| 8 | Single-stream tracking 与 Web 试下严格互斥；tracking不自动清退或转交给trial |
+
+## 2026-07-27 single-stream owner contract
+
+原决策8依赖“tracking使用独立引擎”，已被single-stream replacement推翻。本轮采用最小
+严格互斥，不引入Web trial typed handoff。本合同在restart-only candidate稳定后作为
+独立release compatibility slice执行；它不是restart bootstrap receipt、ReadBoard
+feasibility或restart正确性的前置条件，finding不得反向扩大restart实现。
+
+### Enter first-winner
+
+`WebBoardServer.onMessage -> WebBoardManager`必须把一次enter admission作为原子结果处理：
+
+1. 同client已有active session时保持幂等成功；其他client返回`in_use`。
+2. Idle时capture exact current foreground engine、manager/server/connection、clientId、
+   anchor/current-node identity及必要board context。
+3. 在任何`TrialSession`、dummy、display override、controller task或engine bytes前，先在
+   captured engine取得existing short `beginEngineModeReservation()`。
+4. Reservation失败（包括tracking ACQUIRING/ACTIVE/release-closing、foreground/lifecycle、
+   GMA或PLAY_MODE占用）时返回`engine_busy`，零tracking release、零disposition变化、零
+   trial mutation。
+5. Reservation持有期间复验captured identity/context；成功后一次性建立原有
+   session/dummy/override并发布manager active state。
+6. 先关闭reservation，再调用`EngineFollowController.onTrialEnter(anchor)`。Controller
+   executor可能发送的普通GTP命令不得在reservation close前出现。
+
+返回值必须是同一次synchronized/reservation decision产生的窄typed result（例如
+`ENTERED`、`IDEMPOTENT`、`IN_USE`、`ENGINE_BUSY`），或语义等价的原子结果。不得保留
+boolean失败后再读`desktopPlayingProbe`/session状态猜reason的现状。
+
+### Active and exit exclusion
+
+一个只读、lock-free的central predicate观察：
+
+```text
+WebBoardManager.activeSession != null
+    || EngineFollowController.trialActive
+```
+
+- Manager active state在enter reservation close前已发布，因此close到
+  `onTrialEnter(...)`之间没有tracking acquisition空窗。
+- Exit先清manager session/override，再提交`onTrialExit(...)`；controller只在engine
+  resync task按existing success/failure语义settle后清`trialActive`，因此session清除到
+  task settlement之间仍busy。
+- Tracking、foreground analysis、用户触发lifecycle、ReadBoard GMA与PLAY_MODE在自身
+  pending/mode/mutation/bytes前观察该predicate并返回existing
+  application-exclusive/engine-busy。
+- Predicate只能做volatile读取；Leelaz持有engine ownership lock时不得取得
+  `WebBoardManager` monitor。它不拦截trial controller自己的ordinary queue command。
+- 不得把predicate粗暴加入automatic recovery共用的
+  `beginExclusiveGtpLifecycleTransition(Object)`。逐个核对public/user owner admission；
+  `beginAutomaticEngineRestartReservation()`保持既有parity。
+
+Engine terminal/automatic recovery只要求no-tracking parity。若该parity要求controller task
+generation/cancellation、长期owner、保存displayNode或lifecycle-owned trial transaction，
+立即Stop/Replan，不扩展严格互斥。
 
 ## 系统架构
 
@@ -50,7 +105,9 @@ clearBestMoves()
 **入口方法**（均异步派发到 executor）：
 - `onTrialEnter(BoardHistoryNode anchor)`：记录 `trialActive = true`；若 `currentEngineNode != anchor`（理论上不应发生，但留兜底——比如 controller 启动期错过过 mainline 推进），调 `forceResync(anchor)` 把引擎对齐到 anchor 再开始
 - `onTrialDisplayNodeChanged(BoardHistoryNode newNode)`：算 path(currentEngineNode → newNode)，按 LCA 发 undo/play，最后 `clearBestMoves()`，更新 `currentEngineNode`
-- `onTrialExit(BoardHistoryNode mainlineTail)`：`trialActive = false`，path(currentEngineNode → mainlineTail) → undo/play 切回 mainline，`clearBestMoves()`
+- `onTrialExit(BoardHistoryNode mainlineTail)`：提交exit task，先
+  path(currentEngineNode → mainlineTail) → undo/play切回mainline并`clearBestMoves()`，任务
+  结束时才`trialActive = false`
 - `onMainlineAdvance(BoardHistoryNode newTail)`：试下激活时不发 GTP（退出时由 `onTrialExit` 一次性补）；非试下时直接 `sink.playMove(...)` 走原路
 - `forceResync(BoardHistoryNode target)`：`sink.clear()` → 从根沿 mainline + 试下分支 play 到 target → `clearBestMoves()`，更新 `currentEngineNode`。所有切换异常的兜底入口
 
@@ -63,7 +120,7 @@ clearBestMoves()
 
 | 组件 | 改动 |
 |---|---|
-| `WebBoardManager.enterTrial` | 进入前判断 `Lizzie.leelaz.isPlayingAgainstLeelaz()` / `isAnaPlayingAgainstLeelaz()`，命中其一则拒绝并单播错误（新错误码 `engine_busy`）；否则照旧并调 `controller.onTrialEnter(anchor)` |
+| `WebBoardManager.enterTrial` | 先处理same-client/other-client，再按上方合同取得current engine short reservation；reservation内复验并commit session/dummy/override，close后才调`controller.onTrialEnter(anchor)`；桌面端对弈或engine owner冲突均返回原子`engine_busy`结果 |
 | `WebBoardManager.applyTrialMove` / `trialNavigate("back"\|"forward")` / `trialNavigateForward(childIndex)` / `trialReset` | 在 `overrideSink.set(node)` 之后追加 `controller.onTrialDisplayNodeChanged(node)`。所有 sibling / 主线子 / 多步回退都走同一 hook，由 controller 内部根据节点关系算路径 |
 | `WebBoardManager.exitTrial` / `forceExitTrial` | 清 displayNodeOverride 后调 `controller.onTrialExit(Lizzie.board.history.currentHistoryNode)` |
 | `WebBoardManager.TrialSession` idle timer | idle timeout 回调统一走 `forceExitTrial` 路径，不另开 hook（与桌面端"强制结束"语义一致） |
@@ -123,12 +180,12 @@ clearBestMoves()
     → overrideSink.set(null)            // 视图立即切回 mainline
     → controller.onTrialExit(realCurrentNode)
         → executor 提交任务:
-            trialActive = false
             path = pathBetween(currentEngineNode, realCurrentNode)
             sink.undo() × path.undoCount
             for move in path.playSequence: sink.playMove(...)
             sink.clearBestMoves()
             currentEngineNode = realCurrentNode
+            trialActive = false
 ```
 
 ## 错误处理
@@ -137,6 +194,8 @@ clearBestMoves()
 - 切换执行中又收到新 displayNode 变更：executor 串行排队，新任务在旧任务完成后再跑；旧任务发出的命令照常生效，不取消（取消语义在 GTP 上不可靠）
 - 桌面端在试下中切换到对弈模式（`isPlayingAgainstLeelaz` 由 false 变 true）：触发 `WebBoardManager.forceExitTrial`，已有路径覆盖
 - ReadBoard 在 controller 还没构造完时就来推手：`controller` 引用为 `null` 时 ReadBoard 走旧路径直接调 `Lizzie.leelaz.playMove`（启动期兼容）
+- Tracking存在时enter trial不进入上述controller错误处理：admission阶段直接`engine_busy`，
+  不创建session/task，也不停止tracking
 
 ## 测试
 
@@ -154,14 +213,24 @@ clearBestMoves()
 
 ### `WebBoardManagerTest`（recording sink + recording overrideSink）
 - 现有 trial 测试加入 controller 调用序列断言
-- `enterTrial` 在 `isPlayingAgainstLeelaz()` 为 true 时返回错误，单播 `trial_state` rejected reason `engine_busy`
+- `enterTrial` 在 `isPlayingAgainstLeelaz()` 为 true 时返回错误，单播
+  `trial_denied { reason: "engine_busy" }`
+- 真实message入口覆盖tracking ACQUIRING/ACTIVE/release-closing，断言`engine_busy`、零
+  release/disposition/session/dummy/override/task/bytes
+- Latch覆盖trial reservation-first：reservation close前零controller bytes；manager active
+  marker发布后后到tracking/foreground/user lifecycle/GMA/PLAY_MODE busy
+- Exit resync阻塞期间manager session虽已清除，上述owner仍busy；resync结束后tracking可用
+- Same-client幂等、other-client `in_use`及engine-owner `engine_busy`由同一次typed admission
+  准确返回
+- Automatic recovery/engine terminal保持existing parity；若需要新transaction则Stop
 
 ## 不在范围内
 
 - 试下分支节点的胜率曲线绘制（决策 5：曲线保持现状）
-- Tracking analysis 与试下的交互（决策 8：独立引擎，无冲突）
+- Tracking与试下的自动转交、透明共存或保存/retry enter intent（决策8：本轮严格互斥）
 - 多人协同试下、抢占式接管（沿用前置 spec 决策 1 / 6）
-- 修改 `SNAPSHOT_NODE_KIND` / `TRACKING_ANALYSIS_CONTRACT` 契约
+- 修改 `SNAPSHOT_NODE_KIND` history语义或tracking request/fence/display合同；本修订只增加
+  trial/engine-owner admission互斥
 
 ## 实现注记：trial 期间 kata-analyze 视角
 
@@ -195,13 +264,15 @@ SGF 后，会按 SGF 默认值重置进程内 komi（与 lizzie 启动后 GTP `k
 试下子树仍作为 anchor 下 variation，本设计不改 BoardHistoryNode 结构。
 
 ### `TRACKING_ANALYSIS_CONTRACT.md`
-Tracking analysis 用独立引擎实例，本 controller 仅协调主引擎，与 tracking 无交互。
+Single-stream tracking与本controller共用当前前台stream，因此按上方owner contract严格
+互斥。Tracking先赢时trial admission零副作用失败；trial active/exiting时新的tracking与
+其它engine owner busy。Controller不claim tracking handoff，也不恢复from-tracking ponder。
 
 ### `2026-04-30-web-trial-mode-design.md`
 **变更**：
 - 决策 2 改为「引擎在试下期间跟随 displayNode 实时分析；mainline 棋盘画面照常更新，引擎对 mainline 的同步在退出时一次性补发」
 - 决策 6（先到先得）补充「桌面端处于对弈状态时拒绝试下进入」
-- 协议小节：`trial_state` 拒绝消息 `reason` 字段新增枚举值 `engine_busy`
+- 协议小节：`trial_denied`消息`reason`字段新增枚举值`engine_busy`
 - 「不在范围内」移除"试下期间引擎对 displayNode 做 ondemand 分析"
 - 「不在范围内」保留"试下分支独立胜率曲线"
 - 渲染层"试下期间隐藏候选点/胜率覆盖层"段落改为"试下期间正常显示候选点和当前节点胜率/目差数字；胜率曲线仍仅含 anchor 之前 mainline"
