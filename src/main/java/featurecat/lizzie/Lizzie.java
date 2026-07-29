@@ -881,7 +881,10 @@ public class Lizzie {
               .isKataGoPda) LizzieFrame.menu.showPda(true);
       else LizzieFrame.menu.showPda(false);
     } else {
-      LizzieFrame.sendAiTime(false, engine, false);
+      if (frame != null
+          && (frame.isPlayingAgainstLeelaz || frame.isAnaPlayingAgainstLeelaz)) {
+        LizzieFrame.sendAiTime(false, engine, false);
+      }
       LizzieFrame.menu.showPda(Lizzie.leelaz.isKataGoPda);
     }
     if (engine != leelaz) return;
