@@ -3323,9 +3323,10 @@ public class BoardRenderer {
   }
 
   private void drawNextMoves(Graphics2D g) {
+    BoardHistoryNode displayNode = Lizzie.frame.getDisplayNode();
     List<BoardHistoryNode> nexts = new ArrayList<BoardHistoryNode>();
-    for (BoardHistoryNode next : Lizzie.board.getHistory().getNexts()) {
-      if (next.getData().isMoveNode()) {
+    for (BoardHistoryNode next : displayNode.getVariations()) {
+      if (next.getData().isMoveNode() && !next.getData().dummy) {
         nexts.add(next);
       }
     }
@@ -3346,12 +3347,12 @@ public class BoardRenderer {
                         && !Lizzie.board.isPkBoard
                         && !Lizzie.frame.isShowingHeatmap
                         && !Lizzie.frame.isShowingPolicy
-                        && ((Lizzie.board.getHistory().isBlacksTurn()
+                        && ((displayNode.getData().blackToPlay
                                 && Lizzie.config.showBlackCandidates)
-                            || (!Lizzie.board.getHistory().isBlacksTurn()
+                            || (!displayNode.getData().blackToPlay
                                 && Lizzie.config.showWhiteCandidates))) {
                       BoardData nextData = nexts.get(0).getData();
-                      BoardData thisData = Lizzie.board.getHistory().getData();
+                      BoardData thisData = displayNode.getData();
                       boolean isMain = this.boardIndex != 1;
                       List<MoveData> thisBestMoves =
                           isMain ? thisData.bestMoves : thisData.bestMoves2;
@@ -3362,7 +3363,8 @@ public class BoardRenderer {
                           && !(isMain ? nextData.isChanged : nextData.isChanged2)
                           && thisBestMoves != null
                           && thisBestMoves.size() > 0) {
-                        if (notEnoughSuggestionAt(nextMove[0], nextMove[1], bestMoves)) {
+                        if (notEnoughSuggestionAt(
+                            nextMove[0], nextMove[1], bestMoves, displayNode, nexts.get(0))) {
                           isShowingNextMoveBlunder = true;
                           nextMoveX = nextMove[0];
                           nextMoveY = nextMove[1];
@@ -3453,9 +3455,10 @@ public class BoardRenderer {
     if (nextCoords == null || nextCoords.isEmpty()) {
       return;
     }
+    BoardHistoryNode displayNode = Lizzie.frame.getDisplayNode();
     List<BoardHistoryNode> nexts = new ArrayList<BoardHistoryNode>();
-    for (BoardHistoryNode next : Lizzie.board.getHistory().getNexts()) {
-      if (next.getData().isMoveNode()) {
+    for (BoardHistoryNode next : displayNode.getVariations()) {
+      if (next.getData().isMoveNode() && !next.getData().dummy) {
         nexts.add(next);
       }
     }
@@ -3493,24 +3496,22 @@ public class BoardRenderer {
     }
   }
 
-  private boolean notEnoughSuggestionAt(int coordX, int coordY, List<MoveData> bestMoves) {
+  private boolean notEnoughSuggestionAt(
+      int coordX,
+      int coordY,
+      List<MoveData> bestMoves,
+      BoardHistoryNode displayNode,
+      BoardHistoryNode nextMoveNode) {
     // TODO Auto-generated method stub
     if (bestMoves.isEmpty()) return true;
-    if ((Lizzie.board.getHistory().isBlacksTurn() && Lizzie.config.showBlackCandidates)
-        || (!Lizzie.board.getHistory().isBlacksTurn() && Lizzie.config.showWhiteCandidates)) {
+    if ((displayNode.getData().blackToPlay && Lizzie.config.showBlackCandidates)
+        || (!displayNode.getData().blackToPlay && Lizzie.config.showWhiteCandidates)) {
       String coordsName = Board.convertCoordinatesToName(coordX, coordY);
       for (MoveData move : bestMoves) {
         if (move.coordinate.equals(coordsName)) {
           if (move.order > 0
               && move.playouts < Lizzie.config.minPlayoutsForNextMove
-              && Lizzie.board.getHistory().getCurrentHistoryNode().next().isPresent()
-              && Lizzie.board
-                      .getHistory()
-                      .getCurrentHistoryNode()
-                      .next()
-                      .get()
-                      .getData()
-                      .getPlayouts()
+              && nextMoveNode.getData().getPlayouts()
                   >= Lizzie.config.minPlayoutsForNextMove) {
             shouldIgnoreBestMove = true;
             this.ignoreBestMoveX = coordX;
@@ -3527,13 +3528,12 @@ public class BoardRenderer {
     // TODO Auto-generated method stub
     int moveX = x + scaledMarginWidth + squareWidth * nextMoveX;
     int moveY = y + scaledMarginHeight + squareHeight * nextMoveY;
+    boolean blackToPlay = Lizzie.frame.getDisplayNode().getData().blackToPlay;
     if (Lizzie.config.usePureStone)
-      drawStoneSimple(
-          g, g, moveX, moveY, Lizzie.board.getHistory().isBlacksTurn() ? Stone.BLACK : Stone.WHITE);
+      drawStoneSimple(g, g, moveX, moveY, blackToPlay ? Stone.BLACK : Stone.WHITE);
     else
-      drawStone(
-          g, g, moveX, moveY, Lizzie.board.getHistory().isBlacksTurn() ? Stone.BLACK : Stone.WHITE);
-    if (Lizzie.board.getHistory().isBlacksTurn()) g.setColor(Color.WHITE);
+      drawStone(g, g, moveX, moveY, blackToPlay ? Stone.BLACK : Stone.WHITE);
+    if (blackToPlay) g.setColor(Color.WHITE);
     else g.setColor(Color.BLACK);
     if (showBlunderWinrate && showBlunderScore) {
       if (Lizzie.config.suggestionInfoWinrate <= Lizzie.config.suggestionInfoScoreLead) {
