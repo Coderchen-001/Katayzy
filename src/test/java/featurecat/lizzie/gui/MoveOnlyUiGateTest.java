@@ -15,8 +15,10 @@ import featurecat.lizzie.analysis.MoveRankEvaluationMode;
 import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardData;
 import featurecat.lizzie.rules.BoardHistoryList;
+import featurecat.lizzie.rules.BoardHistoryNode;
 import featurecat.lizzie.rules.Stone;
 import featurecat.lizzie.rules.Zobrist;
+import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -140,6 +142,113 @@ class MoveOnlyUiGateTest {
 
       assertTrue(
           frame.isMouseOver, "real next moves should still activate next-move blunder hover.");
+    } finally {
+      env.close();
+    }
+  }
+
+  @Test
+  void trialDisplayNodeDoesNotDrawItsOwnMoveAsNextMove() throws Exception {
+    TestEnvironment env = TestEnvironment.open();
+    try {
+      TrackingLizzieFrame frame = configuredFrame();
+      Lizzie.frame = frame;
+      BoardHistoryList history =
+          historyWithNext(currentData(), moveData(new int[] {1, 1}, 2));
+      BoardHistoryNode anchor = history.getStart();
+      insertDummyAsFirstVariation(anchor);
+      BoardHistoryNode displayNode = anchor.variations.get(1);
+      Lizzie.board = boardWith(history);
+      frame.setDisplayNodeOverride(displayNode);
+      BoardRenderer renderer = configuredBranchRenderer();
+
+      assertFalse(
+          hasVisiblePaintNear(renderNextMoveOverlay(renderer), 1, 1),
+          "the trial branch's first stone must not be drawn as the display node's future move.");
+    } finally {
+      env.close();
+    }
+  }
+
+  @Test
+  void trialDisplayNodeDrawsItsRealNextMoveAndIgnoresDummy() throws Exception {
+    TestEnvironment env = TestEnvironment.open();
+    try {
+      TrackingLizzieFrame frame = configuredFrame();
+      Lizzie.frame = frame;
+      BoardHistoryList history =
+          historyWithNext(currentData(), moveData(new int[] {1, 1}, 2));
+      BoardHistoryNode displayNode = history.getStart().variations.get(0);
+      MoveData displayCandidate = bestMove(2, 1);
+      displayCandidate.order = 1;
+      displayNode.getData().bestMoves = new ArrayList<>(List.of(displayCandidate));
+      insertDummyAsFirstVariation(displayNode);
+      BoardData realNextMove = moveData(new int[] {2, 1}, 3);
+      realNextMove.setPlayoutsForce(40);
+      realNextMove.bestMoves.get(0).variation = new ArrayList<>();
+      displayNode.addAtLast(realNextMove);
+      Lizzie.board = boardWith(history);
+      frame.setDisplayNodeOverride(displayNode);
+      Lizzie.config.showBlackCandidates = true;
+      Lizzie.config.showWhiteCandidates = true;
+      Lizzie.config.minPlayoutsForNextMove = 30;
+      BoardRenderer renderer = configuredBranchRenderer();
+      setField(BoardRenderer.class, renderer, "bestMoves", displayNode.getData().bestMoves);
+      BufferedImage overlay = renderNextMoveOverlay(renderer);
+
+      assertFalse(
+          hasVisiblePaintNear(overlay, 1, 1),
+          "the trial display node must not be outlined as its own future move.");
+      assertTrue(
+          hasVisiblePaintNear(overlay, 2, 1),
+          "the trial display node's real next move should keep its outline.");
+      assertTrue(
+          (boolean) getField(BoardRenderer.class, renderer, "isShowingNextMoveBlunder"),
+          "the dummy placeholder must not displace the real next move from first-move handling.");
+    } finally {
+      env.close();
+    }
+  }
+
+  @Test
+  void trialNextBlunderStoneUsesDisplayNodeTurn() throws Exception {
+    TestEnvironment env = TestEnvironment.open();
+    try {
+      TrackingLizzieFrame frame = configuredFrame();
+      Lizzie.frame = frame;
+      BoardHistoryList history =
+          historyWithNext(currentData(), moveData(new int[] {1, 1}, 2));
+      Lizzie.board = boardWith(history);
+      frame.setDisplayNodeOverride(history.getStart().variations.get(0));
+      Lizzie.config.usePureStone = true;
+      BoardRenderer renderer = configuredBranchRenderer();
+
+      BufferedImage image = renderNextBlunderFirstMove(renderer, 1, 1);
+      int centerRgb =
+          image.getRGB(SCALED_MARGIN + SQUARE_SIZE, SCALED_MARGIN + SQUARE_SIZE);
+
+      assertEquals(
+          Color.BLACK.getRGB(),
+          centerRgb,
+          "the next-move preview stone should use the trial display node's side to play.");
+    } finally {
+      env.close();
+    }
+  }
+
+  @Test
+  void currentNodeStillDrawsItsRealNextMove() throws Exception {
+    TestEnvironment env = TestEnvironment.open();
+    try {
+      TrackingLizzieFrame frame = configuredFrame();
+      Lizzie.frame = frame;
+      Lizzie.board =
+          boardWith(historyWithNext(currentData(), moveData(new int[] {1, 1}, 2)));
+      BoardRenderer renderer = configuredBranchRenderer();
+
+      assertTrue(
+          hasVisiblePaint(renderNextMoveOverlay(renderer)),
+          "the normal current-node path should keep its real next-move outline.");
     } finally {
       env.close();
     }
@@ -597,9 +706,59 @@ class MoveOnlyUiGateTest {
     }
   }
 
+  private static BufferedImage renderNextMoveOverlay(BoardRenderer renderer) throws Exception {
+    BufferedImage image = new BufferedImage(CANVAS_SIZE, CANVAS_SIZE, BufferedImage.TYPE_INT_ARGB);
+    Graphics2D graphics = image.createGraphics();
+    try {
+      setField(BoardRenderer.class, renderer, "nextCoords", new ArrayList<int[]>());
+      Method drawNextMoves =
+          BoardRenderer.class.getDeclaredMethod("drawNextMoves", Graphics2D.class);
+      drawNextMoves.setAccessible(true);
+      drawNextMoves.invoke(renderer, graphics);
+      Method drawOutlines =
+          BoardRenderer.class.getDeclaredMethod("drawNextMoveOutlinesOnTop", Graphics2D.class);
+      drawOutlines.setAccessible(true);
+      drawOutlines.invoke(renderer, graphics);
+      return image;
+    } finally {
+      graphics.dispose();
+    }
+  }
+
+  private static BufferedImage renderNextBlunderFirstMove(
+      BoardRenderer renderer, int boardX, int boardY) throws Exception {
+    BufferedImage image = new BufferedImage(CANVAS_SIZE, CANVAS_SIZE, BufferedImage.TYPE_INT_ARGB);
+    Graphics2D graphics = image.createGraphics();
+    try {
+      setIntField(renderer, "nextMoveX", boardX);
+      setIntField(renderer, "nextMoveY", boardY);
+      Method method =
+          BoardRenderer.class.getDeclaredMethod("drawNextBlunderFirstMove", Graphics2D.class);
+      method.setAccessible(true);
+      method.invoke(renderer, graphics);
+      return image;
+    } finally {
+      graphics.dispose();
+    }
+  }
+
   private static boolean hasVisiblePaint(BufferedImage image) {
     for (int x = 0; x < image.getWidth(); x++) {
       for (int y = 0; y < image.getHeight(); y++) {
+        if (((image.getRGB(x, y) >>> 24) & 0xFF) > 0) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private static boolean hasVisiblePaintNear(BufferedImage image, int boardX, int boardY) {
+    int centerX = SCALED_MARGIN + SQUARE_SIZE * boardX;
+    int centerY = SCALED_MARGIN + SQUARE_SIZE * boardY;
+    int radius = STONE_RADIUS + 4;
+    for (int x = centerX - radius; x <= centerX + radius; x++) {
+      for (int y = centerY - radius; y <= centerY + radius; y++) {
         if (((image.getRGB(x, y) >>> 24) & 0xFF) > 0) {
           return true;
         }
@@ -638,6 +797,15 @@ class MoveOnlyUiGateTest {
     history.add(next);
     history.toStart();
     return history;
+  }
+
+  private static void insertDummyAsFirstVariation(BoardHistoryNode parent) {
+    BoardData dummyData = parent.getData().clone();
+    dummyData.dummy = true;
+    dummyData.lastMove = Optional.empty();
+    BoardHistoryNode dummy = new BoardHistoryNode(dummyData);
+    parent.variations.add(0, dummy);
+    parent.setPreviousForChild(dummy);
   }
 
   private static BoardHistoryList historyForCurrentNode(BoardData current) {
