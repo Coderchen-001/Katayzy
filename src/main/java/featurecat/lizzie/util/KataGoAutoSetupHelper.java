@@ -1224,7 +1224,7 @@ public final class KataGoAutoSetupHelper {
       }
       return target;
     } catch (IOException e) {
-      if (isWeightIntegrityFailure(e)) {
+      if (shouldDiscardWeightPartial(e)) {
         Files.deleteIfExists(temp);
       }
       if (activeSession.isCancelled() && !(e instanceof DownloadCancelledException)) {
@@ -1255,34 +1255,38 @@ public final class KataGoAutoSetupHelper {
   private static void verifyDownloadedWeight(Path path, RemoteWeightInfo info) throws IOException {
     if (path == null || !Files.isRegularFile(path)) {
       throw new WeightIntegrityException(
-          resource("AutoSetup.weightDownloadIncomplete", "Weight download is incomplete."));
+          resource("AutoSetup.weightDownloadIncomplete", "Weight download is incomplete."), false);
     }
     long expectedSize = info == null ? -1L : info.sizeBytes;
     if (expectedSize > 0L && Files.size(path) != expectedSize) {
       throw new WeightIntegrityException(
-          resource("AutoSetup.weightDownloadIncomplete", "Weight download is incomplete."));
+          resource("AutoSetup.weightDownloadIncomplete", "Weight download is incomplete."), false);
     }
     if (expectedSize <= 0L && Files.size(path) <= 1024L * 1024L) {
       throw new WeightIntegrityException(
-          resource("AutoSetup.weightDownloadIncomplete", "Weight download is incomplete."));
+          resource("AutoSetup.weightDownloadIncomplete", "Weight download is incomplete."), false);
     }
     String expectedSha = info == null ? "" : info.sha256;
     if (!expectedSha.isEmpty() && !expectedSha.equalsIgnoreCase(sha256(path))) {
       throw new WeightIntegrityException(
           resource(
-              "AutoSetup.weightChecksumFailed", "Weight checksum failed. Please download again."));
+              "AutoSetup.weightChecksumFailed", "Weight checksum failed. Please download again."),
+          true);
     }
   }
 
-  private static boolean isWeightIntegrityFailure(IOException error) {
-    return error instanceof WeightIntegrityException;
+  private static boolean shouldDiscardWeightPartial(IOException error) {
+    return error instanceof WeightIntegrityException
+        && ((WeightIntegrityException) error).discardPartial;
   }
 
   private static final class WeightIntegrityException extends IOException {
     private static final long serialVersionUID = 1L;
+    private final boolean discardPartial;
 
-    private WeightIntegrityException(String message) {
+    private WeightIntegrityException(String message, boolean discardPartial) {
       super(message);
+      this.discardPartial = discardPartial;
     }
   }
 

@@ -707,6 +707,37 @@ public class KataGoAutoSetupHelperTest {
   }
 
   @Test
+  void cleanlyTruncatedTransformerDownloadKeepsPartialForNextResume() throws Exception {
+    Path tempRoot = Files.createTempDirectory("katago-transformer-truncated");
+    byte[] modelBytes = repeatedBytes(32 * 1024, (byte) 29);
+    int partialSize = 7 * 1024;
+    try (FixtureServer truncated =
+            FixtureServer.start(java.util.Arrays.copyOf(modelBytes, partialSize));
+        RangeFixtureServer resumed = RangeFixtureServer.start(modelBytes)) {
+      withUserDirAndConfig(
+          tempRoot,
+          () -> {
+            KataGoAutoSetupHelper.RemoteWeightInfo firstAttempt =
+                transformerFixtureWeight(truncated.url(), modelBytes);
+
+            assertThrows(
+                IOException.class, () -> KataGoAutoSetupHelper.downloadWeight(firstAttempt, null));
+            Path partial = tempRoot.resolve("weights").resolve("model.bin.gz.part");
+            assertArrayEquals(
+                java.util.Arrays.copyOf(modelBytes, partialSize), Files.readAllBytes(partial));
+
+            Path downloaded =
+                KataGoAutoSetupHelper.downloadWeight(
+                    transformerFixtureWeight(resumed.url(), modelBytes), null);
+
+            assertEquals("bytes=" + partialSize + "-", resumed.lastRangeHeader());
+            assertArrayEquals(modelBytes, Files.readAllBytes(downloaded));
+            assertFalse(Files.exists(partial));
+          });
+    }
+  }
+
+  @Test
   void transformerWeightChecksumFailureDeletesDamagedPartialFile() throws Exception {
     Path tempRoot = Files.createTempDirectory("katago-transformer-bad-sha");
     byte[] modelBytes = repeatedBytes(16 * 1024, (byte) 31);
@@ -733,6 +764,22 @@ public class KataGoAutoSetupHelperTest {
             assertFalse(Files.exists(tempRoot.resolve("weights").resolve("model.bin.gz.part")));
           });
     }
+  }
+
+  private static KataGoAutoSetupHelper.RemoteWeightInfo transformerFixtureWeight(
+      String url, byte[] modelBytes) throws Exception {
+    return new KataGoAutoSetupHelper.RemoteWeightInfo(
+        "Transformer",
+        "fixture-transformer",
+        url,
+        "2026-07-29",
+        "",
+        true,
+        true,
+        sha256(modelBytes),
+        modelBytes.length,
+        "1.17.0",
+        KataGoAutoSetupHelper.TransformerTier.BALANCED);
   }
 
   @Test

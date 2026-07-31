@@ -4003,6 +4003,20 @@ public class KataGoAutoSetupDialog extends JDialog {
     return downloaded ? RecommendationAction.USE : RecommendationAction.DOWNLOAD;
   }
 
+  static boolean recommendationActionEnabled(
+      RecommendationAction action,
+      boolean cardEnabled,
+      boolean engineValidationReady,
+      boolean engineCompatible) {
+    if (!cardEnabled) {
+      return false;
+    }
+    if (action == RecommendationAction.DOWNLOAD) {
+      return true;
+    }
+    return action == RecommendationAction.USE && engineValidationReady && engineCompatible;
+  }
+
   static Rectangle centeredRecommendationIconBounds(
       int containerWidth, int containerHeight, Dimension iconSize) {
     int width = iconSize == null ? 0 : Math.max(0, iconSize.width);
@@ -4179,9 +4193,8 @@ public class KataGoAutoSetupDialog extends JDialog {
         actionButton.setMaximumSize(preferred);
       }
       actionButton.setEnabled(
-          isEnabled()
-              && !requiresUpgrade
-              && (action == RecommendationAction.DOWNLOAD || action == RecommendationAction.USE));
+          recommendationActionEnabled(
+              action, isEnabled(), isEngineValidationReady(), !requiresUpgrade));
       actionButton.setToolTipText(
           !actionButton.isVisible()
               ? null
@@ -4205,9 +4218,8 @@ public class KataGoAutoSetupDialog extends JDialog {
         boolean requiresUpgrade =
             action == RecommendationAction.USE && !isRemoteWeightCompatibleWithEngine(weight);
         actionButton.setEnabled(
-            enabled
-                && !requiresUpgrade
-                && (action == RecommendationAction.DOWNLOAD || action == RecommendationAction.USE));
+            recommendationActionEnabled(
+                action, enabled, isEngineValidationReady(), !requiresUpgrade));
       }
       repaint();
     }

@@ -51,6 +51,10 @@ brew_prefix_for() {
   brew --prefix "$formula" 2>/dev/null || true
 }
 
+is_macos_host() {
+  [[ "$(uname -s)" == "Darwin" ]]
+}
+
 require_cmd() {
   local cmd="$1"
   if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -231,6 +235,11 @@ prepare_linux_bundle() {
 }
 
 prepare_macos_bundle() {
+  if ! is_macos_host; then
+    echo "Skipping macOS KataGo bundle on non-macOS host: $(uname -s)"
+    return 0
+  fi
+
   local katago_prefix
   local platform_dir
   local version_output
@@ -340,4 +349,6 @@ main() {
   echo "$WEIGHTS_ROOT/default.bin.gz"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

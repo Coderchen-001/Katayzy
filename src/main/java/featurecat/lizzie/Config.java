@@ -664,20 +664,95 @@ public class Config {
     if (command == null || command.trim().isEmpty() || !isBundledKataGoCommand(command)) {
       return command == null || command.trim().isEmpty();
     }
-    String modelToken = modelToken(command);
-    return modelToken.isEmpty() || isDefaultOrLegacyBundledWeight(modelToken);
-  }
-
-  private static boolean isDefaultOrLegacyBundledWeight(String modelToken) {
-    if (modelToken == null || modelToken.trim().isEmpty()) {
+    List<String> commandParts = Utils.splitCommand(command);
+    if (commandParts.isEmpty()) {
       return false;
     }
-    String normalized = modelToken.trim().replace('\\', '/');
-    int slash = normalized.lastIndexOf('/');
-    String fileName = slash >= 0 ? normalized.substring(slash + 1) : normalized;
-    return BUNDLED_WEIGHT_NAME.equalsIgnoreCase(fileName)
-        || (KataGoAutoSetupHelper.LEGACY_DEFAULT_WEIGHT_MODEL + ".bin.gz")
-            .equalsIgnoreCase(fileName);
+    Path workingDirectory = Path.of(System.getProperty("user.dir", ".")).toAbsolutePath();
+    Optional<Path> commandAppRoot =
+        bundledAppRootForExecutable(workingDirectory, commandParts.get(0));
+    Optional<Path> activeAppRoot = findBundledAppRoot();
+    if (!commandAppRoot.isPresent()
+        || !activeAppRoot.isPresent()
+        || !samePath(commandAppRoot.get(), activeAppRoot.get())) {
+      return false;
+    }
+    String modelToken = modelToken(command);
+    return modelToken.isEmpty()
+        || isDefaultOrLegacyBundledWeight(commandAppRoot.get(), workingDirectory, modelToken);
+  }
+
+  private static Optional<Path> bundledAppRootForExecutable(
+      Path workingDirectory, String executableToken) {
+    if (executableToken == null || executableToken.trim().isEmpty()) {
+      return Optional.empty();
+    }
+    try {
+      Path executable = resolveCommandPath(workingDirectory, executableToken);
+      Path platformDirectory = executable.getParent();
+      Path katagoDirectory = platformDirectory == null ? null : platformDirectory.getParent();
+      Path enginesDirectory = katagoDirectory == null ? null : katagoDirectory.getParent();
+      if (katagoDirectory == null
+          || enginesDirectory == null
+          || katagoDirectory.getFileName() == null
+          || enginesDirectory.getFileName() == null
+          || !"katago".equalsIgnoreCase(katagoDirectory.getFileName().toString())
+          || !BUNDLED_ENGINE_ROOT.equalsIgnoreCase(enginesDirectory.getFileName().toString())) {
+        return Optional.empty();
+      }
+      return Optional.ofNullable(enginesDirectory.getParent());
+    } catch (RuntimeException e) {
+      return Optional.empty();
+    }
+  }
+
+  private static boolean isDefaultOrLegacyBundledWeight(
+      Path appRoot, Path workingDirectory, String modelToken) {
+    if (appRoot == null
+        || workingDirectory == null
+        || modelToken == null
+        || modelToken.trim().isEmpty()) {
+      return false;
+    }
+    try {
+      Path modelPath = Path.of(modelToken.trim());
+      Path resolvedModel =
+          modelPath.isAbsolute()
+              ? modelPath.toAbsolutePath().normalize()
+              : workingDirectory.resolve(modelPath).normalize();
+      Path bundledWeights = appRoot.resolve(BUNDLED_WEIGHT_ROOT).toAbsolutePath().normalize();
+      if (!bundledWeights.equals(resolvedModel.getParent()) && !modelPath.isAbsolute()) {
+        resolvedModel = appRoot.resolve(modelPath).toAbsolutePath().normalize();
+      }
+      if (!bundledWeights.equals(resolvedModel.getParent())
+          || resolvedModel.getFileName() == null) {
+        return false;
+      }
+      String fileName = resolvedModel.getFileName().toString();
+      return BUNDLED_WEIGHT_NAME.equalsIgnoreCase(fileName)
+          || (KataGoAutoSetupHelper.LEGACY_DEFAULT_WEIGHT_MODEL + ".bin.gz")
+              .equalsIgnoreCase(fileName);
+    } catch (RuntimeException e) {
+      return false;
+    }
+  }
+
+  private static Path resolveCommandPath(Path workingDirectory, String token) {
+    Path path = Path.of(token.trim());
+    return path.isAbsolute()
+        ? path.toAbsolutePath().normalize()
+        : workingDirectory.resolve(path).toAbsolutePath().normalize();
+  }
+
+  private static boolean samePath(Path first, Path second) {
+    if (first == null || second == null) {
+      return false;
+    }
+    try {
+      return Files.isSameFile(first, second);
+    } catch (IOException e) {
+      return first.toAbsolutePath().normalize().equals(second.toAbsolutePath().normalize());
+    }
   }
 
   private static String modelToken(String command) {

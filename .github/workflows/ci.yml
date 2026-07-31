@@ -50,11 +50,13 @@ jobs:
           python3 scripts/test_generate_release_notes.py
           python3 scripts/test_macos_bundle_version.py
           python3 scripts/test_macos_katago_bundle.py
+          bash scripts/test_prepare_bundled_katago.sh
           python3 scripts/test_prepare_bundled_jcef.py
           python3 scripts/test_publish_release_request.py
           python3 scripts/test_windows_launcher_packaging.py
           bash -n \
             scripts/prepare_bundled_katago.sh \
+            scripts/test_prepare_bundled_katago.sh \
             scripts/package_macos_dmg.sh \
             scripts/validate_macos_dmg_layout.sh \
             scripts/package_release.sh \
