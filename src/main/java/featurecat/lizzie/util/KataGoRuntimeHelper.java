@@ -159,7 +159,7 @@ public final class KataGoRuntimeHelper {
           Arrays.asList("cublasLt64_12.dll"),
           Arrays.asList("cudnn64_8.dll"),
           Arrays.asList("nvJitLink*.dll"),
-          Arrays.asList("zlibwapi.dll", "libz.dll"));
+          Arrays.asList("zlibwapi.dll", "libz.dll", "z.dll"));
   private static final List<List<String>> REQUIRED_NVIDIA_CUDA12_1_CUDNN9_RUNTIME_DLL_GROUPS =
       Arrays.asList(
           Arrays.asList("cudart64_12.dll"),
@@ -167,7 +167,7 @@ public final class KataGoRuntimeHelper {
           Arrays.asList("cublasLt64_12.dll"),
           Arrays.asList("cudnn64_9.dll"),
           Arrays.asList("nvJitLink*.dll"),
-          Arrays.asList("zlibwapi.dll", "libz.dll"));
+          Arrays.asList("zlibwapi.dll", "libz.dll", "z.dll"));
   private static final List<List<String>> REQUIRED_NVIDIA_CUDA12_8_RUNTIME_DLL_GROUPS =
       Arrays.asList(
           Arrays.asList("cudart64_12.dll"),
@@ -175,7 +175,7 @@ public final class KataGoRuntimeHelper {
           Arrays.asList("cublasLt64_12.dll"),
           Arrays.asList("cudnn64_9.dll"),
           Arrays.asList("nvJitLink*.dll"),
-          Arrays.asList("zlibwapi.dll", "libz.dll"));
+          Arrays.asList("zlibwapi.dll", "libz.dll", "z.dll"));
   private static final List<List<String>> REQUIRED_NVIDIA_TRT10_9_RUNTIME_DLL_GROUPS =
       Arrays.asList(
           Arrays.asList("cudart64_12.dll"),
@@ -185,7 +185,7 @@ public final class KataGoRuntimeHelper {
           Arrays.asList("nvJitLink*.dll"),
           Arrays.asList("nvinfer_10.dll", "nvinfer*.dll"),
           Arrays.asList("nvinfer_plugin_10.dll", "nvinfer_plugin*.dll"),
-          Arrays.asList("zlibwapi.dll", "libz.dll"));
+          Arrays.asList("zlibwapi.dll", "libz.dll", "z.dll"));
   private static final Object NVIDIA_RUNTIME_LOCK = new Object();
   private static final int BENCHMARK_VISITS = 800;
   private static final int BENCHMARK_POSITIONS = 6;

@@ -403,6 +403,38 @@ public class KataGoRuntimeHelperTest {
   }
 
   @Test
+  void standardNvidia117RuntimeAcceptsOfficialZDllName() throws Exception {
+    withOsName(
+        WINDOWS_OS_NAME,
+        () -> {
+          Path tempRoot = Files.createTempDirectory("katago-helper-nvidia117-zdll");
+          Path engineDir =
+              Files.createDirectories(
+                  tempRoot.resolve("engines").resolve("katago").resolve("windows-x64"));
+          Files.writeString(engineDir.resolve("lizzieyzy-next-engine-backend.txt"), "nvidia");
+          Files.writeString(
+              engineDir.resolve("lizzieyzy-next-nvidia-runtime-manifest.txt"),
+              "Profile: cuda12.1-cudnn9\n");
+          Path enginePath = touch(engineDir.resolve("katago.exe"));
+          touchCommonCuda12Dlls(engineDir);
+          touch(engineDir.resolve("cudnn64_9.dll"));
+          touch(engineDir.resolve("z.dll"));
+          Path runtimeWorkDirectory = Files.createDirectories(tempRoot.resolve("runtime-root"));
+
+          withConfig(
+              runtimeWorkDirectory,
+              () -> {
+                KataGoRuntimeHelper.NvidiaRuntimeStatus status =
+                    KataGoRuntimeHelper.inspectNvidiaRuntime(enginePath);
+
+                assertTrue(status.applicable);
+                assertTrue(status.ready, "KataGo 1.17's official z.dll must satisfy the runtime check.");
+                assertTrue(status.missingDlls.isEmpty());
+              });
+        });
+  }
+
+  @Test
   void legacyStandardNvidiaRuntimeStillAcceptsCudnn8() throws Exception {
     withOsName(
         WINDOWS_OS_NAME,
@@ -1720,7 +1752,7 @@ public class KataGoRuntimeHelperTest {
   private static void touchRequiredCuda12_8Dlls(Path directory) throws IOException {
     touchCommonCuda12Dlls(directory);
     touch(directory.resolve("cudnn64_9.dll"));
-    touch(directory.resolve("libz.dll"));
+    touch(directory.resolve("z.dll"));
   }
 
   private static void writeCurrentTensorRtEngineManifest(Path directory) throws IOException {
