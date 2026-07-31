@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import featurecat.lizzie.util.KataGoAutoSetupHelper;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -61,7 +62,8 @@ public class ConfigBundledKataGoDefaultsTest {
 
     assertFalse(ui.getBoolean("show-blunder-bar"));
     assertTrue(ui.getBoolean(HIDE_BLUNDER_BAR_DEFAULT_MIGRATION_KEY));
-    assertTrue(Files.readString(tempRoot.resolve("config.txt")).contains("\"show-blunder-bar\": false"));
+    assertTrue(
+        Files.readString(tempRoot.resolve("config.txt")).contains("\"show-blunder-bar\": false"));
 
     ui.put("show-blunder-bar", true);
     hideBlunderBarDefaultOnce(config);
@@ -144,6 +146,263 @@ public class ConfigBundledKataGoDefaultsTest {
   }
 
   @Test
+  void bundledExecutableWithCustomWeightIsNeverTreatedAsManagedDefault() throws Exception {
+    Path tempRoot = Files.createTempDirectory("lizzie-bundled-custom-weight");
+    Files.writeString(tempRoot.resolve("config.txt"), "{}");
+    createBundledKataGoAssets(tempRoot, "b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz");
+    Path bundledExecutable = bundledExecutable(tempRoot);
+    Path customWeight =
+        Files.write(tempRoot.resolve("weights").resolve("my-study.bin.gz"), new byte[] {2});
+    Path gtp = tempRoot.resolve("engines").resolve("katago").resolve("configs").resolve("gtp.cfg");
+    String customCommand =
+        quote(bundledExecutable) + " gtp -model " + quote(customWeight) + " -config " + quote(gtp);
+
+    assertTrue(Config.isBundledKataGoCommand(customCommand));
+    assertFalse(Config.isManagedBundledDefaultCommand(customCommand));
+
+    Config config = ConfigTestHelper.createForTests(tempRoot);
+    JSONObject ui =
+        new JSONObject()
+            .put("first-time-load", false)
+            .put("autoload-default", false)
+            .put("autoload-last", false)
+            .put("autoload-empty", true)
+            .put("default-engine", 0);
+    JSONObject customEngine =
+        new JSONObject()
+            .put("name", "KataGo Bundled")
+            .put("command", customCommand)
+            .put("isDefault", true);
+    JSONObject leelaz =
+        new JSONObject().put("engine-settings-list", new JSONArray().put(customEngine));
+    config.config = new JSONObject().put("ui", ui).put("leelaz", leelaz);
+
+    withUserDir(tempRoot, () -> applyBundledKataGoDefaults(config));
+
+    JSONArray engines = leelaz.getJSONArray("engine-settings-list");
+    assertEquals(2, engines.length());
+    assertEquals(customCommand, engines.getJSONObject(0).getString("command"));
+    assertTrue(engines.getJSONObject(0).getBoolean("isDefault"));
+    assertTrue(ui.getBoolean("autoload-empty"));
+  }
+
+  @Test
+  void bundledExecutableWithExternalDefaultNamedWeightIsNeverMigrated() throws Exception {
+    Path tempRoot = Files.createTempDirectory("lizzie-external-default-weight");
+    Files.writeString(tempRoot.resolve("config.txt"), "{}");
+    createBundledKataGoAssets(tempRoot, "b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz");
+    Path executable = bundledExecutable(tempRoot);
+    Path externalWeights = Files.createDirectories(tempRoot.resolve("custom weights"));
+    Path externalDefault = Files.write(externalWeights.resolve("default.bin.gz"), new byte[] {5});
+    Path externalLegacy =
+        Files.write(
+            externalWeights.resolve(KataGoAutoSetupHelper.LEGACY_DEFAULT_WEIGHT_MODEL + ".bin.gz"),
+            new byte[] {6});
+    Path gtp = tempRoot.resolve("engines").resolve("katago").resolve("configs").resolve("gtp.cfg");
+    String defaultCommand =
+        quote(executable) + " gtp -model " + quote(externalDefault) + " -config " + quote(gtp);
+    String legacyCommand =
+        quote(executable) + " gtp -model " + quote(externalLegacy) + " -config " + quote(gtp);
+
+    assertFalse(Config.isManagedBundledDefaultCommand(defaultCommand));
+    assertFalse(Config.isManagedBundledDefaultCommand(legacyCommand));
+
+    Config config = ConfigTestHelper.createForTests(tempRoot);
+    JSONObject ui =
+        new JSONObject()
+            .put("first-time-load", false)
+            .put("autoload-default", false)
+            .put("autoload-last", false)
+            .put("autoload-empty", true)
+            .put("default-engine", 0);
+    JSONObject customEngine =
+        new JSONObject()
+            .put("name", "KataGo Auto Setup")
+            .put("command", defaultCommand)
+            .put("isDefault", true);
+    JSONObject leelaz =
+        new JSONObject().put("engine-settings-list", new JSONArray().put(customEngine));
+    config.config = new JSONObject().put("ui", ui).put("leelaz", leelaz);
+
+    withUserDir(tempRoot, () -> applyBundledKataGoDefaults(config));
+
+    JSONArray engines = leelaz.getJSONArray("engine-settings-list");
+    assertEquals(2, engines.length());
+    assertEquals(defaultCommand, engines.getJSONObject(0).getString("command"));
+    assertTrue(engines.getJSONObject(0).getBoolean("isDefault"));
+    assertTrue(ui.getBoolean("autoload-empty"));
+  }
+
+  @Test
+  void bundledDefaultNamesRemainManagedOnlyInsideTheirOwnBundle() throws Exception {
+    Path tempRoot = Files.createTempDirectory("lizzie-managed-default-weight");
+    createBundledKataGoAssets(tempRoot, "b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz");
+    Path executable = bundledExecutable(tempRoot);
+    Path weights = tempRoot.resolve("weights");
+    Path legacy =
+        Files.write(
+            weights.resolve(KataGoAutoSetupHelper.LEGACY_DEFAULT_WEIGHT_MODEL + ".bin.gz"),
+            new byte[] {7});
+    Path gtp = tempRoot.resolve("engines").resolve("katago").resolve("configs").resolve("gtp.cfg");
+
+    String defaultCommand =
+        quote(executable)
+            + " gtp -model "
+            + quote(weights.resolve("default.bin.gz"))
+            + " -config "
+            + quote(gtp);
+    String legacyCommand =
+        quote(executable) + " gtp -model " + quote(legacy) + " -config " + quote(gtp);
+    String commandWithoutModel = quote(executable) + " gtp -config " + quote(gtp);
+
+    withUserDir(
+        tempRoot,
+        () -> {
+          assertTrue(Config.isManagedBundledDefaultCommand(defaultCommand));
+          assertTrue(Config.isManagedBundledDefaultCommand(legacyCommand));
+          assertTrue(Config.isManagedBundledDefaultCommand(commandWithoutModel));
+        });
+  }
+
+  @Test
+  void completeExternalBundleIsNeverTreatedAsTheRunningBundle() throws Exception {
+    Path currentRoot = Files.createTempDirectory("lizzie-current-bundle");
+    Path externalRoot = Files.createTempDirectory("lizzie-external-bundle");
+    createBundledKataGoAssets(currentRoot, "b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz");
+    createBundledKataGoAssets(externalRoot, "b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz");
+    String externalCommand =
+        quote(bundledExecutable(externalRoot))
+            + " gtp -model "
+            + quote(externalRoot.resolve("weights").resolve("default.bin.gz"))
+            + " -config "
+            + quote(
+                externalRoot
+                    .resolve("engines")
+                    .resolve("katago")
+                    .resolve("configs")
+                    .resolve("gtp.cfg"));
+    String externalCommandWithoutModel =
+        quote(bundledExecutable(externalRoot))
+            + " gtp -config "
+            + quote(
+                externalRoot
+                    .resolve("engines")
+                    .resolve("katago")
+                    .resolve("configs")
+                    .resolve("gtp.cfg"));
+
+    withUserDir(
+        currentRoot,
+        () -> {
+          assertFalse(Config.isManagedBundledDefaultCommand(externalCommand));
+          assertFalse(Config.isManagedBundledDefaultCommand(externalCommandWithoutModel));
+        });
+  }
+
+  @Test
+  void transformerBundleMigratesOnlyTheLegacyManagedDefaultCommands() throws Exception {
+    Path tempRoot = Files.createTempDirectory("lizzie-transformer-default-migration");
+    Files.writeString(tempRoot.resolve("config.txt"), "{}");
+    createBundledKataGoAssets(tempRoot, "b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz");
+    Path executable = bundledExecutable(tempRoot);
+    Path configs = tempRoot.resolve("engines").resolve("katago").resolve("configs");
+    Path oldWeight = tempRoot.resolve("weights").resolve("kata1-zhizi-b28c512nbt-muonfd2.bin.gz");
+    Files.write(oldWeight, new byte[] {3});
+    String oldGtp =
+        quote(executable)
+            + " gtp -model "
+            + quote(oldWeight)
+            + " -config "
+            + quote(configs.resolve("gtp.cfg"));
+    String oldAnalysis =
+        quote(executable)
+            + " analysis -model "
+            + quote(oldWeight)
+            + " -config "
+            + quote(configs.resolve("analysis.cfg"))
+            + " -quit-without-waiting";
+    String oldEstimate =
+        quote(executable)
+            + " gtp -model "
+            + quote(oldWeight)
+            + " -config "
+            + quote(configs.resolve("gtp.cfg"));
+
+    Config config = ConfigTestHelper.createForTests(tempRoot);
+    JSONObject ui =
+        new JSONObject()
+            .put("first-time-load", false)
+            .put("autoload-default", false)
+            .put("autoload-last", true)
+            .put("autoload-empty", false)
+            .put("default-engine", 0)
+            .put("analysis-engine-command", oldAnalysis)
+            .put("analysis-engine-command-customized", false)
+            .put("estimate-command", oldEstimate);
+    JSONObject managedEngine =
+        new JSONObject()
+            .put("name", "KataGo Auto Setup")
+            .put("command", oldGtp)
+            .put("isDefault", true);
+    JSONObject leelaz =
+        new JSONObject().put("engine-settings-list", new JSONArray().put(managedEngine));
+    config.config = new JSONObject().put("ui", ui).put("leelaz", leelaz);
+
+    withUserDir(tempRoot, () -> applyBundledKataGoDefaults(config));
+
+    String migratedCommand =
+        leelaz.getJSONArray("engine-settings-list").getJSONObject(0).getString("command");
+    assertTrue(migratedCommand.contains("weights" + java.io.File.separator + "default.bin.gz"));
+    assertFalse(migratedCommand.contains("zhizi"));
+    assertTrue(ui.getString("analysis-engine-command").contains("default.bin.gz"));
+    assertFalse(ui.getString("analysis-engine-command").contains("zhizi"));
+    assertTrue(ui.getString("estimate-command").contains("default.bin.gz"));
+    assertTrue(ui.getBoolean("migrated-default-transformer-v1"));
+    assertFalse(ui.getBoolean("autoload-default"));
+    assertTrue(ui.getBoolean("autoload-last"));
+    assertFalse(ui.getBoolean("autoload-empty"));
+  }
+
+  @Test
+  void customAnalysisCommandSurvivesTransformerDefaultMigration() throws Exception {
+    Path tempRoot = Files.createTempDirectory("lizzie-transformer-custom-analysis");
+    Files.writeString(tempRoot.resolve("config.txt"), "{}");
+    createBundledKataGoAssets(tempRoot, "b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz");
+    Path executable = bundledExecutable(tempRoot);
+    Path gtp = tempRoot.resolve("engines").resolve("katago").resolve("configs").resolve("gtp.cfg");
+    Path oldWeight =
+        Files.write(
+            tempRoot.resolve("weights").resolve("kata1-zhizi-b28c512nbt-muonfd2.bin.gz"),
+            new byte[] {4});
+    String oldGtp =
+        quote(executable) + " gtp -model " + quote(oldWeight) + " -config " + quote(gtp);
+    String customAnalysis = "\"/opt/custom/katago\" analysis --custom-option true";
+
+    Config config = ConfigTestHelper.createForTests(tempRoot);
+    JSONObject ui =
+        new JSONObject()
+            .put("first-time-load", false)
+            .put("analysis-engine-command", customAnalysis)
+            .put("analysis-engine-command-customized", true);
+    JSONObject leelaz =
+        new JSONObject()
+            .put(
+                "engine-settings-list",
+                new JSONArray()
+                    .put(
+                        new JSONObject()
+                            .put("name", "KataGo Auto Setup")
+                            .put("command", oldGtp)
+                            .put("isDefault", true)));
+    config.config = new JSONObject().put("ui", ui).put("leelaz", leelaz);
+
+    withUserDir(tempRoot, () -> applyBundledKataGoDefaults(config));
+
+    assertEquals(customAnalysis, ui.getString("analysis-engine-command"));
+    assertTrue(ui.getBoolean("analysis-engine-command-customized"));
+  }
+
+  @Test
   void bundledDetectionOnlyUsesTheExecutableToken() {
     assertTrue(
         Config.isBundledKataGoCommand(
@@ -158,15 +417,8 @@ public class ConfigBundledKataGoDefaultsTest {
   @Test
   void bundledExecutableDetectionPreservesSpacesAndUnicode() {
     Path bundledExecutable =
-        Path.of(
-            "LizzieYzy Next 测试",
-            "app",
-            "engines",
-            "katago",
-            "windows-x64",
-            "katago.exe");
-    Path externalExecutable =
-        Path.of("LizzieYzy Next 测试", "app", "custom engines", "katago.exe");
+        Path.of("LizzieYzy Next 测试", "app", "engines", "katago", "windows-x64", "katago.exe");
+    Path externalExecutable = Path.of("LizzieYzy Next 测试", "app", "custom engines", "katago.exe");
 
     assertTrue(Config.isBundledKataGoExecutable(bundledExecutable));
     assertFalse(Config.isBundledKataGoExecutable(externalExecutable));
@@ -178,8 +430,7 @@ public class ConfigBundledKataGoDefaultsTest {
     Files.createDirectories(incompleteRoot.resolve("engines"));
     Files.createDirectories(incompleteRoot.resolve("weights"));
 
-    Method method =
-        Config.class.getDeclaredMethod("hasCompleteBundledKataGoAssets", Path.class);
+    Method method = Config.class.getDeclaredMethod("hasCompleteBundledKataGoAssets", Path.class);
     method.setAccessible(true);
 
     assertFalse((Boolean) method.invoke(null, incompleteRoot));
@@ -293,6 +544,10 @@ public class ConfigBundledKataGoDefaultsTest {
   }
 
   private static void createBundledKataGoAssets(Path root) throws Exception {
+    createBundledKataGoAssets(root, "");
+  }
+
+  private static void createBundledKataGoAssets(Path root, String modelSource) throws Exception {
     Path katagoRoot = root.resolve("engines").resolve("katago");
     String[] platformDirs = {
       "macos-arm64", "macos-amd64", "linux-x64", "linux-x86", "windows-x64", "windows-x86"
@@ -305,8 +560,35 @@ public class ConfigBundledKataGoDefaultsTest {
     Path configs = Files.createDirectories(katagoRoot.resolve("configs"));
     Files.write(configs.resolve("gtp.cfg"), new byte[] {1});
     Files.write(configs.resolve("analysis.cfg"), new byte[] {1});
+    if (modelSource != null && !modelSource.isEmpty()) {
+      Files.writeString(
+          katagoRoot.resolve("VERSION.txt"),
+          "KataGo release: v1.17.0\nModel source: " + modelSource + "\n");
+    }
     Files.createDirectories(root.resolve("weights"));
     Files.write(root.resolve("weights").resolve("default.bin.gz"), new byte[] {1});
+  }
+
+  private static Path bundledExecutable(Path root) {
+    String osName = System.getProperty("os.name", "").toLowerCase();
+    String arch = System.getProperty("os.arch", "").toLowerCase();
+    boolean isArm = arch.contains("aarch64") || arch.contains("arm64");
+    boolean is64 = arch.contains("64");
+    String platform;
+    if (osName.contains("win")) {
+      platform = is64 ? "windows-x64" : "windows-x86";
+    } else if (osName.contains("mac") || osName.contains("darwin")) {
+      platform = isArm ? "macos-arm64" : "macos-amd64";
+    } else {
+      platform = is64 ? "linux-x64" : "linux-x86";
+    }
+    String binary =
+        System.getProperty("os.name", "").toLowerCase().contains("win") ? "katago.exe" : "katago";
+    return root.resolve("engines").resolve("katago").resolve(platform).resolve(binary);
+  }
+
+  private static String quote(Path path) {
+    return "\"" + path.toAbsolutePath().normalize() + "\"";
   }
 
   private interface ThrowingRunnable {

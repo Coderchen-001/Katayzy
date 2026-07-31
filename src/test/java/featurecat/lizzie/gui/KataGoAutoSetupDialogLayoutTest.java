@@ -124,6 +124,22 @@ class KataGoAutoSetupDialogLayoutTest {
   }
 
   @Test
+  void downloadedRecommendationWaitsForCompatibleValidatedEngine() {
+    assertFalse(
+        KataGoAutoSetupDialog.recommendationActionEnabled(
+            KataGoAutoSetupDialog.RecommendationAction.USE, true, false, true));
+    assertFalse(
+        KataGoAutoSetupDialog.recommendationActionEnabled(
+            KataGoAutoSetupDialog.RecommendationAction.USE, true, true, false));
+    assertTrue(
+        KataGoAutoSetupDialog.recommendationActionEnabled(
+            KataGoAutoSetupDialog.RecommendationAction.USE, true, true, true));
+    assertTrue(
+        KataGoAutoSetupDialog.recommendationActionEnabled(
+            KataGoAutoSetupDialog.RecommendationAction.DOWNLOAD, true, false, false));
+  }
+
+  @Test
   void longAccelerationActionsWrapIntoTwoColumns() {
     JButton[] actions = {
       new JButton("ตรวจสอบแพ็คเกจ NVIDIA"),

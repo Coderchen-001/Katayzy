@@ -37,7 +37,7 @@ jobs:
       - name: Install build tools
         run: |
           brew update
-          brew install maven katago
+          brew install maven cmake ninja protobuf abseil libzip
 
       - name: Generate app icons
         run: |
@@ -56,20 +56,29 @@ jobs:
           HTTPS_PROXY: ""
           HTTP_PROXY: ""
           ALL_PROXY: ""
-          MODEL_NAME: kata1-zhizi-b28c512nbt-muonfd2.bin.gz
-          MODEL_URL: https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-zhizi-b28c512nbt-muonfd2.bin.gz
+          MODEL_NAME: b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
+          MODEL_URL: https://github.com/lightvector/KataGo/releases/download/v1.17.0/b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
+          MODEL_SHA256: c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995
         run: |
           set -euo pipefail
           mkdir -p .cache/katago
           MODEL_SOURCE="$PWD/.cache/katago/$MODEL_NAME"
           curl -fL --retry 5 --retry-all-errors -o "$MODEL_SOURCE" "$MODEL_URL"
-          PREFERRED_MODEL_NAME="$MODEL_NAME" MODEL_SOURCE="$MODEL_SOURCE" ./scripts/prepare_bundled_katago.sh
+          PREFERRED_MODEL_NAME="$MODEL_NAME" PREFERRED_MODEL_SHA256="$MODEL_SHA256" \
+            MODEL_SOURCE="$MODEL_SOURCE" ./scripts/prepare_bundled_katago.sh
 
       - name: Build macOS amd64 package
         run: ./scripts/package_macos_dmg.sh "${{ inputs.date_tag }}" 1.0.0 target/lizzie-yzy2.5.3-shaded.jar "${{ inputs.release_tag }}"
 
       - name: Audit macOS amd64 display version
         run: |
+          app_root="dist/macos/app-image/LizzieYzy Next.app/Contents/app"
+          grep -qx "KataGo release: v1.17.0" "$app_root/engines/katago/VERSION.txt"
+          grep -qx "Model source: b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz" "$app_root/engines/katago/VERSION.txt"
+          grep -qx "Model architecture: transformer" "$app_root/engines/katago/VERSION.txt"
+          grep -qx "Minimum KataGo version: 1.17.0" "$app_root/engines/katago/VERSION.txt"
+          test "$(shasum -a 256 "$app_root/weights/default.bin.gz" | awk '{print $1}')" = \
+            "c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995"
           grep -q -- "java-options=-Dlizzie.next.version=${{ inputs.release_tag }}" \
             "dist/macos/app-image/LizzieYzy Next.app/Contents/app/LizzieYzy Next.cfg"
           grep -q -- "java-options=-Xshare:auto" \

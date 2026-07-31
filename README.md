@@ -54,7 +54,7 @@
 > - Release 里的 `*windows64.nvidia.tensorrt.portable.7z.001` 是高级可选分卷包，必须下载全部 `.7z.00N` 并用 7-Zip 解压；普通用户不要优先选它
 > - 如果 OpenCL 在你的电脑上不稳定：下载 `*windows64.with-katago.portable.zip`
 > - 现在支持直接输入野狐昵称抓最近公开棋谱，不需要先查账号数字
-> - 主推荐整合包已内置 KataGo `v1.16.5` 和更适合默认使用的 `zhizi` 28B 权重 `kata1-zhizi-b28c512nbt-muonfd2.bin.gz`
+> - 主推荐完整包已内置 KataGo `v1.17.0` 和官方中型 Transformer，界面显示为“Transformer 10B 均衡版”（约 94 MB）；主程序小更新包不包含引擎和权重
 > - Windows 主发布包已内置原生 `readboard.exe`，同步入口只保留这套更强的棋盘同步工具
 
 ## 为什么很多用户会直接选它

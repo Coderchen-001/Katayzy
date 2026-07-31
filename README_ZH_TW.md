@@ -41,7 +41,7 @@
 > - 如果你的電腦有 NVIDIA 顯示卡並且想更快：下載 `*windows64.nvidia.portable.zip`
 > - 如果 OpenCL 在你的電腦上不穩定：下載 `*windows64.with-katago.portable.zip`
 > - 現在支援直接輸入野狐暱稱抓最近公開棋譜，不需要先查帳號數字
-> - 主推薦整合包已內建 KataGo `v1.16.4` 和官方推薦 `zhizi` 權重 `kata1-zhizi-b28c512nbt-muonfd2.bin.gz`
+> - 主推薦完整包已內建 KataGo `v1.17.0` 與官方中型 Transformer，介面顯示為「Transformer 10B 均衡版」（約 94 MB）；主程式小更新包不包含引擎與權重
 > - 主發佈包已內建 `readboard_java`，多數使用者不需要再單獨找 readboard 倉庫
 
 ## 為什麼很多使用者會直接選它

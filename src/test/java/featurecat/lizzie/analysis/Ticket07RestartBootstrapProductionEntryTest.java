@@ -14,8 +14,11 @@ import featurecat.lizzie.gui.LizzieFrame;
 import featurecat.lizzie.gui.Menu;
 import featurecat.lizzie.rules.Board;
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -42,20 +45,6 @@ class Ticket07RestartBootstrapProductionEntryTest {
     Path runtime = Files.createTempDirectory("ticket07-phase-a");
     Path commandLog = runtime.resolve("commands.log");
     Path nameMarker = runtime.resolve("name.sent");
-    Path script = runtime.resolve("fake-gtp.sh");
-    Files.writeString(
-        script,
-        "#!/bin/sh\n"
-            + "while IFS= read -r line; do\n"
-            + "  printf '%s\\n' \"$line\" >> '"
-            + shellQuote(commandLog)
-            + "'\n"
-            + "  if [ \"$line\" = \"name\" ]; then : > '"
-            + shellQuote(nameMarker)
-            + "'; fi\n"
-            + "done\n",
-        StandardCharsets.UTF_8);
-    assertTrue(script.toFile().setExecutable(true), "fake GTP process must be executable");
 
     Leelaz previousEngine = Lizzie.leelaz;
     Leelaz previousSecondaryEngine = Lizzie.leelaz2;
@@ -76,7 +65,10 @@ class Ticket07RestartBootstrapProductionEntryTest {
     ImageIcon previousStop = Menu.stop;
     ImageIcon previousReady = Menu.ready;
 
-    PhaseARestartLeelaz engine = new PhaseARestartLeelaz("sh " + script);
+    PhaseARestartLeelaz engine = new PhaseARestartLeelaz(fakeGtpCommand(commandLog, nameMarker));
+    // The test classpath can contain an "sshd" dependency. Leelaz's legacy command heuristic
+    // otherwise mistakes this local Java helper for an SSH engine.
+    engine.isSSH = false;
     try {
       Lizzie.config = ConfigTestHelper.createForTests(runtime.resolve("config"));
       Lizzie.frame = allocate(PhaseAFrame.class);
@@ -197,8 +189,38 @@ class Ticket07RestartBootstrapProductionEntryTest {
     }
   }
 
-  private static String shellQuote(Path path) {
-    return path.toAbsolutePath().toString().replace("'", "'\\''");
+  private static String fakeGtpCommand(Path commandLog, Path nameMarker) {
+    Path javaExecutable =
+        Path.of(
+            System.getProperty("java.home"),
+            "bin",
+            System.getProperty("os.name", "").toLowerCase().contains("win") ? "java.exe" : "java");
+    String testClasses =
+        Path.of(
+                java.net.URI.create(
+                    Ticket07RestartBootstrapProductionEntryTest.class
+                        .getProtectionDomain()
+                        .getCodeSource()
+                        .getLocation()
+                        .toString()))
+            .toAbsolutePath()
+            .normalize()
+            .toString();
+    String classPath =
+        testClasses + java.io.File.pathSeparator + System.getProperty("java.class.path");
+    return commandQuote(javaExecutable.toString())
+        + " -cp "
+        + commandQuote(classPath)
+        + " "
+        + FakeGtpProcess.class.getName()
+        + " "
+        + commandQuote(commandLog.toAbsolutePath().toString())
+        + " "
+        + commandQuote(nameMarker.toAbsolutePath().toString());
+  }
+
+  private static String commandQuote(String value) {
+    return "\"" + value.replace("\"", "\\\"") + "\"";
   }
 
   private static String readIfExists(Path path) throws IOException {
@@ -326,6 +348,26 @@ class Ticket07RestartBootstrapProductionEntryTest {
         startupNameQueued.countDown();
       }
       super.sendCommand(command);
+    }
+  }
+
+  public static final class FakeGtpProcess {
+    public static void main(String[] args) throws Exception {
+      Path commandLog = Path.of(args[0]);
+      Path nameMarker = Path.of(args[1]);
+      try (BufferedReader input =
+              new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
+          BufferedWriter output = Files.newBufferedWriter(commandLog, StandardCharsets.UTF_8)) {
+        String line;
+        while ((line = input.readLine()) != null) {
+          output.write(line);
+          output.newLine();
+          output.flush();
+          if ("name".equals(line)) {
+            Files.write(nameMarker, new byte[0]);
+          }
+        }
+      }
     }
   }
 

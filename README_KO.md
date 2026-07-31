@@ -48,7 +48,7 @@
 > - NVIDIA GPU 가 있고 더 빠른 분석을 원하면 `*windows64.nvidia.portable.zip` 을 선택하면 됩니다
 > - OpenCL 이 잘 맞지 않으면 `*windows64.with-katago.portable.zip` 으로 바꿔 쓸 수 있습니다
 > - Fox 기보 가져오기는 닉네임 입력을 지원하므로, 많은 사용자는 계정 번호를 먼저 알 필요가 없습니다
-> - 주요 통합 패키지에는 KataGo `v1.16.4` 와 공식 추천 `zhizi` 가중치 `kata1-zhizi-b28c512nbt-muonfd2.bin.gz` 가 포함됩니다
+> - 권장 전체 패키지에는 KataGo `v1.17.0`과 공식 중형 Transformer가 포함되며 화면에는 “Transformer 10B 균형형”(약 94 MB)으로 표시됩니다. 코어 업데이트 패키지에는 엔진과 가중치가 포함되지 않습니다
 > - 주요 release 패키지에는 `readboard_java` 도 들어 있으므로, 대부분의 사용자는 별도 readboard 저장소가 필요하지 않습니다
 
 ## 왜 많은 사용자가 여기서 시작하는가

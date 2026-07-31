@@ -96,8 +96,7 @@ public class KataGoRuntimeHelperTest {
   }
 
   @Test
-  void bundledEngineUnderSpacedUnicodePathKeepsRuntimeStateOutOfEngineDirectory()
-      throws Exception {
+  void bundledEngineUnderSpacedUnicodePathKeepsRuntimeStateOutOfEngineDirectory() throws Exception {
     Path tempRoot = Files.createTempDirectory("katago-helper-spaced-path");
     Path portableRoot = Files.createDirectories(tempRoot.resolve("LizzieYzy Next 测试 portable"));
     Path enginePath =
@@ -135,10 +134,7 @@ public class KataGoRuntimeHelperTest {
           assertTrue(
               overrides.contains(
                   "homeDataDir="
-                      + runtimeWorkDirectory
-                          .resolve("katago-home")
-                          .toAbsolutePath()
-                          .normalize()),
+                      + runtimeWorkDirectory.resolve("katago-home").toAbsolutePath().normalize()),
               "KataGo homeDataDir must remain one structured argument even when it has spaces.");
           assertFalse(
               Files.exists(enginePath.getParent().resolve("KataGoData")),
@@ -336,8 +332,7 @@ public class KataGoRuntimeHelperTest {
           Path enginePath = touch(engineDir.resolve("katago.exe"));
           Files.writeString(
               engineDir.resolve("lizzieyzy-next-engine-backend.txt"), "nvidia-tensorrt");
-          Path runtimeDir =
-              Files.createDirectories(runtimeWorkDirectory.resolve("nvidia-runtime"));
+          Path runtimeDir = Files.createDirectories(runtimeWorkDirectory.resolve("nvidia-runtime"));
           touchRequiredCuda12_8Dlls(runtimeDir);
           touch(runtimeDir.resolve("nvinfer_10.dll"));
           touch(runtimeDir.resolve("nvinfer_plugin_10.dll"));
@@ -371,6 +366,70 @@ public class KataGoRuntimeHelperTest {
                 assertFalse(
                     Files.isRegularFile(engineDir.resolve("cudnn64_9.dll")),
                     "Runtime DLLs should not need to be duplicated into the engine directory.");
+              });
+        });
+  }
+
+  @Test
+  void standardNvidia117RuntimeRequiresCudnn9() throws Exception {
+    withOsName(
+        WINDOWS_OS_NAME,
+        () -> {
+          Path tempRoot = Files.createTempDirectory("katago-helper-nvidia117-runtime");
+          Path engineDir =
+              Files.createDirectories(
+                  tempRoot.resolve("engines").resolve("katago").resolve("windows-x64"));
+          Files.writeString(engineDir.resolve("lizzieyzy-next-engine-backend.txt"), "nvidia");
+          Files.writeString(
+              engineDir.resolve("lizzieyzy-next-nvidia-runtime-manifest.txt"),
+              "Profile: cuda12.1-cudnn9\n");
+          Path enginePath = touch(engineDir.resolve("katago.exe"));
+          touchCommonCuda12Dlls(engineDir);
+          touch(engineDir.resolve("cudnn64_8.dll"));
+          touch(engineDir.resolve("libz.dll"));
+          Path runtimeWorkDirectory = Files.createDirectories(tempRoot.resolve("runtime-root"));
+
+          withConfig(
+              runtimeWorkDirectory,
+              () -> {
+                KataGoRuntimeHelper.NvidiaRuntimeStatus status =
+                    KataGoRuntimeHelper.inspectNvidiaRuntime(enginePath);
+
+                assertTrue(status.applicable);
+                assertFalse(status.ready);
+                assertTrue(status.missingDlls.contains("cudnn64_9.dll"));
+              });
+        });
+  }
+
+  @Test
+  void legacyStandardNvidiaRuntimeStillAcceptsCudnn8() throws Exception {
+    withOsName(
+        WINDOWS_OS_NAME,
+        () -> {
+          Path tempRoot = Files.createTempDirectory("katago-helper-nvidia-legacy-runtime");
+          Path engineDir =
+              Files.createDirectories(
+                  tempRoot.resolve("engines").resolve("katago").resolve("windows-x64"));
+          Files.writeString(engineDir.resolve("lizzieyzy-next-engine-backend.txt"), "nvidia");
+          Files.writeString(
+              engineDir.resolve("lizzieyzy-next-nvidia-runtime-manifest.txt"),
+              "Profile: cuda12.1-cudnn8\n");
+          Path enginePath = touch(engineDir.resolve("katago.exe"));
+          touchCommonCuda12Dlls(engineDir);
+          touch(engineDir.resolve("cudnn64_8.dll"));
+          touch(engineDir.resolve("libz.dll"));
+          Path runtimeWorkDirectory = Files.createDirectories(tempRoot.resolve("runtime-root"));
+
+          withConfig(
+              runtimeWorkDirectory,
+              () -> {
+                KataGoRuntimeHelper.NvidiaRuntimeStatus status =
+                    KataGoRuntimeHelper.inspectNvidiaRuntime(enginePath);
+
+                assertTrue(status.applicable);
+                assertTrue(status.ready);
+                assertTrue(status.missingDlls.isEmpty());
               });
         });
   }
@@ -479,9 +538,9 @@ public class KataGoRuntimeHelperTest {
                     KataGoRuntimeHelper.buildTensorRtInstallSpec(snapshot);
 
                 assertTrue(
-                    spec.katagoUrl.endsWith("/katago-v1.16.5-trt10.9.0-cuda12.8-windows-x64.zip"));
+                    spec.katagoUrl.endsWith("/katago-v1.17.0-trt10.9.0-cuda12.8-windows-x64.zip"));
                 assertEquals(
-                    "954227e5696eed4c1ad80da6a1d48eb1de5ecdb741f849d1b956b8b64093d2f5",
+                    "f683bb87b42b9f56b03c847d5102d16265dd80b7584109edc5bae42f3e729438",
                     spec.katagoSha256);
                 assertEquals(5, spec.runtimePackageCount);
                 assertTrue(spec.totalDownloadBytes > 3_000_000_000L);
@@ -604,6 +663,10 @@ public class KataGoRuntimeHelperTest {
                             "nvidia-tensorrt",
                             Files.readString(targetDir.resolve("lizzieyzy-next-engine-backend.txt"))
                                 .trim());
+                        assertTrue(
+                            Files.readString(
+                                    targetDir.resolve("lizzieyzy-next-katago-engine-manifest.txt"))
+                                .contains("KataGo release: v1.17.0"));
                         List<EngineData> engines = Utils.getEngineData();
                         assertTrue(
                             engines.stream()
@@ -778,6 +841,7 @@ public class KataGoRuntimeHelperTest {
                 touch(runtimeDir.resolve("nvinfer_plugin_10.dll"));
                 Files.writeString(
                     targetDir.resolve("lizzieyzy-next-engine-backend.txt"), "nvidia-tensorrt\n");
+                writeCurrentTensorRtEngineManifest(targetDir);
 
                 KataGoRuntimeHelper.NvidiaRuntimeStatus runtimeStatus =
                     KataGoRuntimeHelper.inspectNvidiaRuntime(targetDir.resolve("katago.exe"));
@@ -823,6 +887,68 @@ public class KataGoRuntimeHelperTest {
   }
 
   @Test
+  void outdatedTensorRtEngineUpgradesWithoutRedownloadingRuntime() throws Exception {
+    withOsName(
+        WINDOWS_OS_NAME,
+        () -> {
+          Path tempRoot = Files.createTempDirectory("katago-helper-tensorrt-engine-upgrade");
+          Path runtimeWorkDirectory = Files.createDirectories(tempRoot.resolve("runtime-root"));
+          SetupSnapshot snapshot = createNvidia50Snapshot(tempRoot);
+          Path targetDir =
+              runtimeWorkDirectory
+                  .resolve("engines")
+                  .resolve("katago")
+                  .resolve("windows-x64-nvidia-tensorrt");
+          Path runtimeDir = Files.createDirectories(runtimeWorkDirectory.resolve("nvidia-runtime"));
+          touch(targetDir.resolve("katago.exe"));
+          Files.writeString(
+              targetDir.resolve("lizzieyzy-next-engine-backend.txt"), "nvidia-tensorrt\n");
+          touchRequiredCuda12_8Dlls(runtimeDir);
+          touch(runtimeDir.resolve("nvinfer_10.dll"));
+          touch(runtimeDir.resolve("nvinfer_plugin_10.dll"));
+          Path runtimeSentinel = touch(runtimeDir.resolve("existing-runtime-sentinel.txt"));
+          Path fixtureZip =
+              createTensorRtFixtureZip(tempRoot.resolve("fixture").resolve("katago-trt.zip"));
+          AtomicReference<Long> lastTotalBytes = new AtomicReference<Long>(-1L);
+
+          withTensorRtFixtureProperties(
+              fixtureZip.toUri().toString(),
+              sha256(fixtureZip),
+              Files.size(fixtureZip),
+              () ->
+                  withConfig(
+                      runtimeWorkDirectory,
+                      () -> {
+                        KataGoRuntimeHelper.TensorRtInstallStatus before =
+                            KataGoRuntimeHelper.inspectTensorRtInstall(snapshot);
+
+                        assertTrue(before.downloaded);
+                        assertFalse(before.installed);
+                        assertEquals(Files.size(fixtureZip), before.downloadBytes);
+                        assertThrows(
+                            IOException.class,
+                            () -> KataGoRuntimeHelper.applyInstalledTensorRt(snapshot));
+
+                        SetupResult result =
+                            KataGoRuntimeHelper.downloadAndInstallTensorRt(
+                                snapshot,
+                                (status, downloaded, total) -> lastTotalBytes.set(total),
+                                new DownloadSession());
+
+                        assertEquals("KataGo TensorRT", result.engineName);
+                        assertEquals(Files.size(fixtureZip), lastTotalBytes.get());
+                        assertTrue(Files.isRegularFile(runtimeSentinel));
+                        assertTrue(
+                            Files.readString(
+                                    targetDir.resolve("lizzieyzy-next-katago-engine-manifest.txt"))
+                                .contains("KataGo release: v1.17.0"));
+                        assertTrue(
+                            KataGoRuntimeHelper.inspectTensorRtInstall(result.snapshot).active);
+                      }));
+        });
+  }
+
+  @Test
   void tensorRtStatusSeparatesDownloadedFromConfigured() throws Exception {
     withOsName(
         WINDOWS_OS_NAME,
@@ -843,6 +969,7 @@ public class KataGoRuntimeHelperTest {
                 touch(targetDir.resolve("libz.dll"));
                 Files.writeString(
                     targetDir.resolve("lizzieyzy-next-engine-backend.txt"), "nvidia-tensorrt\n");
+                writeCurrentTensorRtEngineManifest(targetDir);
 
                 KataGoRuntimeHelper.TensorRtInstallStatus status =
                     KataGoRuntimeHelper.inspectTensorRtInstall(snapshot);
@@ -872,6 +999,7 @@ public class KataGoRuntimeHelperTest {
           touch(targetDir.resolve("nvinfer_plugin_10.dll"));
           Files.writeString(
               targetDir.resolve("lizzieyzy-next-engine-backend.txt"), "nvidia-tensorrt\n");
+          writeCurrentTensorRtEngineManifest(targetDir);
           Path configDir =
               Files.createDirectories(
                   appRoot.resolve("engines").resolve("katago").resolve("configs"));
@@ -895,9 +1023,11 @@ public class KataGoRuntimeHelperTest {
                 KataGoRuntimeHelper.TensorRtInstallStatus status =
                     KataGoRuntimeHelper.inspectTensorRtInstall(snapshot);
 
-                assertTrue(status.downloaded, "Preinstalled TensorRT package should be downloaded.");
+                assertTrue(
+                    status.downloaded, "Preinstalled TensorRT package should be downloaded.");
                 assertTrue(status.installed, "Preinstalled TensorRT package should be ready.");
-                assertTrue(status.active, "Running from the TensorRT split package should be active.");
+                assertTrue(
+                    status.active, "Running from the TensorRT split package should be active.");
                 assertEquals(normalize(enginePath), normalize(status.enginePath));
                 assertFalse(KataGoRuntimeHelper.canInstallTensorRt(snapshot));
               });
@@ -913,7 +1043,8 @@ public class KataGoRuntimeHelperTest {
           Path runtimeWorkDirectory = Files.createDirectories(tempRoot.resolve("runtime-root"));
           SetupSnapshot snapshot = createNvidia50Snapshot(tempRoot);
           Path targetDir =
-              snapshot.appRoot
+              snapshot
+                  .appRoot
                   .resolve("engines")
                   .resolve("katago")
                   .resolve("windows-x64-nvidia-tensorrt");
@@ -923,6 +1054,7 @@ public class KataGoRuntimeHelperTest {
           touch(targetDir.resolve("nvinfer_plugin_10.dll"));
           Files.writeString(
               targetDir.resolve("lizzieyzy-next-engine-backend.txt"), "nvidia-tensorrt\n");
+          writeCurrentTensorRtEngineManifest(targetDir);
 
           withConfig(
               runtimeWorkDirectory,
@@ -973,6 +1105,7 @@ public class KataGoRuntimeHelperTest {
                 touch(runtimeDir.resolve("nvinfer_plugin_10.dll"));
                 Files.writeString(
                     targetDir.resolve("lizzieyzy-next-engine-backend.txt"), "nvidia-tensorrt\n");
+                writeCurrentTensorRtEngineManifest(targetDir);
 
                 SetupResult tensorRtResult = KataGoRuntimeHelper.applyInstalledTensorRt(snapshot);
                 assertEquals("KataGo TensorRT", tensorRtResult.engineName);
@@ -1146,8 +1279,7 @@ public class KataGoRuntimeHelperTest {
                       Files.readString(quarantine.resolve(legacyTuning.getFileName())));
                   assertEquals(
                       "serialized-launch-v1",
-                      Files.readString(
-                          homeDataDir.resolve("lizzie-opencl-tuning-generation.txt")));
+                      Files.readString(homeDataDir.resolve("lizzie-opencl-tuning-generation.txt")));
                   assertTrue(KataGoRuntimeHelper.needsFirstOpenCLTuning(enginePath));
 
                   Path freshTuning =
@@ -1293,16 +1425,13 @@ public class KataGoRuntimeHelperTest {
                           originalCommand, enginePath));
 
                   List<String> recovered =
-                      KataGoRuntimeHelper.prepareBundledLaunchCommand(
-                          originalCommand, enginePath);
+                      KataGoRuntimeHelper.prepareBundledLaunchCommand(originalCommand, enginePath);
                   assertTrue(
-                      KataGoRuntimeHelper.isOpenClFp32CompatibilityActive(
-                          recovered, enginePath));
+                      KataGoRuntimeHelper.isOpenClFp32CompatibilityActive(recovered, enginePath));
 
                   Files.write(modelPath, new byte[] {1, 2, 3});
                   List<String> changedModel =
-                      KataGoRuntimeHelper.prepareBundledLaunchCommand(
-                          originalCommand, enginePath);
+                      KataGoRuntimeHelper.prepareBundledLaunchCommand(originalCommand, enginePath);
                   assertFalse(
                       KataGoRuntimeHelper.isOpenClFp32CompatibilityActive(
                           changedModel, enginePath));
@@ -1487,10 +1616,7 @@ public class KataGoRuntimeHelperTest {
         () -> {
           String command =
               KataGoRuntimeHelper.optimizeAnalysisEngineCommand(
-                  "katago analysis -model model.bin.gz -config analysis.cfg",
-                  500,
-                  false,
-                  true);
+                  "katago analysis -model model.bin.gz -config analysis.cfg", 500, false, true);
 
           assertTrue(command.contains("numAnalysisThreads="));
           assertTrue(command.contains("numSearchThreadsPerAnalysisThread="));
@@ -1595,6 +1721,15 @@ public class KataGoRuntimeHelperTest {
     touchCommonCuda12Dlls(directory);
     touch(directory.resolve("cudnn64_9.dll"));
     touch(directory.resolve("libz.dll"));
+  }
+
+  private static void writeCurrentTensorRtEngineManifest(Path directory) throws IOException {
+    Files.writeString(
+        directory.resolve("lizzieyzy-next-katago-engine-manifest.txt"),
+        "KataGo release: v1.17.0\n"
+            + "Asset: katago-v1.17.0-trt10.9.0-cuda12.8-windows-x64.zip\n"
+            + "Asset SHA-256: "
+            + "f683bb87b42b9f56b03c847d5102d16265dd80b7584109edc5bae42f3e729438\n");
   }
 
   private static SetupSnapshot createNvidia50Snapshot(Path tempRoot) throws Exception {

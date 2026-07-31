@@ -150,7 +150,7 @@ def load_bundle_metadata() -> dict[str, str]:
             metadata['windows_opencl_bundle'] = f'katago-{katago_version}-opencl-windows-x64.zip'
         if metadata['windows_nvidia_bundle'] == 'Unknown':
             metadata['windows_nvidia_bundle'] = (
-                f'katago-{katago_version}-cuda12.1-cudnn8.9.7-windows-x64.zip'
+                f'katago-{katago_version}-cuda12.1-cudnn9.8.0-windows-x64.zip'
             )
         if metadata['windows_nvidia50_cuda_bundle'] == 'Unknown':
             metadata['windows_nvidia50_cuda_bundle'] = (
@@ -162,7 +162,7 @@ def load_bundle_metadata() -> dict[str, str]:
             metadata['linux_opencl_bundle'] = f'katago-{katago_version}-opencl-linux-x64.zip'
         if metadata['linux_nvidia_bundle'] == 'Unknown':
             metadata['linux_nvidia_bundle'] = (
-                f'katago-{katago_version}-cuda12.1-cudnn8.9.7-linux-x64.zip'
+                f'katago-{katago_version}-cuda12.1-cudnn9.8.0-linux-x64.zip'
             )
     return metadata
 

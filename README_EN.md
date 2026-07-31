@@ -51,7 +51,7 @@
 > - `KataGo Auto Setup` detects the NVIDIA GPU and Compute Capability, then recommends whether TensorRT is a good fit; manual install remains available if detection fails
 > - If OpenCL behaves badly on your PC, switch to `*windows64.with-katago.portable.zip`
 > - The app now supports Fox nickname input directly, so most users no longer need the account number first
-> - The main bundles include KataGo `v1.16.4` and the official recommended `zhizi` weight `kata1-zhizi-b28c512nbt-muonfd2.bin.gz`
+> - Full recommended bundles include KataGo `v1.17.0` and the official medium Transformer, shown as “Transformer 10B Balanced” (about 94 MB); the core update package does not contain the engine or weight
 > - Main release packages now ship the `readboard_java` helper, so most users do not need a separate readboard repository
 
 ## Why Many Users Start Here

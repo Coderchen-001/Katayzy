@@ -207,8 +207,9 @@ chmod +x start-linux64.sh
 
 当前默认内置信息：
 
-- KataGo 版本：`v1.16.5`
-- 默认权重：`kata1-zhizi-b28c512nbt-muonfd2.bin.gz`
+- KataGo 版本：`v1.17.0`
+- 默认权重：官方中型 Transformer `b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz`（界面显示“Transformer 10B 均衡版”，约 94 MB）
+- 旧完整包升级：请安装最新完整包；`core-update.zip` 不包含新引擎和权重
 
 ## 需要更多说明
 
