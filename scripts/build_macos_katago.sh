@@ -62,9 +62,32 @@ if [[ "$actual_commit" != "$KATAGO_COMMIT" ]]; then
   exit 1
 fi
 
-cmake_prefix=()
+cmake_options=()
 if command -v brew >/dev/null 2>&1; then
-  cmake_prefix=(-DCMAKE_PREFIX_PATH="$(brew --prefix)")
+  brew_root="$(brew --prefix)"
+  prefix_paths=("$brew_root")
+  libzip_prefix="$(brew --prefix libzip 2>/dev/null || true)"
+  if [[ -n "$libzip_prefix" ]]; then
+    libzip_include="$libzip_prefix/include"
+    libzip_library="$libzip_prefix/lib/libzip.dylib"
+    for required_file in \
+      "$libzip_include/zip.h" \
+      "$libzip_include/zipconf.h" \
+      "$libzip_library"; do
+      if [[ ! -e "$required_file" ]]; then
+        echo "Homebrew libzip is incomplete; missing $required_file" >&2
+        exit 1
+      fi
+    done
+    prefix_paths+=("$libzip_prefix")
+    cmake_options+=(
+      -DLIBZIP_INCLUDE_DIR_ZIP="$libzip_include"
+      -DLIBZIP_INCLUDE_DIR_ZIPCONF="$libzip_include"
+      -DLIBZIP_LIBRARY="$libzip_library"
+    )
+  fi
+  prefix_path="$(IFS=';'; echo "${prefix_paths[*]}")"
+  cmake_options+=(-DCMAKE_PREFIX_PATH="$prefix_path")
 fi
 
 rm -rf "$BUILD_DIR"
@@ -76,7 +99,7 @@ cmake \
   -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
   -DUSE_BACKEND=METAL \
   -DBUILD_DISTRIBUTED=0 \
-  "${cmake_prefix[@]}" >&2
+  "${cmake_options[@]}" >&2
 cmake --build "$BUILD_DIR" --target katago --parallel "$(sysctl -n hw.logicalcpu)" >&2
 
 if ! is_expected_binary "$OUTPUT_BIN"; then
