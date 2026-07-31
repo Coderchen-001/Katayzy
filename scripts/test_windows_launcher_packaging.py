@@ -71,6 +71,13 @@ def main() -> None:
     require(workflow, "runtime/bin/server/jvm.dll", "build-windows-release.yml")
     require(workflow, "^jdk.accessibility@", "build-windows-release.yml")
     require(
+        workflow,
+        "windows-x64/z.dll",
+        "build-windows-release.yml",
+    )
+    if "windows-x64/libz.dll" in workflow:
+        raise AssertionError("KataGo 1.17 Windows bundles use z.dll, not the legacy libz.dll name")
+    require(
         package_script,
         'LIZZIE_RELEASE_PRERELEASE:-false',
         "package_windows_exe.sh",
