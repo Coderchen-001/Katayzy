@@ -16,12 +16,22 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 MODULE_PATH = SCRIPT_DIR / "macos_katago_bundle.py"
+BUILD_SCRIPT_PATH = SCRIPT_DIR / "build_macos_katago.sh"
 SPEC = importlib.util.spec_from_file_location("macos_katago_bundle", MODULE_PATH)
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError(f"Unable to load {MODULE_PATH}")
 MODULE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
+
+
+class MacosKataGoBuildScriptTest(unittest.TestCase):
+    def test_homebrew_libzip_paths_are_passed_explicitly_to_cmake(self) -> None:
+        script = BUILD_SCRIPT_PATH.read_text(encoding="utf-8")
+        self.assertIn("brew --prefix libzip", script)
+        self.assertIn('-DLIBZIP_INCLUDE_DIR_ZIP="$libzip_include"', script)
+        self.assertIn('-DLIBZIP_INCLUDE_DIR_ZIPCONF="$libzip_include"', script)
+        self.assertIn('-DLIBZIP_LIBRARY="$libzip_library"', script)
 
 
 class MacosKataGoBundleUnitTest(unittest.TestCase):
