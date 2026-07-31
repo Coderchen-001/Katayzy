@@ -118,11 +118,14 @@ python3 scripts/generate_app_icons.py
 
 当前默认：
 
-- KataGo 版本：`v1.16.5`
-- 默认模型：`kata1-zhizi-b28c512nbt-muonfd2.bin.gz`
-- Windows NVIDIA 包：官方 `cuda12.1-cudnn8.9.7` 构建
+- KataGo 版本：`v1.17.0`
+- 默认模型：`b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz`
+- 默认模型 SHA-256：`c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995`
+- 默认模型大小：`94,281,753` 字节；架构：`transformer`；最低 KataGo：`1.17.0`
+- Windows NVIDIA 包：官方 `cuda12.1-cudnn9.8.0` 构建
 - Windows RTX 50 CUDA 包：官方 `cuda12.8-cudnn9.8.0` 构建
-- Windows TensorRT：不打入 release 包；RTX 20/30/40/50 用户由软件内 `KataGo 一键设置` 显式下载安装官方 `trt10.9.0-cuda12.8` 构建和所需运行库，并通过 NVIDIA GPU / Compute Capability 检测给出推荐状态；GTX 10 系及更老显卡优先 CUDA/OpenCL
+- Windows TensorRT：不打入主 release 包；RTX 20/30/40/50 用户由软件内 `KataGo 一键设置` 显式下载安装官方 KataGo `v1.17.0` `trt10.9.0-cuda12.8` 构建和所需运行库，并通过 NVIDIA GPU / Compute Capability 检测给出推荐状态；GTX 10 系及更老显卡优先 CUDA/OpenCL
+- `core-update.zip` 必须确认不含 `engines/`、`weights/`、NVIDIA runtime 或 TensorRT
 
 ### 5. 构建 Windows 安装器和便携包
 

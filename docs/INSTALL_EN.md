@@ -202,8 +202,9 @@ Notes:
 
 Current bundled defaults:
 
-- KataGo version: `v1.16.5`
-- Weight: `kata1-zhizi-b28c512nbt-muonfd2.bin.gz`
+- KataGo version: `v1.17.0`
+- Weight: official medium Transformer `b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz` (shown as “Transformer 10B Balanced”, about 94 MB)
+- Upgrading an older full bundle requires the latest full package; `core-update.zip` does not contain the new engine or weight
 
 ## Need More Help
 

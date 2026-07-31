@@ -92,8 +92,7 @@ public final class KataGoRuntimeHelper {
   private static final String NVIDIA_DOWNLOAD_HOST_CN = "developer.download.nvidia.cn";
   private static final String BUNDLED_HOME_DATA_DIR = "katago-home";
   private static final String OPENCL_FP32_HOME_DATA_DIR = "katago-home-opencl-fp32";
-  private static final String OPENCL_FP32_COMPATIBILITY_MARKER =
-      "compatibility-signature.txt";
+  private static final String OPENCL_FP32_COMPATIBILITY_MARKER = "compatibility-signature.txt";
   private static final String OPENCL_TUNING_CACHE_GENERATION_MARKER =
       "lizzie-opencl-tuning-generation.txt";
   private static final String OPENCL_TUNING_CACHE_GENERATION = "serialized-launch-v1";
@@ -103,7 +102,7 @@ public final class KataGoRuntimeHelper {
   private static final String CUDA_MANIFEST_URL =
       "https://developer.download.nvidia.com/compute/cuda/redist/redistrib_12.1.1.json";
   private static final String CUDNN_MANIFEST_URL =
-      "https://developer.download.nvidia.com/compute/cudnn/redist/redistrib_8.9.7.29.json";
+      "https://developer.download.nvidia.com/compute/cudnn/redist/redistrib_9.8.0.json";
   private static final String CUDA_12_8_MANIFEST_URL =
       "https://developer.download.nvidia.com/compute/cuda/redist/redistrib_12.8.0.json";
   private static final String CUDNN_9_MANIFEST_URL =
@@ -115,18 +114,20 @@ public final class KataGoRuntimeHelper {
   private static final String TENSORRT_RUNTIME_SHA256_PROPERTY = "lizzie.tensorrt.runtime.sha256";
   private static final String TENSORRT_SKIP_RUNTIME_FOR_TESTS_PROPERTY =
       "lizzie.tensorrt.skipRuntimePackagesForTests";
-  private static final String TENSORRT_KATAGO_VERSION = "v1.16.5";
+  private static final String TENSORRT_KATAGO_VERSION = "v1.17.0";
   private static final String TENSORRT_INSTALL_LOCK_NAME = "tensorrt-install.lock";
   private static final String TENSORRT_KATAGO_ASSET =
-      "katago-v1.16.5-trt10.9.0-cuda12.8-windows-x64.zip";
+      "katago-v1.17.0-trt10.9.0-cuda12.8-windows-x64.zip";
   private static final String TENSORRT_KATAGO_URL =
       "https://github.com/lightvector/KataGo/releases/download/"
           + TENSORRT_KATAGO_VERSION
           + "/"
           + TENSORRT_KATAGO_ASSET;
   private static final String TENSORRT_KATAGO_SHA256 =
-      "954227e5696eed4c1ad80da6a1d48eb1de5ecdb741f849d1b956b8b64093d2f5";
-  private static final long TENSORRT_KATAGO_SIZE_BYTES = 4745653L;
+      "f683bb87b42b9f56b03c847d5102d16265dd80b7584109edc5bae42f3e729438";
+  private static final long TENSORRT_KATAGO_SIZE_BYTES = 7_678_087L;
+  private static final String TENSORRT_ENGINE_MANIFEST_NAME =
+      "lizzieyzy-next-katago-engine-manifest.txt";
   private static final String TENSORRT_RUNTIME_URL =
       "https://developer.download.nvidia.com/compute/machine-learning/tensorrt/10.9.0/zip/"
           + "TensorRT-10.9.0.34.Windows.win10.cuda-12.8.zip";
@@ -151,12 +152,20 @@ public final class KataGoRuntimeHelper {
       Pattern.compile("numSearchThreads\\s*=\\s*(\\d+):\\s*(\\d+)\\s*/\\s*(\\d+)\\s*positions");
   private static final Pattern BENCHMARK_POSSIBLE_THREADS_PATTERN =
       Pattern.compile("Possible numbers of threads to test:\\s*(.*)");
-  private static final List<List<String>> REQUIRED_NVIDIA_CUDA12_1_RUNTIME_DLL_GROUPS =
+  private static final List<List<String>> REQUIRED_NVIDIA_CUDA12_1_CUDNN8_RUNTIME_DLL_GROUPS =
       Arrays.asList(
           Arrays.asList("cudart64_12.dll"),
           Arrays.asList("cublas64_12.dll"),
           Arrays.asList("cublasLt64_12.dll"),
           Arrays.asList("cudnn64_8.dll"),
+          Arrays.asList("nvJitLink*.dll"),
+          Arrays.asList("zlibwapi.dll", "libz.dll"));
+  private static final List<List<String>> REQUIRED_NVIDIA_CUDA12_1_CUDNN9_RUNTIME_DLL_GROUPS =
+      Arrays.asList(
+          Arrays.asList("cudart64_12.dll"),
+          Arrays.asList("cublas64_12.dll"),
+          Arrays.asList("cublasLt64_12.dll"),
+          Arrays.asList("cudnn64_9.dll"),
           Arrays.asList("nvJitLink*.dll"),
           Arrays.asList("zlibwapi.dll", "libz.dll"));
   private static final List<List<String>> REQUIRED_NVIDIA_CUDA12_8_RUNTIME_DLL_GROUPS =
@@ -576,9 +585,7 @@ public final class KataGoRuntimeHelper {
       return "";
     }
     try {
-      return Files.readString(markerPath, StandardCharsets.UTF_8)
-          .trim()
-          .toLowerCase(Locale.ROOT);
+      return Files.readString(markerPath, StandardCharsets.UTF_8).trim().toLowerCase(Locale.ROOT);
     } catch (IOException e) {
       return "";
     }
@@ -630,8 +637,7 @@ public final class KataGoRuntimeHelper {
       return launchCommand;
     }
 
-    boolean openClFp32Compatibility =
-        shouldUseOpenClFp32Compatibility(launchCommand, enginePath);
+    boolean openClFp32Compatibility = shouldUseOpenClFp32Compatibility(launchCommand, enginePath);
     Path homeDataDir =
         openClFp32Compatibility ? getOpenClFp32HomeDataDir() : getBundledHomeDataDir();
     if (homeDataDir == null) {
@@ -697,8 +703,7 @@ public final class KataGoRuntimeHelper {
       return true;
     } catch (IOException e) {
       System.err.println(
-          "Unable to remember KataGo OpenCL FP32 compatibility mode: "
-              + e.getLocalizedMessage());
+          "Unable to remember KataGo OpenCL FP32 compatibility mode: " + e.getLocalizedMessage());
       return false;
     }
   }
@@ -724,7 +729,7 @@ public final class KataGoRuntimeHelper {
     }
 
     List<Path> searchDirs = collectRuntimeSearchDirs(enginePath, runtimeDir);
-    List<List<String>> requiredDllGroups = requiredRuntimeDllGroups(backend);
+    List<List<String>> requiredDllGroups = requiredRuntimeDllGroups(enginePath, backend);
     List<String> missing = collectMissingRuntimeGroups(searchDirs, requiredDllGroups);
     Path readyDir = findDirectoryContainingRequiredDlls(searchDirs, requiredDllGroups);
     boolean ready = missing.isEmpty();
@@ -810,32 +815,44 @@ public final class KataGoRuntimeHelper {
     }
     boolean engineDownloaded = Files.isRegularFile(spec.targetEnginePath);
     boolean runtimeReady = inspectNvidiaRuntime(spec.targetEnginePath).ready;
-    boolean active = isTensorRtEngineActive(snapshot, spec);
+    boolean engineCurrent = isCurrentTensorRtEngine(spec.targetEnginePath);
+    boolean installed = engineDownloaded && runtimeReady && engineCurrent;
+    boolean active = installed && isTensorRtEngineActive(snapshot, spec);
+    long requiredDownloadBytes = runtimeReady ? spec.katagoSizeBytes : spec.totalDownloadBytes;
     String recommendation = tensorRtRecommendationText(gpuDetection);
     String detail =
-        engineDownloaded && runtimeReady
-            ? active
-                ? resource("AutoSetup.tensorRtEnabled", "TensorRT acceleration is enabled.")
-                : resource(
-                    "AutoSetup.tensorRtInstalledNotSelected",
-                    "TensorRT acceleration is installed. Click Enable TensorRT acceleration to use it.")
-            : engineDownloaded
-                ? resource(
-                    "AutoSetup.tensorRtDownloadedRuntimeMissing",
-                    "TensorRT engine files are present, but runtime files are incomplete. Click Install TensorRT acceleration to finish setup.")
-            : String.format(
+        engineDownloaded && runtimeReady && !engineCurrent
+            ? String.format(
                 Locale.ROOT,
-                resource("AutoSetup.tensorRtAvailable", "Optional TensorRT download: about %s. %s"),
-                formatBytes(spec.totalDownloadBytes),
-                recommendation);
+                resource(
+                    "AutoSetup.tensorRtEngineUpgradeAvailable",
+                    "The TensorRT runtime is ready, but its KataGo engine is outdated. Upgrade the engine only (%s); existing runtime files will be reused."),
+                formatBytes(spec.katagoSizeBytes))
+            : installed
+                ? active
+                    ? resource("AutoSetup.tensorRtEnabled", "TensorRT acceleration is enabled.")
+                    : resource(
+                        "AutoSetup.tensorRtInstalledNotSelected",
+                        "TensorRT acceleration is installed. Click Enable TensorRT acceleration to use it.")
+                : engineDownloaded
+                    ? resource(
+                        "AutoSetup.tensorRtDownloadedRuntimeMissing",
+                        "TensorRT engine files are present, but runtime files are incomplete. Click Install TensorRT acceleration to finish setup.")
+                    : String.format(
+                        Locale.ROOT,
+                        resource(
+                            "AutoSetup.tensorRtAvailable",
+                            "Optional TensorRT download: about %s. %s"),
+                        formatBytes(spec.totalDownloadBytes),
+                        recommendation);
     return new TensorRtInstallStatus(
         true,
         engineDownloaded,
-        engineDownloaded && runtimeReady,
-        engineDownloaded && runtimeReady && active,
+        installed,
+        active,
         spec.targetEnginePath,
         getNvidiaRuntimeDir(),
-        spec.totalDownloadBytes,
+        requiredDownloadBytes,
         detail,
         gpuDetection,
         gpuDetection == null
@@ -940,6 +957,12 @@ public final class KataGoRuntimeHelper {
               "AutoSetup.tensorRtRuntimeMissing",
               "TensorRT runtime is not installed. Open KataGo Auto Setup and install TensorRT acceleration, or switch back to CUDA/OpenCL."));
     }
+    if (!isCurrentTensorRtEngine(spec.targetEnginePath)) {
+      throw new IOException(
+          resource(
+              "AutoSetup.tensorRtEngineUpgradeRequired",
+              "The installed TensorRT engine is outdated. Upgrade it in KataGo Auto Setup before using Transformer weights; existing runtime files will be reused."));
+    }
     return applyTensorRtEngineProfile(snapshot, spec);
   }
 
@@ -974,8 +997,10 @@ public final class KataGoRuntimeHelper {
       Path runtimeDir)
       throws IOException {
     activeSession.throwIfCancelled();
+    boolean runtimeReady = inspectNvidiaRuntime(spec.targetEnginePath).ready;
     if (Files.isRegularFile(spec.targetEnginePath)
-        && inspectNvidiaRuntime(spec.targetEnginePath).ready) {
+        && runtimeReady
+        && isCurrentTensorRtEngine(spec.targetEnginePath)) {
       notifyProgress(
           listener,
           resource("AutoSetup.tensorRtReady", "TensorRT acceleration is installed."),
@@ -983,11 +1008,12 @@ public final class KataGoRuntimeHelper {
           spec.totalDownloadBytes);
       return applyTensorRtEngineProfile(snapshot, spec);
     }
+    long effectiveTotalBytes = runtimeReady ? spec.katagoSizeBytes : spec.totalDownloadBytes;
     notifyProgress(
         listener,
         resource("AutoSetup.tensorRtPreparing", "Preparing TensorRT download..."),
         0L,
-        spec.totalDownloadBytes);
+        effectiveTotalBytes);
 
     Path cacheDir = runtimeDir.resolve(NVIDIA_RUNTIME_DOWNLOAD_CACHE_DIR);
     Files.createDirectories(cacheDir);
@@ -1000,9 +1026,12 @@ public final class KataGoRuntimeHelper {
             spec.katagoSha256,
             spec.katagoSizeBytes,
             "katago-tensorrt");
-    String nvidiaDownloadHost =
-        chooseTensorRtNvidiaDownloadHost(activeSession, listener, spec.totalDownloadBytes);
-    List<RuntimePackageSpec> runtimePackages = resolveTensorRtRuntimePackages(nvidiaDownloadHost);
+    List<RuntimePackageSpec> runtimePackages = new ArrayList<RuntimePackageSpec>();
+    if (!runtimeReady) {
+      String nvidiaDownloadHost =
+          chooseTensorRtNvidiaDownloadHost(activeSession, listener, effectiveTotalBytes);
+      runtimePackages = resolveTensorRtRuntimePackages(nvidiaDownloadHost);
+    }
     long completedBytes = 0L;
 
     Path katagoArchive =
@@ -1012,12 +1041,12 @@ public final class KataGoRuntimeHelper {
             activeSession,
             listener,
             completedBytes,
-            spec.totalDownloadBytes);
+            effectiveTotalBytes);
     completedArchives.add(katagoArchive);
     completedBytes += Math.max(0L, katagoPackage.sizeBytes);
 
     Path licenseDir = runtimeDir.resolve("licenses").resolve("nvidia-runtime");
-    if (!Boolean.getBoolean(TENSORRT_SKIP_RUNTIME_FOR_TESTS_PROPERTY)) {
+    if (!runtimeReady && !Boolean.getBoolean(TENSORRT_SKIP_RUNTIME_FOR_TESTS_PROPERTY)) {
       for (RuntimePackageSpec runtimePackage : runtimePackages) {
         Path archivePath =
             downloadPackageWithAggregateProgress(
@@ -1026,7 +1055,7 @@ public final class KataGoRuntimeHelper {
                 activeSession,
                 listener,
                 completedBytes,
-                spec.totalDownloadBytes);
+                effectiveTotalBytes);
         completedArchives.add(archivePath);
         completedBytes += Math.max(0L, runtimePackage.sizeBytes);
         activeSession.throwIfCancelled();
@@ -1035,8 +1064,8 @@ public final class KataGoRuntimeHelper {
             resource("AutoSetup.tensorRtExtracting", "Extracting TensorRT files...")
                 + " "
                 + runtimePackage.displayName,
-            Math.min(completedBytes, spec.totalDownloadBytes),
-            spec.totalDownloadBytes);
+            Math.min(completedBytes, effectiveTotalBytes),
+            effectiveTotalBytes);
         extractRuntimePackage(runtimePackage, archivePath, runtimeDir, licenseDir);
       }
       writeRuntimeManifest(runtimeDir, runtimePackages);
@@ -1046,8 +1075,8 @@ public final class KataGoRuntimeHelper {
     notifyProgress(
         listener,
         resource("AutoSetup.tensorRtExtracting", "Extracting TensorRT files..."),
-        Math.min(completedBytes, spec.totalDownloadBytes),
-        spec.totalDownloadBytes);
+        Math.min(completedBytes, effectiveTotalBytes),
+        effectiveTotalBytes);
     installTensorRtKataGoArchive(katagoArchive, spec.targetEngineDir, activeSession);
     activeSession.throwIfCancelled();
 
@@ -1055,14 +1084,14 @@ public final class KataGoRuntimeHelper {
     notifyProgress(
         listener,
         resource("AutoSetup.tensorRtCleaningCache", "Cleaning TensorRT download cache..."),
-        spec.totalDownloadBytes,
-        spec.totalDownloadBytes);
+        effectiveTotalBytes,
+        effectiveTotalBytes);
     cleanupCompletedTensorRtDownloadArchives(cacheDir, completedArchives);
     notifyProgress(
         listener,
         resource("AutoSetup.tensorRtInstallDone", "TensorRT acceleration installed."),
-        spec.totalDownloadBytes,
-        spec.totalDownloadBytes);
+        effectiveTotalBytes,
+        effectiveTotalBytes);
     return result;
   }
 
@@ -1497,77 +1526,77 @@ public final class KataGoRuntimeHelper {
       return new BenchmarkPauseResult(false, false);
     }
     try {
-    synchronized (BENCHMARK_ANALYSIS_PAUSE_LOCK) {
+      synchronized (BENCHMARK_ANALYSIS_PAUSE_LOCK) {
         if (benchmarkEngineSyncSuppressed) {
           return new BenchmarkPauseResult(false, false);
         }
-      if (benchmarkPreviousShowPonderTips == null && Lizzie.config != null) {
-        benchmarkPreviousShowPonderTips = Lizzie.config.showPonderLimitedTips;
-        Lizzie.config.showPonderLimitedTips = false;
-      }
-      benchmarkPausedEngine = currentEngine;
-      benchmarkPausedEngineManager = null;
-      benchmarkPausedEngineList = null;
-      benchmarkPausedEngineIndex = -1;
-      benchmarkPausedEngineByShutdown = false;
-      benchmarkEngineSyncSuppressed = true;
-    }
-
-    if (currentEngine != null
-        && currentEngine.isLoaded()
-        && currentEngine.isKatago
-        && Lizzie.engineManager != null
-        && !EngineManager.isEmpty
-        && !EngineManager.isEngineGame) {
-      try {
-        boolean pauseByShutdown;
-        synchronized (BENCHMARK_ANALYSIS_PAUSE_LOCK) {
-          EngineManager manager = Lizzie.engineManager;
-          List<Leelaz> engines = manager == null ? null : manager.engineList;
-          int engineIndex = EngineManager.currentEngineNo;
-          pauseByShutdown =
-              engines != null
-                  && engineIndex >= 0
-                  && engineIndex < engines.size()
-                  && engines.get(engineIndex) == currentEngine;
-          benchmarkPausedEngine = currentEngine;
-          benchmarkPausedEngineManager = pauseByShutdown ? manager : null;
-          benchmarkPausedEngineList = pauseByShutdown ? engines : null;
-          benchmarkPausedEngineIndex = pauseByShutdown ? engineIndex : -1;
-          benchmarkPausedEngineByShutdown = pauseByShutdown;
+        if (benchmarkPreviousShowPonderTips == null && Lizzie.config != null) {
+          benchmarkPreviousShowPonderTips = Lizzie.config.showPonderLimitedTips;
+          Lizzie.config.showPonderLimitedTips = false;
         }
-        if (!pauseByShutdown) {
-          if (currentEngine.isPondering()) {
-            currentEngine.togglePonder();
+        benchmarkPausedEngine = currentEngine;
+        benchmarkPausedEngineManager = null;
+        benchmarkPausedEngineList = null;
+        benchmarkPausedEngineIndex = -1;
+        benchmarkPausedEngineByShutdown = false;
+        benchmarkEngineSyncSuppressed = true;
+      }
+
+      if (currentEngine != null
+          && currentEngine.isLoaded()
+          && currentEngine.isKatago
+          && Lizzie.engineManager != null
+          && !EngineManager.isEmpty
+          && !EngineManager.isEngineGame) {
+        try {
+          boolean pauseByShutdown;
+          synchronized (BENCHMARK_ANALYSIS_PAUSE_LOCK) {
+            EngineManager manager = Lizzie.engineManager;
+            List<Leelaz> engines = manager == null ? null : manager.engineList;
+            int engineIndex = EngineManager.currentEngineNo;
+            pauseByShutdown =
+                engines != null
+                    && engineIndex >= 0
+                    && engineIndex < engines.size()
+                    && engines.get(engineIndex) == currentEngine;
+            benchmarkPausedEngine = currentEngine;
+            benchmarkPausedEngineManager = pauseByShutdown ? manager : null;
+            benchmarkPausedEngineList = pauseByShutdown ? engines : null;
+            benchmarkPausedEngineIndex = pauseByShutdown ? engineIndex : -1;
+            benchmarkPausedEngineByShutdown = pauseByShutdown;
           }
+          if (!pauseByShutdown) {
+            if (currentEngine.isPondering()) {
+              currentEngine.togglePonder();
+            }
+            return new BenchmarkPauseResult(true, analysisWasPondering);
+          }
+          if (analysisWasPondering) {
+            currentEngine.Pondering();
+          } else {
+            currentEngine.notPondering();
+          }
+          currentEngine.canCheckAlive = false;
+          currentEngine.normalQuit();
+          currentEngine.shutdown();
+          waitForEngineShutdown(currentEngine, 8000L);
           return new BenchmarkPauseResult(true, analysisWasPondering);
-        }
-        if (analysisWasPondering) {
-          currentEngine.Pondering();
-        } else {
-          currentEngine.notPondering();
-        }
-        currentEngine.canCheckAlive = false;
-        currentEngine.normalQuit();
-        currentEngine.shutdown();
-        waitForEngineShutdown(currentEngine, 8000L);
-          return new BenchmarkPauseResult(true, analysisWasPondering);
-      } catch (Exception e) {
-        synchronized (BENCHMARK_ANALYSIS_PAUSE_LOCK) {
-          benchmarkPausedEngineManager = null;
-          benchmarkPausedEngineList = null;
-          benchmarkPausedEngineIndex = -1;
-          benchmarkPausedEngineByShutdown = false;
+        } catch (Exception e) {
+          synchronized (BENCHMARK_ANALYSIS_PAUSE_LOCK) {
+            benchmarkPausedEngineManager = null;
+            benchmarkPausedEngineList = null;
+            benchmarkPausedEngineIndex = -1;
+            benchmarkPausedEngineByShutdown = false;
+          }
         }
       }
-    }
 
-    if (currentEngine != null && currentEngine.isPondering()) {
-      try {
-        currentEngine.togglePonder();
-      } catch (Exception ignored) {
+      if (currentEngine != null && currentEngine.isPondering()) {
+        try {
+          currentEngine.togglePonder();
+        } catch (Exception ignored) {
+        }
       }
-    }
       return new BenchmarkPauseResult(true, analysisWasPondering);
     } finally {
       if (reservation != null) {
@@ -1770,7 +1799,7 @@ public final class KataGoRuntimeHelper {
                   disposeBenchmarkNotice(notice);
                 }
                 if (benchmarkPauseAccepted) {
-                restoreAnalysisAfterBenchmark(pausedAnalysis);
+                  restoreAnalysisAfterBenchmark(pausedAnalysis);
                 }
                 synchronized (APPLE_AUTO_OPTIMIZE_LOCK) {
                   appleAutoOptimizeRunning = false;
@@ -2149,8 +2178,8 @@ public final class KataGoRuntimeHelper {
                   disposeBenchmarkNotice(notice);
                 }
                 if (benchmarkPauseAccepted) {
-                restoreAnalysisAfterBenchmark(pausedAnalysis);
-              }
+                  restoreAnalysisAfterBenchmark(pausedAnalysis);
+                }
               }
             },
             "katago-first-run-benchmark");
@@ -2160,8 +2189,7 @@ public final class KataGoRuntimeHelper {
 
   public static String optimizeAnalysisEngineCommand(
       String engineCommand, int maxVisits, boolean isBatchAnalysisMode) {
-    return optimizeAnalysisEngineCommand(
-        engineCommand, maxVisits, isBatchAnalysisMode, false);
+    return optimizeAnalysisEngineCommand(engineCommand, maxVisits, isBatchAnalysisMode, false);
   }
 
   public static String optimizeAnalysisEngineCommand(
@@ -2196,8 +2224,7 @@ public final class KataGoRuntimeHelper {
       if (!hasSearchThreadOverride) {
         appendOverrideConfig(
             commandParts,
-            "numSearchThreadsPerAnalysisThread="
-                + profile.numSearchThreadsPerAnalysisThread);
+            "numSearchThreadsPerAnalysisThread=" + profile.numSearchThreadsPerAnalysisThread);
         commandChanged = true;
       }
       return commandChanged ? buildCommandLine(commandParts) : engineCommand;
@@ -2477,8 +2504,7 @@ public final class KataGoRuntimeHelper {
     return needsFirstOpenCLTuning(enginePath, false);
   }
 
-  public static boolean needsFirstOpenCLTuning(
-      Path enginePath, boolean openClFp32Compatibility) {
+  public static boolean needsFirstOpenCLTuning(Path enginePath, boolean openClFp32Compatibility) {
     if (!isWindowsPlatform()) {
       return false;
     }
@@ -2506,8 +2532,7 @@ public final class KataGoRuntimeHelper {
     }
   }
 
-  private static boolean shouldUseOpenClFp32Compatibility(
-      List<String> command, Path enginePath) {
+  private static boolean shouldUseOpenClFp32Compatibility(List<String> command, Path enginePath) {
     if (!isBundledOpenClPath(enginePath)) {
       return false;
     }
@@ -3127,14 +3152,39 @@ public final class KataGoRuntimeHelper {
     return false;
   }
 
-  private static List<List<String>> requiredRuntimeDllGroups(String backend) {
+  private static List<List<String>> requiredRuntimeDllGroups(Path enginePath, String backend) {
     if (isTensorRtBackend(backend)) {
       return REQUIRED_NVIDIA_TRT10_9_RUNTIME_DLL_GROUPS;
     }
     if (NVIDIA50_CUDA_BACKEND.equalsIgnoreCase(backend)) {
       return REQUIRED_NVIDIA_CUDA12_8_RUNTIME_DLL_GROUPS;
     }
-    return REQUIRED_NVIDIA_CUDA12_1_RUNTIME_DLL_GROUPS;
+    if (usesLegacyCudnn8Runtime(enginePath)) {
+      return REQUIRED_NVIDIA_CUDA12_1_CUDNN8_RUNTIME_DLL_GROUPS;
+    }
+    return REQUIRED_NVIDIA_CUDA12_1_CUDNN9_RUNTIME_DLL_GROUPS;
+  }
+
+  private static boolean usesLegacyCudnn8Runtime(Path enginePath) {
+    if (enginePath == null || enginePath.getParent() == null) {
+      return false;
+    }
+    Path engineDir = enginePath.getParent();
+    Path manifest = engineDir.resolve("lizzieyzy-next-nvidia-runtime-manifest.txt");
+    if (Files.isRegularFile(manifest)) {
+      try {
+        String text = Files.readString(manifest, StandardCharsets.UTF_8).toLowerCase(Locale.ROOT);
+        if (text.contains("profile: cuda12.1-cudnn9")) {
+          return false;
+        }
+        if (text.contains("profile: cuda12.1-cudnn8")) {
+          return true;
+        }
+      } catch (IOException e) {
+      }
+    }
+    return Files.isRegularFile(engineDir.resolve("cudnn64_8.dll"))
+        && !Files.isRegularFile(engineDir.resolve("cudnn64_9.dll"));
   }
 
   private static List<String> collectMissingRuntimeGroups(
@@ -3384,6 +3434,10 @@ public final class KataGoRuntimeHelper {
       Files.write(
           stagingDir.resolve(ENGINE_BACKEND_MARKER_NAME),
           (NVIDIA_TRT_BACKEND + "\n").getBytes(StandardCharsets.UTF_8));
+      Files.writeString(
+          stagingDir.resolve(TENSORRT_ENGINE_MANIFEST_NAME),
+          tensorRtEngineManifestText(),
+          StandardCharsets.UTF_8);
       if (!Files.isRegularFile(stagingDir.resolve("katago.exe"))) {
         throw new IOException("KataGo TensorRT package did not contain katago.exe");
       }
@@ -3424,6 +3478,33 @@ public final class KataGoRuntimeHelper {
     }
   }
 
+  private static boolean isCurrentTensorRtEngine(Path enginePath) {
+    if (enginePath == null || enginePath.getParent() == null || !Files.isRegularFile(enginePath)) {
+      return false;
+    }
+    Path manifest = enginePath.getParent().resolve(TENSORRT_ENGINE_MANIFEST_NAME);
+    if (!Files.isRegularFile(manifest)) {
+      return false;
+    }
+    try {
+      String text = Files.readString(manifest, StandardCharsets.UTF_8);
+      return text.contains("KataGo release: " + TENSORRT_KATAGO_VERSION)
+          && text.contains("Asset SHA-256: " + TENSORRT_KATAGO_SHA256);
+    } catch (IOException e) {
+      return false;
+    }
+  }
+
+  private static String tensorRtEngineManifestText() {
+    return "KataGo release: "
+        + TENSORRT_KATAGO_VERSION
+        + "\nAsset: "
+        + TENSORRT_KATAGO_ASSET
+        + "\nAsset SHA-256: "
+        + TENSORRT_KATAGO_SHA256
+        + "\n";
+  }
+
   private static void deleteRecursively(Path path) throws IOException {
     if (path == null || !Files.exists(path)) {
       return;
@@ -3452,8 +3533,13 @@ public final class KataGoRuntimeHelper {
         readPackageSpec(
             cudaManifest, CUDA_MANIFEST_URL, "libnvjitlink", "windows-x86_64", "CUDA nvJitLink"));
     packages.add(
-        readPackageSpec(
-            cudnnManifest, CUDNN_MANIFEST_URL, "cudnn", "windows-x86_64", "NVIDIA cuDNN"));
+        readNestedPackageSpec(
+            cudnnManifest,
+            CUDNN_MANIFEST_URL,
+            "cudnn",
+            "windows-x86_64",
+            "cuda12",
+            "NVIDIA cuDNN"));
     return packages;
   }
 

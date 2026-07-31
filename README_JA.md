@@ -48,7 +48,7 @@
 > - NVIDIA GPU があり、より速く解析したい場合は `*windows64.nvidia.portable.zip` を選べます
 > - OpenCL の相性が悪い場合は `*windows64.with-katago.portable.zip` に切り替えられます
 > - 野狐棋譜取得はニックネーム入力に対応しており、多くの利用者はアカウント番号を先に知らなくても大丈夫です
-> - 主な統合パッケージには KataGo `v1.16.4` と公式推奨の `zhizi` 重み `kata1-zhizi-b28c512nbt-muonfd2.bin.gz` が含まれています
+> - 推奨フルパッケージには KataGo `v1.17.0` と公式中型 Transformer が含まれ、画面では「Transformer 10B バランス版」（約 94 MB）と表示されます。コア更新パッケージにはエンジンとウェイトは含まれません
 > - 主な release パッケージには `readboard_java` も同梱されており、多くの利用者は別の readboard リポジトリを用意する必要がありません
 
 ## なぜ多くの利用者がここから始めるのか

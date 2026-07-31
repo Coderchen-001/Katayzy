@@ -32,6 +32,31 @@ class LeelazDisplayNameTest {
   }
 
   @Test
+  void bundledTransformerDefaultUsesFriendlyLocalizedName() throws Exception {
+    Path root = Files.createTempDirectory("leelaz-display-transformer-default");
+    Path weightsDir = Files.createDirectories(root.resolve("weights"));
+    Path enginesDir = Files.createDirectories(root.resolve("engines").resolve("katago"));
+    Path weightPath = Files.createFile(weightsDir.resolve("default.bin.gz"));
+    Files.writeString(
+        enginesDir.resolve("VERSION.txt"),
+        "KataGo release: v1.17.0\n"
+            + "Model source: b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz\n"
+            + "Model architecture: transformer\n");
+    String command =
+        "\"/tmp/katago\" gtp -model \""
+            + weightPath.toAbsolutePath()
+            + "\" -config \"/tmp/gtp.cfg\"";
+    java.util.ResourceBundle previous = Lizzie.resourceBundle;
+    try {
+      Lizzie.resourceBundle = AppLocale.SIMPLIFIED_CHINESE.loadBundle();
+
+      assertEquals("Transformer 10B 均衡版", Leelaz.friendlyEngineName("KataGo Auto Setup", command));
+    } finally {
+      Lizzie.resourceBundle = previous;
+    }
+  }
+
+  @Test
   void downloadedOfficialWeightHidesInternalTrainingHashes() {
     String command =
         "\"/tmp/katago\" gtp -model \"/tmp/weights/kata1-b28c512nbt-s12763923712-d5805955894.bin.gz\""
@@ -56,8 +81,7 @@ class LeelazDisplayNameTest {
       Lizzie.resourceBundle = AppLocale.SIMPLIFIED_CHINESE.loadBundle();
       assertEquals(
           "智子云算力 VIP 包月 · 28B NBT · TensorRT",
-          Leelaz.friendlyEngineName(
-              "智子云算力 28B TensorRT", RemoteComputeConfig.COMMAND_ZHIZI));
+          Leelaz.friendlyEngineName("智子云算力 28B TensorRT", RemoteComputeConfig.COMMAND_ZHIZI));
     } finally {
       Lizzie.resourceBundle = previous;
     }
@@ -74,8 +98,7 @@ class LeelazDisplayNameTest {
 
   @Test
   void weightDisplayHandlesEqualsStyleWeightsFlag() {
-    String command =
-        "\"/tmp/leelaz\" --weights=/tmp/weights/kata1-zhizi-b28c512nbt-muonfd2.bin.gz";
+    String command = "\"/tmp/leelaz\" --weights=/tmp/weights/kata1-zhizi-b28c512nbt-muonfd2.bin.gz";
 
     assertEquals("zhizi 28B muonfd2", Leelaz.friendlyEngineName("KataGo Auto Setup", command));
   }

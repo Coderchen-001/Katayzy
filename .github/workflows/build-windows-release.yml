@@ -61,14 +61,16 @@ jobs:
       - name: Prepare bundled KataGo assets
         shell: bash
         env:
-          MODEL_NAME: kata1-zhizi-b28c512nbt-muonfd2.bin.gz
-          MODEL_URL: https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-zhizi-b28c512nbt-muonfd2.bin.gz
+          MODEL_NAME: b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
+          MODEL_URL: https://github.com/lightvector/KataGo/releases/download/v1.17.0/b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
+          MODEL_SHA256: c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995
         run: |
           set -euo pipefail
           mkdir -p .cache/katago
           MODEL_SOURCE="$PWD/.cache/katago/$MODEL_NAME"
           curl -fL --retry 5 --retry-all-errors -o "$MODEL_SOURCE" "$MODEL_URL"
-          PREFERRED_MODEL_NAME="$MODEL_NAME" MODEL_SOURCE="$MODEL_SOURCE" ./scripts/prepare_bundled_katago.sh
+          PREFERRED_MODEL_NAME="$MODEL_NAME" PREFERRED_MODEL_SHA256="$MODEL_SHA256" \
+            MODEL_SOURCE="$MODEL_SOURCE" ./scripts/prepare_bundled_katago.sh
 
       - name: Build Windows installer and portable package
         timeout-minutes: 300
@@ -137,12 +139,18 @@ jobs:
           grep -qx "release-tag=v3.0.6" "dist/windows/input-with-katago/readboard/lizzieyzy-next-readboard-manifest.txt"
           grep -qx "asset-name=readboard-github-release-v3.0.6.zip" "dist/windows/input-with-katago/readboard/lizzieyzy-next-readboard-manifest.txt"
           grep -qx "sha256=1ba4c265f560cd988be24f4ea0eeb29516883f42ece477bd32b72f8bccf6565d" "dist/windows/input-with-katago/readboard/lizzieyzy-next-readboard-manifest.txt"
-          grep -Eq '^Windows bundle: katago-v[0-9.]+-eigen-windows-x64\.zip$' "dist/windows/input-with-katago/engines/katago/VERSION.txt"
+          grep -qx 'KataGo release: v1.17.0' "dist/windows/input-with-katago/engines/katago/VERSION.txt"
+          grep -qx 'Windows bundle: katago-v1.17.0-eigen-windows-x64.zip' "dist/windows/input-with-katago/engines/katago/VERSION.txt"
+          grep -qx 'Model source: b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz' "dist/windows/input-with-katago/engines/katago/VERSION.txt"
+          grep -qx 'Model architecture: transformer' "dist/windows/input-with-katago/engines/katago/VERSION.txt"
+          grep -qx 'Minimum KataGo version: 1.17.0' "dist/windows/input-with-katago/engines/katago/VERSION.txt"
+          test "$(sha256sum "dist/windows/input-with-katago/weights/default.bin.gz" | awk '{print $1}')" = \
+            "c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995"
           test -f "dist/windows/input-opencl/engines/katago/windows-x64/katago.exe"
           test -f "dist/windows/input-opencl/PROJECT_INFO.txt"
           test -f "dist/windows/input-opencl/readboard/readboard.exe"
           test -f "dist/windows/input-opencl/readboard/lizzieyzy-next-readboard-manifest.txt"
-          grep -Eq '^Windows OpenCL bundle: katago-v[0-9.]+-opencl-windows-x64\.zip$' "dist/windows/input-opencl/engines/katago/VERSION.txt"
+          grep -qx 'Windows OpenCL bundle: katago-v1.17.0-opencl-windows-x64.zip' "dist/windows/input-opencl/engines/katago/VERSION.txt"
           test -f "dist/windows/app-image-with-katago/LizzieYzy Next/LizzieYzy Next.exe"
           test -f "dist/windows/app-image-with-katago/LizzieYzy Next/app/PROJECT_INFO.txt"
           grep -q "java-options=-Dlizzie.next.version=${{ inputs.release_tag }}" "dist/windows/app-image-with-katago/LizzieYzy Next/app/LizzieYzy Next.cfg"
@@ -172,15 +180,16 @@ jobs:
           test -f "dist/windows/app-image-without.engine/LizzieYzy Next/app/PROJECT_INFO.txt"
           grep -q "java-options=-Dlizzie.next.version=${{ inputs.release_tag }}" "dist/windows/app-image-without.engine/LizzieYzy Next/app/LizzieYzy Next.cfg"
           test -f "dist/windows/input-nvidia/engines/katago/windows-x64/cublasLt64_12.dll"
-          test -f "dist/windows/input-nvidia/engines/katago/windows-x64/cudnn64_8.dll"
+          test -f "dist/windows/input-nvidia/engines/katago/windows-x64/cudnn64_9.dll"
           test -f "dist/windows/input-nvidia/engines/katago/windows-x64/libz.dll"
           test -f "dist/windows/input-nvidia/engines/katago/windows-x64/lizzieyzy-next-nvidia-runtime-manifest.txt"
+          grep -q "Profile: cuda12.1-cudnn9" "dist/windows/input-nvidia/engines/katago/windows-x64/lizzieyzy-next-nvidia-runtime-manifest.txt"
           find "dist/windows/input-nvidia/engines/katago/windows-x64" -maxdepth 1 -type f -name 'nvJitLink*.dll' | grep -q .
           grep -qx "nvidia" "dist/windows/input-nvidia/engines/katago/windows-x64/lizzieyzy-next-engine-backend.txt"
           test -f "dist/windows/app-image-nvidia/LizzieYzy Next NVIDIA/app/engines/katago/windows-x64/cudart64_12.dll"
           test -f "dist/windows/app-image-nvidia/LizzieYzy Next NVIDIA/app/engines/katago/windows-x64/cublas64_12.dll"
           test -f "dist/windows/app-image-nvidia/LizzieYzy Next NVIDIA/app/engines/katago/windows-x64/cublasLt64_12.dll"
-          test -f "dist/windows/app-image-nvidia/LizzieYzy Next NVIDIA/app/engines/katago/windows-x64/cudnn64_8.dll"
+          test -f "dist/windows/app-image-nvidia/LizzieYzy Next NVIDIA/app/engines/katago/windows-x64/cudnn64_9.dll"
           test -f "dist/windows/app-image-nvidia/LizzieYzy Next NVIDIA/app/engines/katago/windows-x64/libz.dll"
           find "dist/windows/app-image-nvidia/LizzieYzy Next NVIDIA/app/engines/katago/windows-x64" -maxdepth 1 -type f -name 'nvJitLink*.dll' | grep -q .
           test -f "dist/windows/app-image-nvidia50.cuda/LizzieYzy Next NVIDIA 50 CUDA/LizzieYzy Next NVIDIA 50 CUDA.exe"
@@ -211,6 +220,11 @@ jobs:
           test -f "dist/release/${{ inputs.date_tag }}-windows64.nvidia.tensorrt.portable.README.txt"
           test -f "dist/release/${{ inputs.date_tag }}-windows64.nvidia.tensorrt.portable.manifest.json"
           test -f "dist/release/${{ inputs.date_tag }}-windows64.nvidia.tensorrt.portable.sha256.txt"
+          test -f "engines/katago/windows-x64-nvidia-tensorrt/lizzieyzy-next-katago-engine-manifest.txt"
+          grep -qx "KataGo release: v1.17.0" \
+            "engines/katago/windows-x64-nvidia-tensorrt/lizzieyzy-next-katago-engine-manifest.txt"
+          grep -qx "Asset SHA-256: f683bb87b42b9f56b03c847d5102d16265dd80b7584109edc5bae42f3e729438" \
+            "engines/katago/windows-x64-nvidia-tensorrt/lizzieyzy-next-katago-engine-manifest.txt"
           grep -q "Advanced optional TensorRT split package" "dist/release/${{ inputs.date_tag }}-windows64.nvidia.tensorrt.portable.README.txt"
           grep -q '"engineBackend": "nvidia-tensorrt"' "dist/release/${{ inputs.date_tag }}-windows64.nvidia.tensorrt.portable.manifest.json"
           test -f "dist/windows/input-without.engine/PROJECT_INFO.txt"

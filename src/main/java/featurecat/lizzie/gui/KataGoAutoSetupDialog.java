@@ -15,6 +15,7 @@ import featurecat.lizzie.util.KataGoAutoSetupHelper.PackageFlavor;
 import featurecat.lizzie.util.KataGoAutoSetupHelper.RemoteWeightInfo;
 import featurecat.lizzie.util.KataGoAutoSetupHelper.SetupResult;
 import featurecat.lizzie.util.KataGoAutoSetupHelper.SetupSnapshot;
+import featurecat.lizzie.util.KataGoAutoSetupHelper.TransformerTier;
 import featurecat.lizzie.util.KataGoRuntimeHelper;
 import featurecat.lizzie.util.NvidiaGpuDetector;
 import featurecat.lizzie.util.Utils;
@@ -1292,6 +1293,9 @@ public class KataGoAutoSetupDialog extends JDialog {
     renderCurrentWeightBanner();
     setInfoValue(lblEngineValue, snapshot.hasEngine(), formatPath(snapshot.enginePath));
     setInfoValue(lblWeightValue, snapshot.hasWeight(), formatWeight(snapshot));
+    if (snapshot.hasWeight()) {
+      lblWeightValue.setToolTipText(formatWeightDetails(snapshot));
+    }
     setInfoValue(lblWeightModelValue, snapshot.hasWeight(), formatWeightModel(snapshot));
     renderLocalWeights();
     renderHumanSlModel();
@@ -1421,7 +1425,16 @@ public class KataGoAutoSetupDialog extends JDialog {
         state.weightCandidates.size() > 1
             ? text("AutoSetup.weightCandidates") + state.weightCandidates.size()
             : text("AutoSetup.weightCandidates") + 1;
-    return formatPath(state.activeWeightPath) + "  |  " + extra;
+    return formatWeightModel(state) + "  |  " + extra;
+  }
+
+  private String formatWeightDetails(SetupSnapshot state) {
+    if (state.activeWeightPath == null) {
+      return text("AutoSetup.notFound");
+    }
+    return state.activeWeightPath.getFileName()
+        + "  |  "
+        + state.activeWeightPath.toAbsolutePath().normalize();
   }
 
   private String formatWeightModel(SetupSnapshot state) {
@@ -2043,6 +2056,10 @@ public class KataGoAutoSetupDialog extends JDialog {
     }
     if (isCurrentLocalWeight(selectedWeight)) {
       updateSelectedLocalWeightInfo();
+      return;
+    }
+    if (!isSelectedWeightCompatibleWithEngine(selectedWeight)) {
+      Utils.showMsg(text("AutoSetup.transformerRequires117"), this);
       return;
     }
     prepareWeightEngineSwitch(snapshot.withActiveWeight(selectedWeight));
@@ -3058,12 +3075,40 @@ public class KataGoAutoSetupDialog extends JDialog {
     Path selectedWeight = getSelectedLocalWeight();
     return selectedWeight != null
         && !isCurrentLocalWeight(selectedWeight)
+        && isSelectedWeightCompatibleWithEngine(selectedWeight)
         && snapshot != null
         && snapshot.hasEngine()
         && snapshot.hasConfigs()
         && isEngineValidationReady()
         && activeDownloadSession == null
         && activeWorkerThread == null;
+  }
+
+  private boolean isSelectedWeightCompatibleWithEngine(Path weightPath) {
+    if (!KataGoAutoSetupHelper.isTransformerWeight(weightPath)) {
+      return true;
+    }
+    return engineValidationResult == null
+        || !engineValidationResult.hasKnownVersion()
+        || engineValidationResult.isVersionAtLeast(
+            KataGoAutoSetupHelper.TRANSFORMER_MINIMUM_KATAGO_VERSION);
+  }
+
+  private boolean requiresKataGo117(Path weightPath) {
+    return KataGoAutoSetupHelper.isTransformerWeight(weightPath)
+        && engineValidationResult != null
+        && engineValidationResult.hasKnownVersion()
+        && !engineValidationResult.isVersionAtLeast(
+            KataGoAutoSetupHelper.TRANSFORMER_MINIMUM_KATAGO_VERSION);
+  }
+
+  private boolean isRemoteWeightCompatibleWithEngine(RemoteWeightInfo info) {
+    if (info == null || !info.isTransformer()) {
+      return true;
+    }
+    return engineValidationResult == null
+        || !engineValidationResult.hasKnownVersion()
+        || engineValidationResult.isVersionAtLeast(info.minimumKataGoVersion);
   }
 
   private boolean isCurrentLocalWeight(Path weightPath) {
@@ -3093,6 +3138,7 @@ public class KataGoAutoSetupDialog extends JDialog {
       lblSelectedWeightMeta.setText("");
       btnDownloadWeight.setVisible(false);
       btnUseWeight.setVisible(false);
+      btnUseWeight.setToolTipText(null);
       selectedWeightActions.revalidate();
       selectedWeightActions.repaint();
       return;
@@ -3117,9 +3163,16 @@ public class KataGoAutoSetupDialog extends JDialog {
       btnDownloadWeight.setText(text("AutoSetup.downloadWeight"));
       btnDownloadWeight.setEnabled(canDownloadSelectedRemoteWeight());
       btnUseWeight.setVisible(downloaded);
+      boolean requiresUpgrade = downloaded && requiresKataGo117(entry.localPath);
       btnUseWeight.setText(
-          current ? text("AutoSetup.currentlyUsingShort") : text("AutoSetup.useWeight"));
-      btnUseWeight.setEnabled(downloaded && !current && !hasActiveBackgroundTask());
+          current
+              ? text("AutoSetup.currentlyUsingShort")
+              : requiresUpgrade
+                  ? text("AutoSetup.transformerRequires117Short")
+                  : text("AutoSetup.useWeight"));
+      btnUseWeight.setToolTipText(
+          requiresUpgrade ? text("AutoSetup.transformerRequires117") : null);
+      btnUseWeight.setEnabled(downloaded && !current && canUseSelectedLocalWeight());
     } else {
       Path path = entry.localPath;
       String displayName = KataGoAutoSetupHelper.resolveWeightDisplayName(path);
@@ -3131,9 +3184,16 @@ public class KataGoAutoSetupDialog extends JDialog {
       lblSelectedWeightMeta.setToolTipText(tooltip);
       btnDownloadWeight.setVisible(false);
       btnUseWeight.setVisible(true);
+      boolean requiresUpgrade = requiresKataGo117(path);
       btnUseWeight.setText(
-          current ? text("AutoSetup.currentlyUsingShort") : text("AutoSetup.useWeight"));
-      btnUseWeight.setEnabled(!current && !hasActiveBackgroundTask());
+          current
+              ? text("AutoSetup.currentlyUsingShort")
+              : requiresUpgrade
+                  ? text("AutoSetup.transformerRequires117Short")
+                  : text("AutoSetup.useWeight"));
+      btnUseWeight.setToolTipText(
+          requiresUpgrade ? text("AutoSetup.transformerRequires117") : null);
+      btnUseWeight.setEnabled(!current && canUseSelectedLocalWeight());
     }
     selectedWeightActions.revalidate();
     selectedWeightActions.repaint();
@@ -3367,8 +3427,14 @@ public class KataGoAutoSetupDialog extends JDialog {
   private String formatSelectedRemoteMetadata(
       RemoteWeightInfo info, boolean downloaded, boolean current) {
     StringBuilder value = new StringBuilder();
+    if (info.isTransformer()) {
+      appendMetadata(value, text("AutoSetup.transformerBadge"));
+    }
     if (info.eloRating != null && !info.eloRating.trim().isEmpty()) {
       appendMetadata(value, "Elo " + info.eloRating.trim());
+    }
+    if (info.sizeBytes > 0L) {
+      appendMetadata(value, formatSize(info.sizeBytes));
     }
     String releaseDate = formatRemoteReleaseDate(info);
     if (!releaseDate.isEmpty()) {
@@ -3386,7 +3452,13 @@ public class KataGoAutoSetupDialog extends JDialog {
     if (info == null) {
       return "";
     }
-    StringBuilder value = new StringBuilder("Elo ").append(compactEloRating(info.eloRating));
+    StringBuilder value = new StringBuilder();
+    if (info.eloRating != null && !info.eloRating.trim().isEmpty()) {
+      appendMetadata(value, "Elo " + compactEloRating(info.eloRating));
+    }
+    if (info.sizeBytes > 0L) {
+      appendMetadata(value, formatSize(info.sizeBytes));
+    }
     String releaseDate = formatRemoteReleaseDate(info);
     if (!releaseDate.isEmpty()) {
       appendMetadata(value, releaseDate);
@@ -3461,9 +3533,23 @@ public class KataGoAutoSetupDialog extends JDialog {
 
   private String formatRemoteMetadata(RemoteWeightInfo info) {
     StringBuilder metadata = new StringBuilder();
+    if (info.isTransformer()) {
+      appendMetadata(metadata, text("AutoSetup.transformerBadge"));
+      appendMetadata(
+          metadata,
+          "KataGo "
+              + info.minimumKataGoVersion
+              + "+"
+              + " · "
+              + text("AutoSetup.transformerBackendHint"));
+    }
     appendMetadata(metadata, formatRemoteReleaseDate(info));
     if (info.recommended) {
-      appendMetadata(metadata, text("AutoSetup.officialStrongestBadge"));
+      appendMetadata(
+          metadata,
+          info.isTransformer()
+              ? text("AutoSetup.recommendedBadge")
+              : text("AutoSetup.officialStrongestBadge"));
     }
     if (info.latest) {
       appendMetadata(metadata, text("AutoSetup.recommendedLatest"));
@@ -3580,21 +3666,26 @@ public class KataGoAutoSetupDialog extends JDialog {
   }
 
   private void renderWeightRecommendations() {
-    RemoteWeightInfo balanced = null;
-    for (RemoteWeightInfo info : remoteWeightInfos) {
-      if (KataGoAutoSetupHelper.isDefaultGeneralUseWeight(info)) {
-        balanced = info;
-        break;
-      }
-    }
+    RemoteWeightInfo balanced = chooseTransformerWeight(TransformerTier.BALANCED);
     if (balanced == null) {
-      balanced = chooseRemoteWeightByFamily("28B");
+      for (RemoteWeightInfo info : remoteWeightInfos) {
+        if (KataGoAutoSetupHelper.isDefaultGeneralUseWeight(info)) {
+          balanced = info;
+          break;
+        }
+      }
     }
     if (balanced == null) {
       balanced = choosePreferredRemoteWeight();
     }
-    RemoteWeightInfo strongest = chooseStrongestRemoteWeight();
-    RemoteWeightInfo lightweight = chooseRemoteWeightByFamily("20B");
+    RemoteWeightInfo strongest = chooseTransformerWeight(TransformerTier.STRONGEST);
+    if (strongest == null) {
+      strongest = chooseStrongestRemoteWeight();
+    }
+    RemoteWeightInfo lightweight = chooseTransformerWeight(TransformerTier.LIGHTWEIGHT);
+    if (lightweight == null) {
+      lightweight = chooseRemoteWeightByFamily("20B");
+    }
     if (lightweight == null) {
       lightweight = chooseRemoteWeightByFamily("15B");
     }
@@ -3606,17 +3697,32 @@ public class KataGoAutoSetupDialog extends JDialog {
         text("AutoSetup.recommendationBalanced"),
         text("AutoSetup.recommendationBalancedHint"),
         balanced,
-        text("AutoSetup.recommendedBadge"));
+        balanced != null && balanced.isTransformer()
+            ? text("AutoSetup.transformerBadge")
+            : text("AutoSetup.recommendedBadge"));
     strongestRecommendation.configure(
         text("AutoSetup.recommendationStrongest"),
         text("AutoSetup.recommendationStrongestHint"),
         strongest,
-        text("AutoSetup.officialStrongestBadge"));
+        strongest != null && strongest.isTransformer()
+            ? text("AutoSetup.transformerBadge")
+            : text("AutoSetup.officialStrongestBadge"));
     lightweightRecommendation.configure(
         text("AutoSetup.recommendationLightweight"),
         text("AutoSetup.recommendationLightweightHint"),
         lightweight,
-        "");
+        lightweight != null && lightweight.isTransformer()
+            ? text("AutoSetup.transformerBadge")
+            : "");
+  }
+
+  private RemoteWeightInfo chooseTransformerWeight(TransformerTier tier) {
+    for (RemoteWeightInfo info : remoteWeightInfos) {
+      if (info != null && info.transformerTier == tier) {
+        return info;
+      }
+    }
+    return null;
   }
 
   private RemoteWeightInfo chooseStrongestRemoteWeight() {
@@ -3806,6 +3912,8 @@ public class KataGoAutoSetupDialog extends JDialog {
     btnOptimizePerformance.setEnabled(canRunBenchmark());
     btnStopDownload.setEnabled(false);
     btnClose.setEnabled(true);
+    renderWeightRecommendations();
+    updateSelectedWeightInfo();
   }
 
   private String text(String key) {
@@ -4043,11 +4151,16 @@ public class KataGoAutoSetupDialog extends JDialog {
     }
 
     private void configureActionButton() {
+      boolean requiresUpgrade =
+          action == RecommendationAction.USE && !isRemoteWeightCompatibleWithEngine(weight);
       if (action == RecommendationAction.DOWNLOAD) {
         actionButton.setText(text("AutoSetup.downloadShort"));
         actionButton.setIcon(new WeightActionIcon(WeightActionIcon.DOWNLOAD));
       } else if (action == RecommendationAction.USE) {
-        actionButton.setText(text("AutoSetup.useWeight"));
+        actionButton.setText(
+            requiresUpgrade
+                ? text("AutoSetup.transformerRequires117Short")
+                : text("AutoSetup.useWeight"));
         actionButton.setIcon(new WeightActionIcon(WeightActionIcon.USE));
       } else if (action == RecommendationAction.CURRENT) {
         actionButton.setText(text("AutoSetup.currentlyUsingShort"));
@@ -4067,8 +4180,14 @@ public class KataGoAutoSetupDialog extends JDialog {
       }
       actionButton.setEnabled(
           isEnabled()
+              && !requiresUpgrade
               && (action == RecommendationAction.DOWNLOAD || action == RecommendationAction.USE));
-      actionButton.setToolTipText(actionButton.isVisible() ? actionButton.getText() : null);
+      actionButton.setToolTipText(
+          !actionButton.isVisible()
+              ? null
+              : requiresUpgrade
+                  ? text("AutoSetup.transformerRequires117")
+                  : actionButton.getText());
       AccessibilitySupport.named(
           actionButton,
           actionButton.getText(),
@@ -4083,8 +4202,11 @@ public class KataGoAutoSetupDialog extends JDialog {
     public void setEnabled(boolean enabled) {
       super.setEnabled(enabled);
       if (actionButton != null) {
+        boolean requiresUpgrade =
+            action == RecommendationAction.USE && !isRemoteWeightCompatibleWithEngine(weight);
         actionButton.setEnabled(
             enabled
+                && !requiresUpgrade
                 && (action == RecommendationAction.DOWNLOAD || action == RecommendationAction.USE));
       }
       repaint();
@@ -4441,6 +4563,9 @@ public class KataGoAutoSetupDialog extends JDialog {
     if (info == null) {
       return "";
     }
+    if (info.isTransformer()) {
+      return text("AutoSetup.transformerBadge");
+    }
     if (KataGoAutoSetupHelper.isDefaultGeneralUseWeight(info)) {
       return text("AutoSetup.recommendedBadge");
     }
@@ -4453,6 +4578,9 @@ public class KataGoAutoSetupDialog extends JDialog {
   private String remoteWeightFamily(RemoteWeightInfo info) {
     if (info == null) {
       return "";
+    }
+    if (info.isTransformer()) {
+      return "TF";
     }
     String model = info.modelName == null ? "" : info.modelName.toLowerCase(Locale.ROOT);
     int marker = model.indexOf("-b");

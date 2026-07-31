@@ -51,14 +51,16 @@ jobs:
 
       - name: Prepare bundled KataGo assets
         env:
-          MODEL_NAME: kata1-zhizi-b28c512nbt-muonfd2.bin.gz
-          MODEL_URL: https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-zhizi-b28c512nbt-muonfd2.bin.gz
+          MODEL_NAME: b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
+          MODEL_URL: https://github.com/lightvector/KataGo/releases/download/v1.17.0/b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
+          MODEL_SHA256: c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995
         run: |
           set -euo pipefail
           mkdir -p .cache/katago
           MODEL_SOURCE="$PWD/.cache/katago/$MODEL_NAME"
           curl -fL --retry 5 --retry-all-errors -o "$MODEL_SOURCE" "$MODEL_URL"
-          PREFERRED_MODEL_NAME="$MODEL_NAME" MODEL_SOURCE="$MODEL_SOURCE" ./scripts/prepare_bundled_katago.sh
+          PREFERRED_MODEL_NAME="$MODEL_NAME" PREFERRED_MODEL_SHA256="$MODEL_SHA256" \
+            MODEL_SOURCE="$MODEL_SOURCE" ./scripts/prepare_bundled_katago.sh
 
       - name: Build Linux package
         run: ./scripts/package_release.sh "${{ inputs.date_tag }}" target/lizzie-yzy2.5.3-shaded.jar "${{ inputs.release_tag }}"
@@ -94,9 +96,16 @@ jobs:
             test -f "$engine_dir/lizzieyzy-next-engine-backend.txt"
             grep -qx "${expected_backend[$flavor]}" "$engine_dir/lizzieyzy-next-engine-backend.txt"
           done
-          grep -Eq "Linux bundle: katago-v.*-eigen-linux-x64.zip" "dist/stage/${{ inputs.date_tag }}-linux64.with-katago/Lizzieyzy/engines/katago/VERSION.txt"
-          grep -Eq "Linux OpenCL bundle: katago-v.*-opencl-linux-x64.zip" "dist/stage/${{ inputs.date_tag }}-linux64.opencl/Lizzieyzy/engines/katago/VERSION.txt"
-          grep -Eq "Linux NVIDIA bundle: katago-v.*-cuda.*-linux-x64.zip" "dist/stage/${{ inputs.date_tag }}-linux64.nvidia/Lizzieyzy/engines/katago/VERSION.txt"
+          manifest="dist/stage/${{ inputs.date_tag }}-linux64.with-katago/Lizzieyzy/engines/katago/VERSION.txt"
+          grep -qx "KataGo release: v1.17.0" "$manifest"
+          grep -qx "Linux bundle: katago-v1.17.0-eigen-linux-x64.zip" "$manifest"
+          grep -qx "Linux OpenCL bundle: katago-v1.17.0-opencl-linux-x64.zip" "$manifest"
+          grep -qx "Linux NVIDIA bundle: katago-v1.17.0-cuda12.1-cudnn9.8.0-linux-x64.zip" "$manifest"
+          grep -qx "Model source: b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz" "$manifest"
+          grep -qx "Model architecture: transformer" "$manifest"
+          grep -qx "Minimum KataGo version: 1.17.0" "$manifest"
+          test "$(sha256sum "dist/stage/${{ inputs.date_tag }}-linux64.with-katago/Lizzieyzy/weights/default.bin.gz" | awk '{print $1}')" = \
+            "c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995"
           cpu_version="$(dist/stage/${{ inputs.date_tag }}-linux64.with-katago/Lizzieyzy/engines/katago/linux-x64/katago version 2>&1)"
           echo "$cpu_version"
           echo "$cpu_version" | grep -q "Using Eigen"

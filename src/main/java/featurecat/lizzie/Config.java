@@ -5,6 +5,7 @@ import featurecat.lizzie.analysis.MoveRankEvaluationMode;
 import featurecat.lizzie.gui.LizzieFrame;
 import featurecat.lizzie.theme.Theme;
 import featurecat.lizzie.util.AnalysisEngineCommandHelper;
+import featurecat.lizzie.util.KataGoAutoSetupHelper;
 import featurecat.lizzie.util.LocaleFontSupport;
 import featurecat.lizzie.util.NetworkProxy;
 import featurecat.lizzie.util.Utils;
@@ -164,6 +165,7 @@ public class Config {
   private static final String BUNDLED_ENGINE_ROOT = "engines";
   private static final String BUNDLED_WEIGHT_ROOT = "weights";
   private static final String BUNDLED_WEIGHT_NAME = "default.bin.gz";
+  private static final String DEFAULT_TRANSFORMER_MIGRATION_KEY = "migrated-default-transformer-v1";
   private String configFilename = WORK_DIR + File.separator + "config.txt";
   private String persistFilename = WORK_DIR + File.separator + "persist";
   private String saveBoardFilename = WORK_DIR + File.separator + "save" + File.separator + "save";
@@ -263,12 +265,17 @@ public class Config {
     private final String engineCommand;
     private final String analysisCommand;
     private final String estimateCommand;
+    private final boolean transformerDefault;
 
     private BundledKataGoConfig(
-        String engineCommand, String analysisCommand, String estimateCommand) {
+        String engineCommand,
+        String analysisCommand,
+        String estimateCommand,
+        boolean transformerDefault) {
       this.engineCommand = engineCommand;
       this.analysisCommand = analysisCommand;
       this.estimateCommand = estimateCommand;
+      this.transformerDefault = transformerDefault;
     }
   }
 
@@ -618,10 +625,8 @@ public class Config {
     }
     String binaryName = OS.isWindows() ? "katago.exe" : "katago";
     Path katagoRoot = appRoot.resolve(BUNDLED_ENGINE_ROOT).resolve("katago");
-    return Files.isRegularFile(
-            katagoRoot.resolve(detectBundledPlatformDir()).resolve(binaryName))
-        && Files.isRegularFile(
-            appRoot.resolve(BUNDLED_WEIGHT_ROOT).resolve(BUNDLED_WEIGHT_NAME))
+    return Files.isRegularFile(katagoRoot.resolve(detectBundledPlatformDir()).resolve(binaryName))
+        && Files.isRegularFile(appRoot.resolve(BUNDLED_WEIGHT_ROOT).resolve(BUNDLED_WEIGHT_NAME))
         && Files.isRegularFile(katagoRoot.resolve("configs").resolve("gtp.cfg"))
         && Files.isRegularFile(katagoRoot.resolve("configs").resolve("analysis.cfg"));
   }
@@ -655,6 +660,46 @@ public class Config {
     return isBundledKataGoExecutableToken(commandParts.get(0));
   }
 
+  static boolean isManagedBundledDefaultCommand(String command) {
+    if (command == null || command.trim().isEmpty() || !isBundledKataGoCommand(command)) {
+      return command == null || command.trim().isEmpty();
+    }
+    String modelToken = modelToken(command);
+    return modelToken.isEmpty() || isDefaultOrLegacyBundledWeight(modelToken);
+  }
+
+  private static boolean isDefaultOrLegacyBundledWeight(String modelToken) {
+    if (modelToken == null || modelToken.trim().isEmpty()) {
+      return false;
+    }
+    String normalized = modelToken.trim().replace('\\', '/');
+    int slash = normalized.lastIndexOf('/');
+    String fileName = slash >= 0 ? normalized.substring(slash + 1) : normalized;
+    return BUNDLED_WEIGHT_NAME.equalsIgnoreCase(fileName)
+        || (KataGoAutoSetupHelper.LEGACY_DEFAULT_WEIGHT_MODEL + ".bin.gz")
+            .equalsIgnoreCase(fileName);
+  }
+
+  private static String modelToken(String command) {
+    List<String> commandParts = Utils.splitCommand(command == null ? "" : command);
+    for (int i = 0; i < commandParts.size(); i++) {
+      String token = commandParts.get(i);
+      if (token == null) {
+        continue;
+      }
+      String normalized = token.toLowerCase(Locale.ROOT);
+      if (("-model".equals(normalized) || "--model".equals(normalized))
+          && i + 1 < commandParts.size()) {
+        return commandParts.get(i + 1);
+      }
+      if (normalized.startsWith("-model=") || normalized.startsWith("--model=")) {
+        int equals = token.indexOf('=');
+        return equals >= 0 ? token.substring(equals + 1) : "";
+      }
+    }
+    return "";
+  }
+
   public static boolean isBundledKataGoExecutable(Path executable) {
     if (executable == null) {
       return false;
@@ -667,8 +712,7 @@ public class Config {
       return false;
     }
     String executable = executableToken.replace('\\', '/').toLowerCase(Locale.ROOT);
-    return executable.contains("/engines/katago/")
-        || executable.startsWith("engines/katago/");
+    return executable.contains("/engines/katago/") || executable.startsWith("engines/katago/");
   }
 
   private static boolean hasConfiguredEngine(JSONArray engineSettings) {
@@ -749,7 +793,26 @@ public class Config {
             + quotePath(weightPath)
             + " -config "
             + quotePath(effectiveEstimateConfig);
-    return new BundledKataGoConfig(engineCommand, analysisCommand, estimateCommand);
+    return new BundledKataGoConfig(
+        engineCommand, analysisCommand, estimateCommand, isBundledTransformerDefault(appRoot));
+  }
+
+  private static boolean isBundledTransformerDefault(Path appRoot) {
+    Path versionFile =
+        appRoot.resolve(BUNDLED_ENGINE_ROOT).resolve("katago").resolve("VERSION.txt");
+    if (!Files.isRegularFile(versionFile)) {
+      return false;
+    }
+    try {
+      for (String line : Files.readAllLines(versionFile)) {
+        if (line.regionMatches(true, 0, "Model source:", 0, "Model source:".length())) {
+          String model = line.substring("Model source:".length()).trim();
+          return KataGoAutoSetupHelper.DEFAULT_TRANSFORMER_FILE_NAME.equalsIgnoreCase(model);
+        }
+      }
+    } catch (IOException e) {
+    }
+    return false;
   }
 
   private void applyBundledKataGoDefaults() {
@@ -775,11 +838,15 @@ public class Config {
       }
       String name = engineInfo.optString("name", "");
       String command = engineInfo.optString("command", "");
-      if (autoSetupIndex < 0 && "KataGo Auto Setup".equals(name)) {
+      boolean managedDefaultCommand = isManagedBundledDefaultCommand(command);
+      if (autoSetupIndex < 0 && "KataGo Auto Setup".equals(name) && managedDefaultCommand) {
         autoSetupIndex = i;
       }
       if (bundledIndex < 0
-          && (BUNDLED_ENGINE_NAME.equals(name) || isBundledKataGoCommand(command))) {
+          && managedDefaultCommand
+          && (BUNDLED_ENGINE_NAME.equals(name)
+              || "KataGo Auto Setup".equals(name)
+              || isBundledKataGoCommand(command))) {
         bundledIndex = i;
       }
     }
@@ -808,7 +875,7 @@ public class Config {
       reusedAutoSetupEntry = "KataGo Auto Setup".equals(bundledEngine.optString("name", ""));
       String existingCommand = bundledEngine.optString("command", "");
       refreshBundledCommand =
-          existingCommand.trim().isEmpty() || isBundledKataGoCommand(existingCommand);
+          existingCommand.trim().isEmpty() || isManagedBundledDefaultCommand(existingCommand);
     } else {
       bundledEngine = new JSONObject();
       engineSettings.put(bundledEngine);
@@ -820,6 +887,22 @@ public class Config {
       bundledEngine.put("command", bundledConfig.engineCommand);
       if (!reusedAutoSetupEntry) {
         bundledEngine.put("name", BUNDLED_ENGINE_NAME);
+      }
+      if (!newProfile && bundledConfig.transformerDefault) {
+        boolean analysisCustomized =
+            AnalysisEngineCommandHelper.isAnalysisCommandCustomized(
+                ui.has("analysis-engine-command-customized"),
+                ui.optBoolean("analysis-engine-command-customized", false),
+                ui.optString("analysis-engine-command", ""));
+        if (!analysisCustomized
+            && isManagedBundledDefaultCommand(ui.optString("analysis-engine-command", ""))) {
+          ui.put("analysis-engine-command", bundledConfig.analysisCommand);
+          ui.put("analysis-engine-command-customized", false);
+        }
+        if (isManagedBundledDefaultCommand(ui.optString("estimate-command", ""))) {
+          ui.put("estimate-command", bundledConfig.estimateCommand);
+        }
+        ui.put(DEFAULT_TRANSFORMER_MIGRATION_KEY, true);
       }
     }
     if (createdBundledEngine) {
@@ -2252,8 +2335,7 @@ public class Config {
     if (theme.winrateFontName() != null) winrateFontName = theme.winrateFontName();
     Locale appLocale = AppLocale.fromConfigValue(useLanguage).locale();
     fontName =
-        LocaleFontSupport.resolveConfiguredFontName(
-            fontName, appLocale, Config.sysDefaultFontName);
+        LocaleFontSupport.resolveConfiguredFontName(fontName, appLocale, Config.sysDefaultFontName);
     uiFontName =
         LocaleFontSupport.resolveConfiguredFontName(
             uiFontName, appLocale, Config.sysDefaultFontName);
@@ -2928,8 +3010,7 @@ public class Config {
 
   static int migrateTrackingAnalysisConfig(JSONObject ui) {
     int visits =
-        ui.optInt(
-            "tracking-analysis-max-visits", ui.optInt("tracking-engine-max-visits", 500));
+        ui.optInt("tracking-analysis-max-visits", ui.optInt("tracking-engine-max-visits", 500));
     if (visits <= 0) {
       visits = 500;
     }
@@ -3033,10 +3114,7 @@ public class Config {
     try {
       try {
         Files.move(
-            temporary,
-            target,
-            StandardCopyOption.ATOMIC_MOVE,
-            StandardCopyOption.REPLACE_EXISTING);
+            temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
       } catch (AtomicMoveNotSupportedException e) {
         Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
       }

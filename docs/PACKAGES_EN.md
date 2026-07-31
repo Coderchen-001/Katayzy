@@ -97,8 +97,14 @@ Installers still exist, but they are now secondary to the portable flow.
 
 Current bundled defaults:
 
-- KataGo version: `v1.16.5`
-- Default weight: `kata1-zhizi-b28c512nbt-muonfd2.bin.gz`
+- KataGo version: `v1.17.0`
+- macOS release builds pin the official `v1.17.0` commit `2d0538979f73e580e81185ce836089ddcb58659a`. If the stable Homebrew formula still lags behind, packaging builds the Metal engine from that commit and verifies the real binary version instead of trusting `VERSION.txt` alone
+- Default weight: official medium Transformer `b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz`, shown as “Transformer 10B Balanced”
+- Default weight size: `94,281,753` bytes (about 94 MB), SHA-256: `c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995`
+- Standard Windows NVIDIA package: CUDA `12.1` + cuDNN `9.8`; RTX 50 CUDA package: CUDA `12.8` + cuDNN `9.8`
+- Transformer performs best through CUDA or Metal; OpenCL remains fully offline-capable but is normally slower
+- `core-update.zip` updates only the application and does not include KataGo 1.17 or the new weight; install the latest full bundle to upgrade from the old default
+- Full-bundle migration changes only managed engines still using the old bundled `zhizi 28B` / `default.bin.gz`; custom weights, remote compute, and startup modes are preserved
 - TensorRT acceleration: no longer published as a giant GitHub Release package; RTX 20/30/40/50 users can install it on demand from `KataGo Auto Setup` inside the app
 - RTX 50 users should still start with the `windows64.nvidia50.cuda` package, with TensorRT as an on-demand acceleration path for the newer architecture
 - The TensorRT install UI uses `nvidia-smi` to detect the local NVIDIA GPU, with a lightweight model-name fallback when Compute Capability is unavailable

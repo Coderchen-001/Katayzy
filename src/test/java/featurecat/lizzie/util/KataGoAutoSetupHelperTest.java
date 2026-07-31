@@ -1,5 +1,6 @@
 package featurecat.lizzie.util;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -533,6 +534,67 @@ public class KataGoAutoSetupHelperTest {
   }
 
   @Test
+  void officialTransformerCatalogPinsAllThreeReleaseAssets() {
+    List<KataGoAutoSetupHelper.RemoteWeightInfo> weights =
+        KataGoAutoSetupHelper.officialTransformerWeights();
+
+    assertEquals(3, weights.size());
+    KataGoAutoSetupHelper.RemoteWeightInfo balanced =
+        weights.stream()
+            .filter(info -> info.transformerTier == KataGoAutoSetupHelper.TransformerTier.BALANCED)
+            .findFirst()
+            .orElseThrow();
+    assertEquals(KataGoAutoSetupHelper.DEFAULT_TRANSFORMER_MODEL, balanced.modelName);
+    assertEquals(KataGoAutoSetupHelper.DEFAULT_TRANSFORMER_SIZE_BYTES, balanced.sizeBytes);
+    assertEquals(KataGoAutoSetupHelper.DEFAULT_TRANSFORMER_SHA256, balanced.sha256);
+    assertEquals("1.17.0", balanced.minimumKataGoVersion);
+    assertTrue(balanced.recommended);
+    assertTrue(weights.stream().allMatch(KataGoAutoSetupHelper.RemoteWeightInfo::isTransformer));
+    assertTrue(weights.stream().allMatch(info -> info.downloadUrl.contains("/v1.17.0/")));
+  }
+
+  @Test
+  void engineVersionParserDistinguishesOldAndTransformerCapableKataGo() {
+    assertEquals("1.17.0", KataGoAutoSetupHelper.parseKataGoVersion("KataGo v1.17.0"));
+    assertEquals("1.16.5", KataGoAutoSetupHelper.parseKataGoVersion("KataGo v1.16.5\nUsing CUDA"));
+    assertEquals("", KataGoAutoSetupHelper.parseKataGoVersion("unknown engine"));
+  }
+
+  @Test
+  void bundledDefaultUsesManifestToIdentifyTransformerArchitecture() throws Exception {
+    Path root = Files.createTempDirectory("katago-transformer-default");
+    Path weight = touch(root.resolve("weights").resolve("default.bin.gz"));
+    Path manifest = root.resolve("engines").resolve("katago").resolve("VERSION.txt");
+    Files.createDirectories(manifest.getParent());
+    Files.writeString(
+        manifest, "Model source: " + KataGoAutoSetupHelper.DEFAULT_TRANSFORMER_FILE_NAME + "\n");
+
+    assertTrue(KataGoAutoSetupHelper.isTransformerWeight(weight));
+    String displayName = KataGoAutoSetupHelper.resolveWeightDisplayName(weight);
+    assertTrue(displayName.contains("Transformer"));
+    assertTrue(displayName.contains("10B"));
+    assertFalse(displayName.equals("default"));
+  }
+
+  @Test
+  void officialTransformerCatalogRemainsAvailableWhenNetworksPageIsOffline() throws Exception {
+    try (ErrorFixtureServer server = ErrorFixtureServer.start()) {
+      String previous = System.getProperty("lizzie.katago.networks.url");
+      try {
+        System.setProperty("lizzie.katago.networks.url", server.url());
+        List<KataGoAutoSetupHelper.RemoteWeightInfo> weights =
+            KataGoAutoSetupHelper.fetchOfficialWeights();
+
+        assertEquals(3, weights.size());
+        assertTrue(
+            weights.stream().allMatch(KataGoAutoSetupHelper.RemoteWeightInfo::isTransformer));
+      } finally {
+        restoreProperty("lizzie.katago.networks.url", previous);
+      }
+    }
+  }
+
+  @Test
   void officialWeightChoicesKeepTwoPerPreferredFamilyAndPrioritizeBadges() throws Exception {
     String latestModel = officialModel("b28", 3);
     String strongestModel = officialModel("b40", 3);
@@ -582,7 +644,7 @@ public class KataGoAutoSetupHelperTest {
   }
 
   @Test
-  void officialWeightChoicesKeepBundledZhiziAlongsideTheLatest28b() throws Exception {
+  void officialWeightChoicesNoLongerReserveTheLegacyDefaultZhizi() throws Exception {
     String latestModel = officialModel("b28", 3);
     String olderModel = officialModel("b28", 2);
     String bundledModel = "kata1-zhizi-b28c512nbt-muonfd2";
@@ -603,9 +665,74 @@ public class KataGoAutoSetupHelperTest {
         choices.stream().filter(info -> officialFamily(info).equals("b28")).toList();
 
     assertEquals(2, family.size());
-    assertTrue(family.stream().anyMatch(KataGoAutoSetupHelper::isDefaultGeneralUseWeight));
     assertTrue(family.stream().anyMatch(info -> info.modelName.equals(latestModel) && info.latest));
-    assertFalse(family.stream().anyMatch(info -> info.modelName.equals(olderModel)));
+    assertTrue(family.stream().anyMatch(info -> info.modelName.equals(olderModel)));
+    assertFalse(family.stream().anyMatch(info -> info.modelName.equals(bundledModel)));
+  }
+
+  @Test
+  void transformerWeightDownloadResumesAndVerifiesChecksum() throws Exception {
+    Path tempRoot = Files.createTempDirectory("katago-transformer-resume");
+    byte[] modelBytes = repeatedBytes(32 * 1024, (byte) 23);
+    int partialSize = 7 * 1024;
+    try (RangeFixtureServer server = RangeFixtureServer.start(modelBytes)) {
+      withUserDirAndConfig(
+          tempRoot,
+          () -> {
+            Path weightsDir = Files.createDirectories(tempRoot.resolve("weights"));
+            Files.write(
+                weightsDir.resolve("model.bin.gz.part"),
+                java.util.Arrays.copyOf(modelBytes, partialSize));
+            KataGoAutoSetupHelper.RemoteWeightInfo info =
+                new KataGoAutoSetupHelper.RemoteWeightInfo(
+                    "Transformer",
+                    "fixture-transformer",
+                    server.url(),
+                    "2026-07-29",
+                    "",
+                    true,
+                    true,
+                    sha256(modelBytes),
+                    modelBytes.length,
+                    "1.17.0",
+                    KataGoAutoSetupHelper.TransformerTier.BALANCED);
+
+            Path downloaded = KataGoAutoSetupHelper.downloadWeight(info, null);
+
+            assertEquals("bytes=" + partialSize + "-", server.lastRangeHeader());
+            assertArrayEquals(modelBytes, Files.readAllBytes(downloaded));
+            assertFalse(Files.exists(weightsDir.resolve("model.bin.gz.part")));
+          });
+    }
+  }
+
+  @Test
+  void transformerWeightChecksumFailureDeletesDamagedPartialFile() throws Exception {
+    Path tempRoot = Files.createTempDirectory("katago-transformer-bad-sha");
+    byte[] modelBytes = repeatedBytes(16 * 1024, (byte) 31);
+    try (FixtureServer server = FixtureServer.start(modelBytes)) {
+      withUserDirAndConfig(
+          tempRoot,
+          () -> {
+            KataGoAutoSetupHelper.RemoteWeightInfo info =
+                new KataGoAutoSetupHelper.RemoteWeightInfo(
+                    "Transformer",
+                    "fixture-transformer",
+                    server.url(),
+                    "2026-07-29",
+                    "",
+                    true,
+                    true,
+                    "0000000000000000000000000000000000000000000000000000000000000000",
+                    modelBytes.length,
+                    "1.17.0",
+                    KataGoAutoSetupHelper.TransformerTier.BALANCED);
+
+            assertThrows(IOException.class, () -> KataGoAutoSetupHelper.downloadWeight(info, null));
+            assertFalse(Files.exists(tempRoot.resolve("weights").resolve("model.bin.gz")));
+            assertFalse(Files.exists(tempRoot.resolve("weights").resolve("model.bin.gz.part")));
+          });
+    }
   }
 
   @Test
@@ -1431,6 +1558,97 @@ public class KataGoAutoSetupHelperTest {
 
     private String url() {
       return "http://127.0.0.1:" + server.getAddress().getPort() + "/model.bin.gz";
+    }
+
+    @Override
+    public void close() {
+      server.stop(0);
+      executor.shutdownNow();
+    }
+  }
+
+  private static final class RangeFixtureServer implements AutoCloseable {
+    private final HttpServer server;
+    private final ExecutorService executor;
+    private volatile String lastRangeHeader = "";
+
+    private RangeFixtureServer(HttpServer server, ExecutorService executor) {
+      this.server = server;
+      this.executor = executor;
+    }
+
+    private static RangeFixtureServer start(byte[] bytes) throws IOException {
+      HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+      ExecutorService executor = Executors.newSingleThreadExecutor();
+      RangeFixtureServer fixture = new RangeFixtureServer(server, executor);
+      server.createContext(
+          "/model.bin.gz",
+          exchange -> {
+            String range = exchange.getRequestHeaders().getFirst("Range");
+            fixture.lastRangeHeader = range == null ? "" : range;
+            int start = 0;
+            int status = 200;
+            if (range != null && range.startsWith("bytes=") && range.endsWith("-")) {
+              start = Integer.parseInt(range.substring(6, range.length() - 1));
+              status = 206;
+              exchange
+                  .getResponseHeaders()
+                  .set(
+                      "Content-Range",
+                      "bytes " + start + "-" + (bytes.length - 1) + "/" + bytes.length);
+            }
+            int length = bytes.length - start;
+            exchange.getResponseHeaders().set("Content-Type", "application/octet-stream");
+            exchange.sendResponseHeaders(status, length);
+            try (OutputStream body = exchange.getResponseBody()) {
+              body.write(bytes, start, length);
+            }
+          });
+      server.setExecutor(executor);
+      server.start();
+      return fixture;
+    }
+
+    private String url() {
+      return "http://127.0.0.1:" + server.getAddress().getPort() + "/model.bin.gz";
+    }
+
+    private String lastRangeHeader() {
+      return lastRangeHeader;
+    }
+
+    @Override
+    public void close() {
+      server.stop(0);
+      executor.shutdownNow();
+    }
+  }
+
+  private static final class ErrorFixtureServer implements AutoCloseable {
+    private final HttpServer server;
+    private final ExecutorService executor;
+
+    private ErrorFixtureServer(HttpServer server, ExecutorService executor) {
+      this.server = server;
+      this.executor = executor;
+    }
+
+    private static ErrorFixtureServer start() throws IOException {
+      HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+      ExecutorService executor = Executors.newSingleThreadExecutor();
+      server.createContext(
+          "/networks/",
+          exchange -> {
+            exchange.sendResponseHeaders(503, -1);
+            exchange.close();
+          });
+      server.setExecutor(executor);
+      server.start();
+      return new ErrorFixtureServer(server, executor);
+    }
+
+    private String url() {
+      return "http://127.0.0.1:" + server.getAddress().getPort() + "/networks/";
     }
 
     @Override

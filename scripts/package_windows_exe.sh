@@ -57,13 +57,14 @@ WINDOWS_UPGRADE_UUID_NVIDIA50_CUDA="${WINDOWS_UPGRADE_UUID_NVIDIA50_CUDA:-833989
 WINDOWS_UPGRADE_UUID_OPENCL="${WINDOWS_UPGRADE_UUID_OPENCL:-0ec8b17f-06b0-4f6a-9246-cf61953743cf}"
 ENGINE_BACKEND_MARKER_NAME="lizzieyzy-next-engine-backend.txt"
 NVIDIA_RUNTIME_PREPARE_SCRIPT="$ROOT_DIR/scripts/prepare_bundled_nvidia_runtime.py"
-NVIDIA_RUNTIME_STAGE_DIR="$DIST_DIR/nvidia-runtime/cuda12.1-cudnn8"
+NVIDIA_RUNTIME_STAGE_DIR="$DIST_DIR/nvidia-runtime/cuda12.1-cudnn9"
 NVIDIA50_CUDA_RUNTIME_STAGE_DIR="$DIST_DIR/nvidia-runtime/cuda12.8-cudnn9"
 NVIDIA_TRT_RUNTIME_STAGE_DIR="$DIST_DIR/nvidia-runtime/cuda12.8-cudnn9-tensorrt"
-TENSORRT_KATAGO_TAG="${TENSORRT_KATAGO_TAG:-v1.16.5}"
+TENSORRT_KATAGO_TAG="${TENSORRT_KATAGO_TAG:-v1.17.0}"
 TENSORRT_KATAGO_ASSET="${TENSORRT_KATAGO_ASSET:-katago-${TENSORRT_KATAGO_TAG}-trt10.9.0-cuda12.8-windows-x64.zip}"
-TENSORRT_KATAGO_SHA256="${TENSORRT_KATAGO_SHA256:-954227e5696eed4c1ad80da6a1d48eb1de5ecdb741f849d1b956b8b64093d2f5}"
+TENSORRT_KATAGO_SHA256="${TENSORRT_KATAGO_SHA256:-f683bb87b42b9f56b03c847d5102d16265dd80b7584109edc5bae42f3e729438}"
 TENSORRT_KATAGO_URL="${TENSORRT_KATAGO_URL:-https://github.com/lightvector/KataGo/releases/download/${TENSORRT_KATAGO_TAG}/${TENSORRT_KATAGO_ASSET}}"
+TENSORRT_ENGINE_MANIFEST_NAME="lizzieyzy-next-katago-engine-manifest.txt"
 TENSORRT_KATAGO_CACHE_DIR="$ROOT_DIR/.cache/katago/tensorrt"
 JCEF_BUNDLE_PREPARE_SCRIPT="$ROOT_DIR/scripts/prepare_bundled_jcef.py"
 JCEF_BUNDLE_STAGE_DIR="$DIST_DIR/jcef-bundle"
@@ -523,7 +524,9 @@ prepare_bundled_tensorrt_engine_assets() {
     "$TENSORRT_KATAGO_CACHE_DIR" \
     "$output_dir" \
     "$TENSORRT_KATAGO_ASSET" \
-    "$TENSORRT_KATAGO_SHA256" <<'PY'
+    "$TENSORRT_KATAGO_SHA256" \
+    "$TENSORRT_KATAGO_TAG" \
+    "$TENSORRT_ENGINE_MANIFEST_NAME" <<'PY'
 import hashlib
 import os
 import shutil
@@ -533,7 +536,7 @@ import tempfile
 import urllib.request
 import zipfile
 
-url, cache_dir, output_dir, asset_name, expected_sha256 = sys.argv[1:6]
+url, cache_dir, output_dir, asset_name, expected_sha256, release_tag, manifest_name = sys.argv[1:8]
 expected_sha256 = expected_sha256.lower().replace("sha256:", "")
 archive_path = os.path.join(cache_dir, asset_name)
 part_path = archive_path + ".part"
@@ -614,6 +617,12 @@ try:
     with zipfile.ZipFile(archive_path) as archive:
         archive.extractall(temp_dir)
     copy_engine_files(find_katago_root(temp_dir), output_dir)
+    with open(os.path.join(output_dir, manifest_name), "w", encoding="utf-8") as manifest:
+        manifest.write(
+            f"KataGo release: {release_tag}\n"
+            f"Asset: {asset_name}\n"
+            f"Asset SHA-256: {expected_sha256}\n"
+        )
 finally:
     shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -1404,7 +1413,7 @@ fi
 
 if has_bundled_katago "$NVIDIA_ENGINE_PLATFORM_DIR"; then
   has_nvidia_katago_assets="true"
-  prepare_bundled_nvidia_runtime_assets "cuda12.1-cudnn8" "$NVIDIA_RUNTIME_STAGE_DIR"
+  prepare_bundled_nvidia_runtime_assets "cuda12.1-cudnn9" "$NVIDIA_RUNTIME_STAGE_DIR"
   build_release_variant \
     "nvidia" \
     "true" \

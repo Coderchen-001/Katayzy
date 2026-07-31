@@ -3,17 +3,22 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE_DIR="${CACHE_DIR:-$ROOT_DIR/.cache/katago}"
-KATAGO_TAG="${KATAGO_TAG:-v1.16.5}"
+KATAGO_TAG="${KATAGO_TAG:-v1.17.0}"
 KATAGO_RELEASE_BASE="https://github.com/lightvector/KataGo/releases/download/${KATAGO_TAG}"
 # The regular Windows bundle prioritizes compatibility for mixed consumer hardware.
 WINDOWS_ASSET="${WINDOWS_ASSET:-katago-${KATAGO_TAG}-eigen-windows-x64.zip}"
 WINDOWS_OPENCL_ASSET="${WINDOWS_OPENCL_ASSET:-katago-${KATAGO_TAG}-opencl-windows-x64.zip}"
-WINDOWS_NVIDIA_ASSET="${WINDOWS_NVIDIA_ASSET:-katago-${KATAGO_TAG}-cuda12.1-cudnn8.9.7-windows-x64.zip}"
+WINDOWS_NVIDIA_ASSET="${WINDOWS_NVIDIA_ASSET:-katago-${KATAGO_TAG}-cuda12.1-cudnn9.8.0-windows-x64.zip}"
 WINDOWS_NVIDIA50_CUDA_ASSET="${WINDOWS_NVIDIA50_CUDA_ASSET:-katago-${KATAGO_TAG}-cuda12.8-cudnn9.8.0-windows-x64.zip}"
 LINUX_ASSET="${LINUX_ASSET:-katago-${KATAGO_TAG}-eigen-linux-x64.zip}"
 LINUX_OPENCL_ASSET="${LINUX_OPENCL_ASSET:-katago-${KATAGO_TAG}-opencl-linux-x64.zip}"
-LINUX_NVIDIA_ASSET="${LINUX_NVIDIA_ASSET:-katago-${KATAGO_TAG}-cuda12.1-cudnn8.9.7-linux-x64.zip}"
-PREFERRED_MODEL_NAME="${PREFERRED_MODEL_NAME:-kata1-zhizi-b28c512nbt-muonfd2.bin.gz}"
+LINUX_NVIDIA_ASSET="${LINUX_NVIDIA_ASSET:-katago-${KATAGO_TAG}-cuda12.1-cudnn9.8.0-linux-x64.zip}"
+PREFERRED_MODEL_NAME="${PREFERRED_MODEL_NAME:-b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz}"
+PREFERRED_MODEL_SHA256="${PREFERRED_MODEL_SHA256:-c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995}"
+PREFERRED_MODEL_SIZE_BYTES="${PREFERRED_MODEL_SIZE_BYTES:-94281753}"
+PREFERRED_MODEL_ARCHITECTURE="${PREFERRED_MODEL_ARCHITECTURE:-transformer}"
+PREFERRED_MODEL_MINIMUM_KATAGO="${PREFERRED_MODEL_MINIMUM_KATAGO:-1.17.0}"
+MODEL_URL="${MODEL_URL:-$KATAGO_RELEASE_BASE/$PREFERRED_MODEL_NAME}"
 MODEL_SOURCE="${MODEL_SOURCE:-}"
 
 ENGINES_ROOT="$ROOT_DIR/engines/katago"
@@ -54,20 +59,86 @@ require_cmd() {
   fi
 }
 
+sha256_file() {
+  local path="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$path" | awk '{print $1}'
+  else
+    shasum -a 256 "$path" | awk '{print $1}'
+  fi
+}
+
+file_size_bytes() {
+  local path="$1"
+  if stat -f '%z' "$path" >/dev/null 2>&1; then
+    stat -f '%z' "$path"
+  else
+    stat -c '%s' "$path"
+  fi
+}
+
+expected_asset_sha256() {
+  case "$1" in
+    "katago-v1.17.0-eigen-windows-x64.zip")
+      echo "20b02914048d18c8f5a761571317923caf6c9ffb79bf07201bcc52c1979f0ffb"
+      ;;
+    "katago-v1.17.0-opencl-windows-x64.zip")
+      echo "e8489616da8760855182b922fa115dec996c626e063321b920eda2722b26ff84"
+      ;;
+    "katago-v1.17.0-cuda12.1-cudnn9.8.0-windows-x64.zip")
+      echo "a2129a74119c63fe3deb2548dcade60822045e48d10b29ea7d2b81bbdcf16ecd"
+      ;;
+    "katago-v1.17.0-cuda12.8-cudnn9.8.0-windows-x64.zip")
+      echo "6b84485bd5d0eff3bd1f9f76add5ac0f989f8f940206ced1d99dbb841f143387"
+      ;;
+    "katago-v1.17.0-eigen-linux-x64.zip")
+      echo "0ae933c4da837e348583b4f3744f347a2b442c22b0bb9980b5b4f53f8760e1c2"
+      ;;
+    "katago-v1.17.0-opencl-linux-x64.zip")
+      echo "f8e32f1dfc8eee9eeab4b4c02509289f09c291c93937a8e983f2157f205c5729"
+      ;;
+    "katago-v1.17.0-cuda12.1-cudnn9.8.0-linux-x64.zip")
+      echo "6990be34f86f7b72082ddc03f4950062e39d01939a42256699dfc5cd13f18219"
+      ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
 download_asset() {
   local asset_name="$1"
   local dest="$CACHE_DIR/$asset_name"
   local url="$KATAGO_RELEASE_BASE/$asset_name"
+  local expected_sha
+  local actual_sha
+  expected_sha="$(expected_asset_sha256 "$asset_name")"
 
   mkdir -p "$CACHE_DIR"
-  if [[ -f "$dest" ]] && unzip -tqq "$dest" >/dev/null 2>&1; then
-    echo "Using cached asset: $asset_name"
-    return 0
+  if [[ -f "$dest" ]]; then
+    actual_sha="$(sha256_file "$dest")"
+    if [[ -n "$expected_sha" && "$actual_sha" == "$expected_sha" ]] \
+      && unzip -tqq "$dest" >/dev/null 2>&1; then
+      echo "Using verified cached asset: $asset_name"
+      return 0
+    fi
+    rm -f "$dest"
   fi
 
-  rm -f "$dest" "$dest.part"
+  rm -f "$dest.part"
   echo "Downloading $asset_name"
   curl -fL --retry 5 --retry-all-errors -o "$dest.part" "$url"
+  actual_sha="$(sha256_file "$dest.part")"
+  if [[ -z "$expected_sha" ]]; then
+    rm -f "$dest.part"
+    echo "No pinned SHA-256 is available for KataGo asset: $asset_name"
+    exit 1
+  fi
+  if [[ "$actual_sha" != "$expected_sha" ]]; then
+    rm -f "$dest.part"
+    echo "SHA-256 mismatch for $asset_name: expected $expected_sha, got $actual_sha"
+    exit 1
+  fi
   mv "$dest.part" "$dest"
   unzip -tqq "$dest" >/dev/null
 }
@@ -92,13 +163,6 @@ copy_matching_files() {
 }
 
 find_model_source() {
-  local katago_prefix
-  local katago_share_dir=""
-  katago_prefix="$(brew_prefix_for katago)"
-  if [[ -n "$katago_prefix" ]]; then
-    katago_share_dir="$katago_prefix/share/katago"
-  fi
-
   if [[ -n "$MODEL_SOURCE" ]]; then
     if [[ -f "$MODEL_SOURCE" ]]; then
       printf '%s\n' "$MODEL_SOURCE"
@@ -108,60 +172,36 @@ find_model_source() {
     exit 1
   fi
 
-  local candidates=(
-    "${katago_share_dir:+$katago_share_dir/$PREFERRED_MODEL_NAME}"
-    "${katago_share_dir:+$katago_share_dir/kata1-b28c512nbt-s13255194368-d5935380940.bin.gz}"
-    "${katago_share_dir:+$katago_share_dir/kata1-zhizi-b28c512nbt-muonfd2.bin.gz}"
-    "${katago_share_dir:+$katago_share_dir/kata1-zhizi-b40c768nbt-fdx6c.bin.gz}"
-    "${katago_share_dir:+$katago_share_dir/g170-b40c256x2-s5095420928-d1229425124.bin.gz}"
-    "${katago_share_dir:+$katago_share_dir/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz}"
-    "/usr/local/opt/katago/share/katago/$PREFERRED_MODEL_NAME"
-    "/usr/local/opt/katago/share/katago/kata1-b28c512nbt-s13255194368-d5935380940.bin.gz"
-    "/usr/local/opt/katago/share/katago/kata1-zhizi-b28c512nbt-muonfd2.bin.gz"
-    "/usr/local/opt/katago/share/katago/kata1-zhizi-b40c768nbt-fdx6c.bin.gz"
-    "/usr/local/opt/katago/share/katago/g170-b40c256x2-s5095420928-d1229425124.bin.gz"
-    "/usr/local/opt/katago/share/katago/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz"
-    "/opt/homebrew/opt/katago/share/katago/$PREFERRED_MODEL_NAME"
-    "/opt/homebrew/opt/katago/share/katago/kata1-b28c512nbt-s13255194368-d5935380940.bin.gz"
-    "/opt/homebrew/opt/katago/share/katago/kata1-zhizi-b28c512nbt-muonfd2.bin.gz"
-    "/opt/homebrew/opt/katago/share/katago/kata1-zhizi-b40c768nbt-fdx6c.bin.gz"
-    "/opt/homebrew/opt/katago/share/katago/g170-b40c256x2-s5095420928-d1229425124.bin.gz"
-    "/opt/homebrew/opt/katago/share/katago/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz"
-  )
-  local candidate
-  for candidate in "${candidates[@]}"; do
-    if [[ -n "$candidate" ]] && [[ -f "$candidate" ]]; then
-      printf '%s\n' "$candidate"
-      return 0
-    fi
-  done
-
-  if [[ -n "$katago_share_dir" ]] && [[ -d "$katago_share_dir" ]]; then
-    candidate="$(find "$katago_share_dir" -maxdepth 1 -type f -name '*.bin.gz' | head -n 1)"
-    if [[ -n "$candidate" ]]; then
-      printf '%s\n' "$candidate"
-      return 0
-    fi
+  local cached_model="$CACHE_DIR/$PREFERRED_MODEL_NAME"
+  mkdir -p "$CACHE_DIR"
+  if [[ -f "$cached_model" ]] \
+    && [[ "$(file_size_bytes "$cached_model")" == "$PREFERRED_MODEL_SIZE_BYTES" ]] \
+    && [[ "$(sha256_file "$cached_model")" == "$PREFERRED_MODEL_SHA256" ]]; then
+    printf '%s\n' "$cached_model"
+    return 0
   fi
 
-  if [[ -d /usr/local/opt/katago/share/katago ]]; then
-    candidate="$(find /usr/local/opt/katago/share/katago -maxdepth 1 -type f -name '*.bin.gz' | head -n 1)"
-    if [[ -n "$candidate" ]]; then
-      printf '%s\n' "$candidate"
-      return 0
-    fi
-  fi
+  rm -f "$cached_model" "$cached_model.part"
+  echo "Downloading default Transformer model: $PREFERRED_MODEL_NAME" >&2
+  curl -fL --retry 5 --retry-all-errors -o "$cached_model.part" "$MODEL_URL"
+  mv "$cached_model.part" "$cached_model"
+  printf '%s\n' "$cached_model"
+}
 
-  if [[ -d /opt/homebrew/opt/katago/share/katago ]]; then
-    candidate="$(find /opt/homebrew/opt/katago/share/katago -maxdepth 1 -type f -name '*.bin.gz' | head -n 1)"
-    if [[ -n "$candidate" ]]; then
-      printf '%s\n' "$candidate"
-      return 0
-    fi
+verify_model() {
+  local model_path="$1"
+  local actual_size
+  local actual_sha
+  actual_size="$(file_size_bytes "$model_path")"
+  actual_sha="$(sha256_file "$model_path")"
+  if [[ "$actual_size" != "$PREFERRED_MODEL_SIZE_BYTES" ]]; then
+    echo "Model size mismatch: expected $PREFERRED_MODEL_SIZE_BYTES, got $actual_size"
+    exit 1
   fi
-
-  echo "No KataGo model found. Set MODEL_SOURCE=/path/to/model.bin.gz and rerun."
-  exit 1
+  if [[ "$actual_sha" != "$PREFERRED_MODEL_SHA256" ]]; then
+    echo "Model SHA-256 mismatch: expected $PREFERRED_MODEL_SHA256, got $actual_sha"
+    exit 1
+  fi
 }
 
 prepare_configs() {
@@ -193,6 +233,7 @@ prepare_linux_bundle() {
 prepare_macos_bundle() {
   local katago_prefix
   local platform_dir
+  local version_output
 
   katago_prefix="$(brew_prefix_for katago)"
   platform_dir="$(detect_macos_platform_dir)"
@@ -200,10 +241,20 @@ prepare_macos_bundle() {
   local macos_root="$ENGINES_ROOT/$platform_dir"
   local katago_bin="${MACOS_KATAGO_BIN:-${katago_prefix:+$katago_prefix/bin/katago}}"
   local bundler="$ROOT_DIR/scripts/macos_katago_bundle.py"
+  local source_builder="$ROOT_DIR/scripts/build_macos_katago.sh"
 
-  if [[ ! -x "$katago_bin" ]]; then
-    echo "Skipping $platform_dir bundle: $katago_bin not found"
-    return 0
+  version_output=""
+  if [[ -x "$katago_bin" ]]; then
+    version_output="$("$katago_bin" version 2>&1 || true)"
+  fi
+  if [[ "$version_output" != *"KataGo $KATAGO_TAG"* ]] \
+    || [[ "$version_output" != *"Using Metal backend"* ]]; then
+    if [[ ! -x "$source_builder" ]]; then
+      echo "Missing macOS KataGo source builder: $source_builder"
+      exit 1
+    fi
+    echo "Installed KataGo is not $KATAGO_TAG Metal; building the pinned official source."
+    katago_bin="$(KATAGO_TAG="$KATAGO_TAG" "$source_builder")"
   fi
 
   if [[ ! -f "$bundler" ]]; then
@@ -230,6 +281,10 @@ Linux bundle: $LINUX_ASSET
 Linux OpenCL bundle: $LINUX_OPENCL_ASSET
 Linux NVIDIA bundle: $LINUX_NVIDIA_ASSET
 Model source: $(basename "$model_path")
+Model SHA-256: $(sha256_file "$model_path")
+Model size: $(file_size_bytes "$model_path")
+Model architecture: $PREFERRED_MODEL_ARCHITECTURE
+Minimum KataGo version: $PREFERRED_MODEL_MINIMUM_KATAGO
 Prepared at: $(date '+%F %T %z')
 EOF
 }
@@ -262,6 +317,7 @@ main() {
   linux_opencl_src="$(extract_asset "$LINUX_OPENCL_ASSET")"
   linux_nvidia_src="$(extract_asset "$LINUX_NVIDIA_ASSET")"
   model_path="$(find_model_source)"
+  verify_model "$model_path"
 
   mkdir -p "$WEIGHTS_ROOT"
   cp -f "$model_path" "$WEIGHTS_ROOT/default.bin.gz"

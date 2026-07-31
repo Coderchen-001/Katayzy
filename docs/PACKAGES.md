@@ -113,8 +113,14 @@
 
 当前整合包默认使用：
 
-- KataGo 版本：`v1.16.5`
-- 默认权重：`kata1-zhizi-b28c512nbt-muonfd2.bin.gz`
+- KataGo 版本：`v1.17.0`
+- macOS 发布构建固定使用官方 `v1.17.0` commit `2d0538979f73e580e81185ce836089ddcb58659a`。如果 Homebrew 稳定版仍滞后，打包脚本会从该 commit 构建 Metal 引擎并校验真实二进制版本，不能只靠 `VERSION.txt` 宣称升级
+- 默认权重：官方中型 Transformer `b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz`，界面显示为“Transformer 10B 均衡版”
+- 默认权重大小：`94,281,753` 字节（约 94 MB），SHA-256：`c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995`
+- Windows 普通 NVIDIA 包：CUDA `12.1` + cuDNN `9.8`；RTX 50 CUDA 包：CUDA `12.8` + cuDNN `9.8`
+- Transformer 在 CUDA、Metal 上性能更好；OpenCL 仍可离线使用，但通常更慢
+- `core-update.zip` 只更新主程序，不包含 KataGo 1.17 或新权重；从旧默认模型升级必须安装最新完整包
+- 完整包升级只迁移仍使用旧内置 `zhizi 28B` / `default.bin.gz` 的托管引擎；自定义权重、远程算力和启动方式不会被覆盖
 - TensorRT 加速：普通用户在软件内 `KataGo 一键设置` 中按需安装，支持断点续传；Release 上的 TensorRT 分卷包只作为高级可选离线路径
 - RTX 50 仍优先使用 `windows64.nvidia50.cuda` 主包，TensorRT 作为新架构按需加速项
 - TensorRT 安装界面会用 `nvidia-smi` 检测本机 NVIDIA GPU，并在无法读取 Compute Capability 时使用轻量型号映射作为 fallback

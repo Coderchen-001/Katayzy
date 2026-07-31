@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -48,6 +49,9 @@ public final class KataGoAutoSetupHelper {
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
           + "(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
   private static final String NETWORKS_URL = "https://katagotraining.org/networks/";
+  private static final String NETWORKS_URL_PROPERTY = "lizzie.katago.networks.url";
+  private static final String KATAGO_117_RELEASE_BASE =
+      "https://github.com/lightvector/KataGo/releases/download/v1.17.0/";
   private static final Pattern STRONGEST_PATTERN =
       Pattern.compile(
           "Strongest confidently-rated network:</span>\\s*<a href=\"([^\"]+)\">([^<]+)</a>",
@@ -80,7 +84,18 @@ public final class KataGoAutoSetupHelper {
       Collections.unmodifiableList(
           Arrays.asList("b28", "b40", "b60", "b20", "b18", "b15", "b10", "b6"));
   private static final String DEFAULT_WEIGHT_FILE_NAME = "default.bin.gz";
-  private static final String DEFAULT_GENERAL_USE_WEIGHT_MODEL = "kata1-zhizi-b28c512nbt-muonfd2";
+  public static final String LEGACY_DEFAULT_WEIGHT_MODEL = "kata1-zhizi-b28c512nbt-muonfd2";
+  public static final String TRANSFORMER_MINIMUM_KATAGO_VERSION = "1.17.0";
+  private static final String TRANSFORMER_LIGHTWEIGHT_MODEL = "b10c384h6nbttflrs";
+  private static final String TRANSFORMER_BALANCED_MODEL = "b10c512h8nbt3tflrs-fson-silu-rsnh";
+  private static final String TRANSFORMER_STRONGEST_MODEL = "b11c768h12nbt3tflrs-fson-silu";
+  public static final String DEFAULT_TRANSFORMER_MODEL = TRANSFORMER_BALANCED_MODEL;
+  public static final String DEFAULT_TRANSFORMER_FILE_NAME = DEFAULT_TRANSFORMER_MODEL + ".bin.gz";
+  public static final long DEFAULT_TRANSFORMER_SIZE_BYTES = 94_281_753L;
+  public static final String DEFAULT_TRANSFORMER_SHA256 =
+      "c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995";
+  private static final Pattern KATAGO_VERSION_PATTERN =
+      Pattern.compile("\\bKataGo\\s+v(\\d+)\\.(\\d+)(?:\\.(\\d+))?\\b", Pattern.CASE_INSENSITIVE);
   private static final String BUNDLED_2026_06_28B_MODEL =
       "kata1-b28c512nbt-s13255194368-d5935380940";
   private static final String BUNDLED_2026_06_28B_DISPLAY_NAME = "28B 2026-06";
@@ -138,6 +153,8 @@ public final class KataGoAutoSetupHelper {
   }
 
   public static final class DownloadCancelledException extends InterruptedIOException {
+    private static final long serialVersionUID = 1L;
+
     DownloadCancelledException(String message) {
       super(message);
     }
@@ -187,15 +204,32 @@ public final class KataGoAutoSetupHelper {
   public static final class EngineValidationResult {
     public final EngineValidationStatus status;
     public final String detail;
+    public final String kataGoVersion;
 
     private EngineValidationResult(EngineValidationStatus status, String detail) {
       this.status = status == null ? EngineValidationStatus.NOT_RUN : status;
       this.detail = detail == null ? "" : detail.trim();
+      this.kataGoVersion = parseKataGoVersion(this.detail);
     }
 
     public boolean isValid() {
       return status == EngineValidationStatus.VALID;
     }
+
+    public boolean hasKnownVersion() {
+      return !kataGoVersion.isEmpty();
+    }
+
+    public boolean isVersionAtLeast(String minimumVersion) {
+      return compareVersions(kataGoVersion, minimumVersion) >= 0;
+    }
+  }
+
+  public enum TransformerTier {
+    NONE,
+    LIGHTWEIGHT,
+    BALANCED,
+    STRONGEST
   }
 
   public static final class LocalKataGoDiscoveryResult {
@@ -388,8 +422,12 @@ public final class KataGoAutoSetupHelper {
     public final String eloRating;
     public final boolean recommended;
     public final boolean latest;
+    public final String sha256;
+    public final long sizeBytes;
+    public final String minimumKataGoVersion;
+    public final TransformerTier transformerTier;
 
-    private RemoteWeightInfo(
+    RemoteWeightInfo(
         String typeLabel,
         String modelName,
         String downloadUrl,
@@ -397,6 +435,32 @@ public final class KataGoAutoSetupHelper {
         String eloRating,
         boolean recommended,
         boolean latest) {
+      this(
+          typeLabel,
+          modelName,
+          downloadUrl,
+          uploadedAt,
+          eloRating,
+          recommended,
+          latest,
+          "",
+          -1L,
+          "",
+          TransformerTier.NONE);
+    }
+
+    RemoteWeightInfo(
+        String typeLabel,
+        String modelName,
+        String downloadUrl,
+        String uploadedAt,
+        String eloRating,
+        boolean recommended,
+        boolean latest,
+        String sha256,
+        long sizeBytes,
+        String minimumKataGoVersion,
+        TransformerTier transformerTier) {
       this.typeLabel = typeLabel;
       this.modelName = modelName;
       this.downloadUrl = downloadUrl;
@@ -404,6 +468,10 @@ public final class KataGoAutoSetupHelper {
       this.eloRating = eloRating;
       this.recommended = recommended;
       this.latest = latest;
+      this.sha256 = sha256 == null ? "" : sha256.trim().toLowerCase(Locale.ROOT);
+      this.sizeBytes = sizeBytes;
+      this.minimumKataGoVersion = minimumKataGoVersion == null ? "" : minimumKataGoVersion.trim();
+      this.transformerTier = transformerTier == null ? TransformerTier.NONE : transformerTier;
     }
 
     public String fileName() {
@@ -412,6 +480,10 @@ public final class KataGoAutoSetupHelper {
         return urlFileName;
       }
       return modelName.endsWith(".bin.gz") ? modelName : modelName + ".bin.gz";
+    }
+
+    public boolean isTransformer() {
+      return transformerTier != TransformerTier.NONE;
     }
   }
 
@@ -664,6 +736,49 @@ public final class KataGoAutoSetupHelper {
     return new EngineValidationResult(EngineValidationStatus.START_FAILED, detail);
   }
 
+  static String parseKataGoVersion(String output) {
+    if (output == null || output.trim().isEmpty()) {
+      return "";
+    }
+    Matcher matcher = KATAGO_VERSION_PATTERN.matcher(output);
+    if (!matcher.find()) {
+      return "";
+    }
+    String patch = matcher.group(3);
+    return matcher.group(1) + "." + matcher.group(2) + "." + (patch == null ? "0" : patch);
+  }
+
+  private static int compareVersions(String actualVersion, String minimumVersion) {
+    if (actualVersion == null
+        || actualVersion.trim().isEmpty()
+        || minimumVersion == null
+        || minimumVersion.trim().isEmpty()) {
+      return -1;
+    }
+    String[] actual = actualVersion.trim().split("\\.");
+    String[] minimum = minimumVersion.trim().split("\\.");
+    int length = Math.max(actual.length, minimum.length);
+    for (int i = 0; i < length; i++) {
+      int actualPart = versionPart(actual, i);
+      int minimumPart = versionPart(minimum, i);
+      if (actualPart != minimumPart) {
+        return Integer.compare(actualPart, minimumPart);
+      }
+    }
+    return 0;
+  }
+
+  private static int versionPart(String[] parts, int index) {
+    if (parts == null || index < 0 || index >= parts.length) {
+      return 0;
+    }
+    try {
+      return Integer.parseInt(parts[index]);
+    } catch (NumberFormatException e) {
+      return 0;
+    }
+  }
+
   public static boolean migrateAutoSetupCommandsIfNeeded() {
     if (Lizzie.config == null
         || Lizzie.config.leelazConfig == null
@@ -803,7 +918,58 @@ public final class KataGoAutoSetupHelper {
   }
 
   public static List<RemoteWeightInfo> fetchOfficialWeights() throws IOException {
-    return parseOfficialWeights(httpGet(NETWORKS_URL));
+    List<RemoteWeightInfo> weights = new ArrayList<>(officialTransformerWeights());
+    try {
+      weights.addAll(parseOfficialWeights(httpGet(officialNetworksUrl())));
+    } catch (IOException e) {
+      if (weights.isEmpty()) {
+        throw e;
+      }
+    }
+    return weights;
+  }
+
+  private static String officialNetworksUrl() {
+    return System.getProperty(NETWORKS_URL_PROPERTY, NETWORKS_URL).trim();
+  }
+
+  static List<RemoteWeightInfo> officialTransformerWeights() {
+    String officialTransformer = resource("AutoSetup.transformerOfficial", "Official Transformer");
+    return Arrays.asList(
+        transformerWeight(
+            officialTransformer,
+            TRANSFORMER_BALANCED_MODEL,
+            DEFAULT_TRANSFORMER_SIZE_BYTES,
+            DEFAULT_TRANSFORMER_SHA256,
+            TransformerTier.BALANCED),
+        transformerWeight(
+            officialTransformer,
+            TRANSFORMER_STRONGEST_MODEL,
+            211_660_960L,
+            "1881600caab9e9d85a3dd6a019e9b8e7d2c237b5f984e13ed49a8645be3077c6",
+            TransformerTier.STRONGEST),
+        transformerWeight(
+            officialTransformer,
+            TRANSFORMER_LIGHTWEIGHT_MODEL,
+            38_245_488L,
+            "0ba27eced5180b3e3d0b898b280c541112989765e789d1eb6cd0d31b2b2c1229",
+            TransformerTier.LIGHTWEIGHT));
+  }
+
+  private static RemoteWeightInfo transformerWeight(
+      String typeLabel, String modelName, long sizeBytes, String sha256, TransformerTier tier) {
+    return new RemoteWeightInfo(
+        typeLabel,
+        modelName,
+        KATAGO_117_RELEASE_BASE + modelName + ".bin.gz",
+        "2026-07-29",
+        "",
+        tier == TransformerTier.BALANCED,
+        true,
+        sha256,
+        sizeBytes,
+        TRANSFORMER_MINIMUM_KATAGO_VERSION,
+        tier);
   }
 
   public static RemoteWeightInfo fetchRecommendedWeight() throws IOException {
@@ -836,10 +1002,8 @@ public final class KataGoAutoSetupHelper {
     if (info == null) {
       return false;
     }
-    return DEFAULT_GENERAL_USE_WEIGHT_MODEL.equalsIgnoreCase(
-            stripWeightFileExtension(info.modelName))
-        || DEFAULT_GENERAL_USE_WEIGHT_MODEL.equalsIgnoreCase(
-            stripWeightFileExtension(info.fileName()));
+    return DEFAULT_TRANSFORMER_MODEL.equalsIgnoreCase(stripWeightFileExtension(info.modelName))
+        || DEFAULT_TRANSFORMER_MODEL.equalsIgnoreCase(stripWeightFileExtension(info.fileName()));
   }
 
   public static Path downloadHumanSlModel(ProgressListener listener) throws IOException {
@@ -954,63 +1118,115 @@ public final class KataGoAutoSetupHelper {
     activeSession.throwIfCancelled();
 
     Path target = weightsDir.resolve(info.fileName());
-    if (Files.isRegularFile(target) && Files.size(target) > 1024L * 1024L) {
+    if (isDownloadedWeightValid(target, info)) {
       if (listener != null) {
         listener.onProgress(info.modelName, Files.size(target), Files.size(target));
       }
       return target;
     }
+    Files.deleteIfExists(target);
 
     Path temp = weightsDir.resolve(info.fileName() + ".part");
     HttpURLConnection conn = null;
     try {
-      conn = (HttpURLConnection) NetworkProxy.openConnection(URI.create(info.downloadUrl).toURL());
-      activeSession.attach(conn);
-      activeSession.throwIfCancelled();
-      conn.setInstanceFollowRedirects(true);
-      conn.setRequestMethod("GET");
-      conn.setConnectTimeout(15000);
-      conn.setReadTimeout(30000);
-      conn.setRequestProperty("User-Agent", USER_AGENT);
-      conn.setRequestProperty("Accept", "application/octet-stream,*/*");
-      int code = conn.getResponseCode();
-      if (code < 200 || code >= 400) {
-        throw new IOException("HTTP " + code + " from " + info.downloadUrl);
+      if (isDownloadedWeightValid(temp, info)) {
+        Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+        return target;
       }
-      long totalBytes = conn.getContentLengthLong();
-      try (InputStream raw = conn.getInputStream();
-          BufferedInputStream input = new BufferedInputStream(raw);
-          OutputStream output = Files.newOutputStream(temp)) {
-        byte[] buffer = new byte[8192];
-        long downloaded = 0L;
-        int read;
-        long lastReportTime = 0L;
-        while (true) {
-          activeSession.throwIfCancelled();
-          read = input.read(buffer);
-          if (read < 0) {
+      if (Files.isRegularFile(temp) && info.sizeBytes > 0L && Files.size(temp) > info.sizeBytes) {
+        Files.delete(temp);
+      }
+      long resumeFrom = Files.isRegularFile(temp) ? Files.size(temp) : 0L;
+      while (true) {
+        conn =
+            (HttpURLConnection) NetworkProxy.openConnection(URI.create(info.downloadUrl).toURL());
+        activeSession.attach(conn);
+        activeSession.throwIfCancelled();
+        conn.setInstanceFollowRedirects(true);
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(15000);
+        conn.setReadTimeout(30000);
+        conn.setRequestProperty("User-Agent", USER_AGENT);
+        conn.setRequestProperty("Accept", "application/octet-stream,*/*");
+        if (resumeFrom > 0L) {
+          conn.setRequestProperty("Range", "bytes=" + resumeFrom + "-");
+        }
+        int code = conn.getResponseCode();
+        if (resumeFrom > 0L && code == 416) {
+          conn.disconnect();
+          activeSession.clear();
+          if (isDownloadedWeightValid(temp, info)) {
             break;
           }
-          output.write(buffer, 0, read);
-          downloaded += read;
-          activeSession.throwIfCancelled();
-          long now = System.currentTimeMillis();
-          if (listener != null && (now - lastReportTime > 120 || totalBytes == downloaded)) {
-            listener.onProgress(info.modelName, downloaded, totalBytes);
-            lastReportTime = now;
+          Files.deleteIfExists(temp);
+          resumeFrom = 0L;
+          continue;
+        }
+        if (resumeFrom > 0L && code == HttpURLConnection.HTTP_OK) {
+          conn.disconnect();
+          activeSession.clear();
+          Files.deleteIfExists(temp);
+          resumeFrom = 0L;
+          continue;
+        }
+        if (code < 200 || code >= 400) {
+          throw new IOException("HTTP " + code + " from " + info.downloadUrl);
+        }
+        boolean resumed = resumeFrom > 0L && code == HttpURLConnection.HTTP_PARTIAL;
+        long responseBytes = conn.getContentLengthLong();
+        long totalBytes =
+            info.sizeBytes > 0L
+                ? info.sizeBytes
+                : responseBytes < 0L ? -1L : (resumed ? resumeFrom : 0L) + responseBytes;
+        try (InputStream raw = conn.getInputStream();
+            BufferedInputStream input = new BufferedInputStream(raw);
+            OutputStream output =
+                resumed
+                    ? Files.newOutputStream(
+                        temp, StandardOpenOption.CREATE, StandardOpenOption.APPEND)
+                    : Files.newOutputStream(
+                        temp,
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.TRUNCATE_EXISTING,
+                        StandardOpenOption.WRITE)) {
+          byte[] buffer = new byte[64 * 1024];
+          long downloaded = resumed ? resumeFrom : 0L;
+          int read;
+          long lastReportTime = 0L;
+          while (true) {
+            activeSession.throwIfCancelled();
+            read = input.read(buffer);
+            if (read < 0) {
+              break;
+            }
+            output.write(buffer, 0, read);
+            downloaded += read;
+            activeSession.throwIfCancelled();
+            long now = System.currentTimeMillis();
+            if (listener != null && (now - lastReportTime > 120 || totalBytes == downloaded)) {
+              listener.onProgress(info.modelName, downloaded, totalBytes);
+              lastReportTime = now;
+            }
           }
         }
+        break;
       }
       activeSession.throwIfCancelled();
+      verifyDownloadedWeight(temp, info);
       try {
         Files.move(
             temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
       } catch (AtomicMoveNotSupportedException e) {
         Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
       }
+      if (listener != null) {
+        listener.onProgress(info.modelName, Files.size(target), Files.size(target));
+      }
       return target;
     } catch (IOException e) {
-      Files.deleteIfExists(temp);
+      if (isWeightIntegrityFailure(e)) {
+        Files.deleteIfExists(temp);
+      }
       if (activeSession.isCancelled() && !(e instanceof DownloadCancelledException)) {
         throw new DownloadCancelledException(
             resource("AutoSetup.downloadCancelled", "Download cancelled."));
@@ -1021,6 +1237,52 @@ public final class KataGoAutoSetupHelper {
         conn.disconnect();
       }
       activeSession.clear();
+    }
+  }
+
+  private static boolean isDownloadedWeightValid(Path path, RemoteWeightInfo info) {
+    if (path == null || !Files.isRegularFile(path)) {
+      return false;
+    }
+    try {
+      verifyDownloadedWeight(path, info);
+      return true;
+    } catch (IOException e) {
+      return false;
+    }
+  }
+
+  private static void verifyDownloadedWeight(Path path, RemoteWeightInfo info) throws IOException {
+    if (path == null || !Files.isRegularFile(path)) {
+      throw new WeightIntegrityException(
+          resource("AutoSetup.weightDownloadIncomplete", "Weight download is incomplete."));
+    }
+    long expectedSize = info == null ? -1L : info.sizeBytes;
+    if (expectedSize > 0L && Files.size(path) != expectedSize) {
+      throw new WeightIntegrityException(
+          resource("AutoSetup.weightDownloadIncomplete", "Weight download is incomplete."));
+    }
+    if (expectedSize <= 0L && Files.size(path) <= 1024L * 1024L) {
+      throw new WeightIntegrityException(
+          resource("AutoSetup.weightDownloadIncomplete", "Weight download is incomplete."));
+    }
+    String expectedSha = info == null ? "" : info.sha256;
+    if (!expectedSha.isEmpty() && !expectedSha.equalsIgnoreCase(sha256(path))) {
+      throw new WeightIntegrityException(
+          resource(
+              "AutoSetup.weightChecksumFailed", "Weight checksum failed. Please download again."));
+    }
+  }
+
+  private static boolean isWeightIntegrityFailure(IOException error) {
+    return error instanceof WeightIntegrityException;
+  }
+
+  private static final class WeightIntegrityException extends IOException {
+    private static final long serialVersionUID = 1L;
+
+    private WeightIntegrityException(String message) {
+      super(message);
     }
   }
 
@@ -1135,6 +1397,26 @@ public final class KataGoAutoSetupHelper {
 
   public static String resolveWeightDisplayName(String modelName) {
     return toWeightDisplayName(modelName);
+  }
+
+  public static boolean isTransformerWeight(Path weightPath) {
+    if (weightPath == null || weightPath.getFileName() == null) {
+      return false;
+    }
+    String fileName = weightPath.getFileName().toString();
+    if (isTransformerWeight(fileName)) {
+      return true;
+    }
+    return DEFAULT_WEIGHT_FILE_NAME.equalsIgnoreCase(fileName)
+        && isTransformerWeight(readBundledModelSource(weightPath, null, null));
+  }
+
+  public static boolean isTransformerWeight(String modelName) {
+    String normalized = stripWeightFileExtension(modelName).toLowerCase(Locale.ROOT);
+    return normalized.equals(TRANSFORMER_LIGHTWEIGHT_MODEL)
+        || normalized.equals(TRANSFORMER_BALANCED_MODEL)
+        || normalized.equals(TRANSFORMER_STRONGEST_MODEL)
+        || normalized.contains("tflrs");
   }
 
   private static String resolveWeightDisplayName(Path weightPath, Path workingDir, Path appRoot) {
@@ -1703,6 +1985,15 @@ public final class KataGoAutoSetupHelper {
     String baseName = stripWeightFileExtension(modelName);
     if (baseName.isEmpty()) {
       return "";
+    }
+    if (TRANSFORMER_LIGHTWEIGHT_MODEL.equalsIgnoreCase(baseName)) {
+      return resource("AutoSetup.transformerLightweightModel", "Transformer Light 10B");
+    }
+    if (TRANSFORMER_BALANCED_MODEL.equalsIgnoreCase(baseName)) {
+      return resource("AutoSetup.transformerBalancedModel", "Transformer Balanced 10B");
+    }
+    if (TRANSFORMER_STRONGEST_MODEL.equalsIgnoreCase(baseName)) {
+      return resource("AutoSetup.transformerStrongestModel", "Transformer Flagship 11B");
     }
     if (BUNDLED_2026_06_28B_MODEL.equalsIgnoreCase(baseName)) {
       return BUNDLED_2026_06_28B_DISPLAY_NAME;
