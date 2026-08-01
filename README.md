@@ -48,13 +48,13 @@
 > - RTX 20/30/40 NVIDIA 显卡并且想更快：下载 `*windows64.nvidia.portable.zip`
 > - RTX 5070/5080/5090：优先下载 `*windows64.nvidia50.cuda.portable.zip`，需要 TensorRT 时再到软件内“一键设置”按需安装
 > - 已经有 Windows 免安装版：日常升级优先下载 `*windows64.core-update.zip`，关闭软件后解压到旧目录覆盖，只更新主程序和启动器配置
-> - TensorRT 不只给 RTX 50：RTX 20/30/40/50 NVIDIA 显卡都可以在软件内按需安装；GTX 10 系及更老显卡优先 CUDA/OpenCL
+> - TensorRT 不只给 RTX 50：RTX 20/30/40/50 NVIDIA 显卡都可以在软件内按需安装；GTX 10 系不建议 TensorRT，使用普通 NVIDIA 包前请将驱动升级到 `527.41` 或更高，仍无法启动时改用 OpenCL 包
 > - `KataGo 一键设置` 会检测 NVIDIA GPU 和 Compute Capability，自动提示是否推荐 TensorRT；检测失败也可以手动继续
 > - TensorRT 一键安装成功后会自动清理下载包缓存；运行缓存尽量写入软件自己的 `user-data/runtime`，减少 C 盘额外占用
 > - Release 里的 `*windows64.nvidia.tensorrt.portable.7z.001` 是高级可选分卷包，必须下载全部 `.7z.00N` 并用 7-Zip 解压；普通用户不要优先选它
 > - 如果 OpenCL 在你的电脑上不稳定：下载 `*windows64.with-katago.portable.zip`
 > - 现在支持直接输入野狐昵称抓最近公开棋谱，不需要先查账号数字
-> - 主推荐完整包已内置 KataGo `v1.17.0` 和官方中型 Transformer，界面显示为“Transformer 10B 均衡版”（约 94 MB）；主程序小更新包不包含引擎和权重
+> - 主推荐完整包已内置 KataGo `v1.17.1` 和官方中型 Transformer，界面显示为“Transformer 10B 均衡版”（约 94 MB）；主程序小更新包不包含引擎和权重
 > - Windows 主发布包已内置原生 `readboard.exe`，同步入口只保留这套更强的棋盘同步工具
 
 ## 为什么很多用户会直接选它
@@ -125,7 +125,8 @@ Windows `portable.zip` 是真正的免安装模式：配置、日志、保存棋
 - Windows + RTX 20/30/40/50 想试 TensorRT：普通用户先下对应 NVIDIA/CUDA 包，再在软件内“一键设置”按需安装；软件会检测 GPU 和 Compute Capability 后给出推荐，下载支持断点续传
 - TensorRT 一键安装完成后会自动删除完整下载包，之前留下的下载缓存也可以在一键设置里点“清理 TensorRT 缓存”
 - Windows + 熟悉 7-Zip 的高级用户：可以下载 `*windows64.nvidia.tensorrt.portable.7z.001/.002/...` 高级可选分卷包，必须下载全部分卷后从 `.001` 解压；只下载 `.001` 没用
-- GTX 10 系及更老 NVIDIA 显卡：优先 CUDA/OpenCL，不作为 TensorRT 推荐对象
+- GTX 10 系 NVIDIA 显卡：不建议 TensorRT；普通 NVIDIA 包要求驱动 `527.41` 或更高，仍启动失败时改用 OpenCL 包
+- GTX 10 系以前的 NVIDIA 显卡：优先使用 OpenCL 包
 - OpenCL 不稳定：改下 `*windows64.with-katago.portable.zip`
 - Mac：先分清 Apple Silicon 还是 Intel
 - Linux：直接下 `*linux64.with-katago.zip`

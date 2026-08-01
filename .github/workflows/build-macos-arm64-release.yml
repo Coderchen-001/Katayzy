@@ -57,7 +57,7 @@ jobs:
           HTTP_PROXY: ""
           ALL_PROXY: ""
           MODEL_NAME: b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
-          MODEL_URL: https://github.com/lightvector/KataGo/releases/download/v1.17.0/b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
+          MODEL_URL: https://github.com/lightvector/KataGo/releases/download/v1.17.1/b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
           MODEL_SHA256: c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995
         run: |
           set -euo pipefail
@@ -73,7 +73,7 @@ jobs:
       - name: Audit macOS arm64 display version
         run: |
           app_root="dist/macos/app-image/LizzieYzy Next.app/Contents/app"
-          grep -qx "KataGo release: v1.17.0" "$app_root/engines/katago/VERSION.txt"
+          grep -qx "KataGo release: v1.17.1" "$app_root/engines/katago/VERSION.txt"
           grep -qx "Model source: b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz" "$app_root/engines/katago/VERSION.txt"
           grep -qx "Model architecture: transformer" "$app_root/engines/katago/VERSION.txt"
           grep -qx "Minimum KataGo version: 1.17.0" "$app_root/engines/katago/VERSION.txt"

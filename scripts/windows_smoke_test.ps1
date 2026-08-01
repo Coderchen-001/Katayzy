@@ -526,6 +526,59 @@ function Stop-AppClockHelperProcesses {
     }
 }
 
+function Stop-AppOwnedProcesses {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AppExe
+    )
+
+    $appDir = [System.IO.Path]::GetFullPath((Split-Path -Parent $AppExe))
+    $appPrefix = $appDir.TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    ) + [System.IO.Path]::DirectorySeparatorChar
+
+    # The launcher can exit before its JVM and native engine children. Re-scan the
+    # exact disposable package directory so late-exiting children cannot leak into
+    # another smoke run, while sibling installations remain untouched.
+    for ($attempt = 0; $attempt -lt 4; $attempt++) {
+        $processIds = @(
+            try {
+                Get-CimInstance Win32_Process -ErrorAction Stop |
+                    Where-Object {
+                        if (-not $_.ExecutablePath) {
+                            return $false
+                        }
+
+                        try {
+                            $processPath = [System.IO.Path]::GetFullPath($_.ExecutablePath)
+                            return $processPath.StartsWith(
+                                $appPrefix,
+                                [System.StringComparison]::OrdinalIgnoreCase
+                            )
+                        }
+                        catch {
+                            return $false
+                        }
+                    } |
+                    ForEach-Object { [int]$_.ProcessId }
+            }
+            catch {
+                Write-Verbose "Win32_Process inspection is unavailable; app-owned cleanup was skipped."
+            }
+        )
+
+        if ($processIds.Count -eq 0) {
+            return
+        }
+
+        $processIds | ForEach-Object {
+            Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue
+        }
+        Start-Sleep -Milliseconds 500
+    }
+}
+
 $appCfgPath = $null
 $appCfgBytes = $null
 $process = $null
@@ -621,6 +674,7 @@ finally {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 2
     }
+    Stop-AppOwnedProcesses -AppExe $AppExe
     Stop-AppClockHelperProcesses -AppExe $AppExe
 
     if ($appCfgPath -and $null -ne $appCfgBytes) {

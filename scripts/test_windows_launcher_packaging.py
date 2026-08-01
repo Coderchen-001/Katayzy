@@ -51,6 +51,22 @@ def main() -> None:
     require(smoke_script, "[System.IO.File]::ReadAllBytes", "windows_smoke_test.ps1")
     require(smoke_script, "[System.IO.File]::WriteAllBytes", "windows_smoke_test.ps1")
     require(smoke_script, "Stop-AppClockHelperProcesses", "windows_smoke_test.ps1")
+    require(smoke_script, "Stop-AppOwnedProcesses", "windows_smoke_test.ps1")
+    require(
+        smoke_script,
+        "$processPath.StartsWith(",
+        "windows_smoke_test.ps1",
+    )
+    require(
+        smoke_script,
+        "[System.StringComparison]::OrdinalIgnoreCase",
+        "windows_smoke_test.ps1",
+    )
+    require(
+        smoke_script,
+        "Stop-AppOwnedProcesses -AppExe $AppExe",
+        "windows_smoke_test.ps1",
+    )
     require(smoke_script, "Get-Process -Name java, javaw", "windows_smoke_test.ps1")
     require(smoke_script, "Get-NativeReadBoardProcessIds", "windows_smoke_test.ps1")
     require(smoke_script, "Get-Process -Name readboard", "windows_smoke_test.ps1")

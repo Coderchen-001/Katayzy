@@ -17,7 +17,7 @@
 - OpenCL 表现不好时改用 `windows64.with-katago.portable.zip`
 - RTX 20/30/40 系列 NVIDIA 显卡并且更在意速度时改用 `windows64.nvidia.portable.zip`
 - RTX 5070/5080/5090 优先试 `windows64.nvidia50.cuda.portable.zip`，TensorRT 加速改为软件内按需安装
-- TensorRT 普通用户路径仍是软件内 `KataGo 一键设置` 按需安装，支持断点续传；RTX 20/30/40/50 用户可尝试，GTX 10 系及更老显卡优先 CUDA/OpenCL
+- TensorRT 普通用户路径仍是软件内 `KataGo 一键设置` 按需安装，支持断点续传；RTX 20/30/40/50 用户可尝试。GTX 10 系不建议 TensorRT；普通 NVIDIA 包需要 `527.41` 或更高驱动，仍启动失败时改用 OpenCL 包
 - `KataGo 一键设置` 会检测本机 NVIDIA GPU / Compute Capability，并在安装 TensorRT 前显示推荐、可尝试、不推荐或未知状态
 - TensorRT 一键安装成功后会自动清理完整下载包缓存；首次运行产生的 CUDA/TensorRT 缓存会尽量写入软件自己的 `runtime/`，减少 C 盘额外占用
 - Release 可附带高级可选 TensorRT 预装分卷包，但它不是默认推荐下载；必须下载全部 `.7z.00N` 并用 7-Zip 从 `.001` 解压
@@ -113,11 +113,12 @@
 
 当前整合包默认使用：
 
-- KataGo 版本：`v1.17.0`
-- macOS 发布构建固定使用官方 `v1.17.0` commit `2d0538979f73e580e81185ce836089ddcb58659a`。如果 Homebrew 稳定版仍滞后，打包脚本会从该 commit 构建 Metal 引擎并校验真实二进制版本，不能只靠 `VERSION.txt` 宣称升级
+- KataGo 版本：`v1.17.1`
+- macOS 发布构建固定使用官方 `v1.17.1` commit `5246793f77b480dee91a3b92902d1a9b92860bd0`。如果 Homebrew 稳定版仍滞后，打包脚本会从该 commit 构建 Metal 引擎并校验真实二进制版本，不能只靠 `VERSION.txt` 宣称升级
 - 默认权重：官方中型 Transformer `b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz`，界面显示为“Transformer 10B 均衡版”
 - 默认权重大小：`94,281,753` 字节（约 94 MB），SHA-256：`c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995`
 - Windows 普通 NVIDIA 包：CUDA `12.1` + cuDNN `9.8`；RTX 50 CUDA 包：CUDA `12.8` + cuDNN `9.8`
+- GTX 10 系属于 Pascal。根据 [NVIDIA cuDNN 9.8 支持矩阵](https://docs.nvidia.com/deeplearning/cudnn/backend/v9.8.0/reference/support-matrix.html)，Windows CUDA 12 需要 `527.41` 或更高驱动；如果更新驱动后仍无法启动，使用 `windows64.opencl` 包
 - Transformer 在 CUDA、Metal 上性能更好；OpenCL 仍可离线使用，但通常更慢
 - `core-update.zip` 只更新主程序，不包含 KataGo 1.17 或新权重；从旧默认模型升级必须安装最新完整包
 - 完整包升级只迁移仍使用旧内置 `zhizi 28B` / `default.bin.gz` 的托管引擎；自定义权重、远程算力和启动方式不会被覆盖

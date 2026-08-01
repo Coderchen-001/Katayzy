@@ -94,8 +94,7 @@ class WholeGameAnalysisSessionTest {
       assertTrue(fixture.engine.shutdownRequested);
       assertTrue(fixture.engine.callbacksCleared);
       assertTrue(fixture.engine.quitCalled.await(2, TimeUnit.SECONDS));
-      drainEdt();
-      assertEquals(WholeGameAnalysisSession.State.PAUSED, fixture.session.state());
+      waitForState(fixture.session, WholeGameAnalysisSession.State.PAUSED);
       assertTrue(fixture.session.isActive());
       assertTrue(fixture.session.isPaused());
       assertFalse(fixture.session.isTerminal());
