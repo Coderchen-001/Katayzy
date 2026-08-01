@@ -45,7 +45,8 @@ Quick rule:
 - choose `windows64.nvidia50.cuda.portable.zip` first for RTX 5070/5080/5090
 - for RTX 20/30/40/50 TensorRT testing, start with the matching NVIDIA/CUDA package and install TensorRT acceleration manually from `KataGo Auto Setup`
 - `KataGo Auto Setup` detects the NVIDIA GPU / Compute Capability before recommending TensorRT
-- GTX 10 series and older NVIDIA cards should prefer CUDA/OpenCL instead of TensorRT
+- TensorRT is not recommended for GTX 10 series cards; the regular NVIDIA package needs driver `527.41` or newer, and users should switch to the OpenCL package if KataGo still cannot start
+- NVIDIA cards older than GTX 10 series should prefer the OpenCL package
 - choose `without.engine.portable.zip` or `without.engine.installer.exe` on Windows if you plan to manage the engine yourself
 - on Windows, regular users should start with the portable build and only switch to the installer if they want that flow
 
@@ -202,7 +203,7 @@ Notes:
 
 Current bundled defaults:
 
-- KataGo version: `v1.17.0`
+- KataGo version: `v1.17.1`
 - Weight: official medium Transformer `b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz` (shown as “Transformer 10B Balanced”, about 94 MB)
 - Upgrading an older full bundle requires the latest full package; `core-update.zip` does not contain the new engine or weight
 

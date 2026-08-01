@@ -52,7 +52,7 @@ jobs:
       - name: Prepare bundled KataGo assets
         env:
           MODEL_NAME: b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
-          MODEL_URL: https://github.com/lightvector/KataGo/releases/download/v1.17.0/b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
+          MODEL_URL: https://github.com/lightvector/KataGo/releases/download/v1.17.1/b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
           MODEL_SHA256: c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995
         run: |
           set -euo pipefail
@@ -97,10 +97,10 @@ jobs:
             grep -qx "${expected_backend[$flavor]}" "$engine_dir/lizzieyzy-next-engine-backend.txt"
           done
           manifest="dist/stage/${{ inputs.date_tag }}-linux64.with-katago/Lizzieyzy/engines/katago/VERSION.txt"
-          grep -qx "KataGo release: v1.17.0" "$manifest"
-          grep -qx "Linux bundle: katago-v1.17.0-eigen-linux-x64.zip" "$manifest"
-          grep -qx "Linux OpenCL bundle: katago-v1.17.0-opencl-linux-x64.zip" "$manifest"
-          grep -qx "Linux NVIDIA bundle: katago-v1.17.0-cuda12.1-cudnn9.8.0-linux-x64.zip" "$manifest"
+          grep -qx "KataGo release: v1.17.1" "$manifest"
+          grep -qx "Linux bundle: katago-v1.17.1-eigen-linux-x64.zip" "$manifest"
+          grep -qx "Linux OpenCL bundle: katago-v1.17.1-opencl-linux-x64.zip" "$manifest"
+          grep -qx "Linux NVIDIA bundle: katago-v1.17.1-cuda12.1-cudnn9.8.0-linux-x64.zip" "$manifest"
           grep -qx "Model source: b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz" "$manifest"
           grep -qx "Model architecture: transformer" "$manifest"
           grep -qx "Minimum KataGo version: 1.17.0" "$manifest"
@@ -108,6 +108,7 @@ jobs:
             "c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995"
           cpu_version="$(dist/stage/${{ inputs.date_tag }}-linux64.with-katago/Lizzieyzy/engines/katago/linux-x64/katago version 2>&1)"
           echo "$cpu_version"
+          echo "$cpu_version" | grep -q "KataGo v1.17.1"
           echo "$cpu_version" | grep -q "Using Eigen"
 
       - name: Validate public Linux assets

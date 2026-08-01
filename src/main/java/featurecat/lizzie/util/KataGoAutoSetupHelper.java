@@ -51,7 +51,7 @@ public final class KataGoAutoSetupHelper {
   private static final String NETWORKS_URL = "https://katagotraining.org/networks/";
   private static final String NETWORKS_URL_PROPERTY = "lizzie.katago.networks.url";
   private static final String KATAGO_117_RELEASE_BASE =
-      "https://github.com/lightvector/KataGo/releases/download/v1.17.0/";
+      "https://github.com/lightvector/KataGo/releases/download/v1.17.1/";
   private static final Pattern STRONGEST_PATTERN =
       Pattern.compile(
           "Strongest confidently-rated network:</span>\\s*<a href=\"([^\"]+)\">([^<]+)</a>",

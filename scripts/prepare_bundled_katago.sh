@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE_DIR="${CACHE_DIR:-$ROOT_DIR/.cache/katago}"
-KATAGO_TAG="${KATAGO_TAG:-v1.17.0}"
+KATAGO_TAG="${KATAGO_TAG:-v1.17.1}"
 KATAGO_RELEASE_BASE="https://github.com/lightvector/KataGo/releases/download/${KATAGO_TAG}"
 # The regular Windows bundle prioritizes compatibility for mixed consumer hardware.
 WINDOWS_ASSET="${WINDOWS_ASSET:-katago-${KATAGO_TAG}-eigen-windows-x64.zip}"
@@ -83,26 +83,26 @@ file_size_bytes() {
 
 expected_asset_sha256() {
   case "$1" in
-    "katago-v1.17.0-eigen-windows-x64.zip")
-      echo "20b02914048d18c8f5a761571317923caf6c9ffb79bf07201bcc52c1979f0ffb"
+    "katago-v1.17.1-eigen-windows-x64.zip")
+      echo "3a7538ecb6facefcfe16d649fd695c29e44f8372cb7de8c316eee5779865f379"
       ;;
-    "katago-v1.17.0-opencl-windows-x64.zip")
-      echo "e8489616da8760855182b922fa115dec996c626e063321b920eda2722b26ff84"
+    "katago-v1.17.1-opencl-windows-x64.zip")
+      echo "68d0a9b11ef7e3c1ddfc5bcd400306ca66c3770dd67a22cb377d3aaaf32e8c66"
       ;;
-    "katago-v1.17.0-cuda12.1-cudnn9.8.0-windows-x64.zip")
-      echo "a2129a74119c63fe3deb2548dcade60822045e48d10b29ea7d2b81bbdcf16ecd"
+    "katago-v1.17.1-cuda12.1-cudnn9.8.0-windows-x64.zip")
+      echo "b081832d48b4a553436ad5c54f9c4f4feff39df7b52e68228929e9f8a70988bc"
       ;;
-    "katago-v1.17.0-cuda12.8-cudnn9.8.0-windows-x64.zip")
-      echo "6b84485bd5d0eff3bd1f9f76add5ac0f989f8f940206ced1d99dbb841f143387"
+    "katago-v1.17.1-cuda12.8-cudnn9.8.0-windows-x64.zip")
+      echo "476a35c0b43cc937906d4313acaf592a97a30775ec51d37f5401a284ad9fa0f9"
       ;;
-    "katago-v1.17.0-eigen-linux-x64.zip")
-      echo "0ae933c4da837e348583b4f3744f347a2b442c22b0bb9980b5b4f53f8760e1c2"
+    "katago-v1.17.1-eigen-linux-x64.zip")
+      echo "cca71fff39abd19bd9acfc17750025d4bb0ee6adbad99d7513a2c6401b0a7af3"
       ;;
-    "katago-v1.17.0-opencl-linux-x64.zip")
-      echo "f8e32f1dfc8eee9eeab4b4c02509289f09c291c93937a8e983f2157f205c5729"
+    "katago-v1.17.1-opencl-linux-x64.zip")
+      echo "be537295868c0b8ff6985e62e411fff67cbba2dc872343c74896063de1ef51e9"
       ;;
-    "katago-v1.17.0-cuda12.1-cudnn9.8.0-linux-x64.zip")
-      echo "6990be34f86f7b72082ddc03f4950062e39d01939a42256699dfc5cd13f18219"
+    "katago-v1.17.1-cuda12.1-cudnn9.8.0-linux-x64.zip")
+      echo "451ae213021cef0d2fcbfae650479532b53361c5ecbdfe1a5a643065bc76edc8"
       ;;
     *)
       echo ""

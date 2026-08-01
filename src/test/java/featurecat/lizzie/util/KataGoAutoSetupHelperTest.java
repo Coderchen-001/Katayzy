@@ -550,7 +550,7 @@ public class KataGoAutoSetupHelperTest {
     assertEquals("1.17.0", balanced.minimumKataGoVersion);
     assertTrue(balanced.recommended);
     assertTrue(weights.stream().allMatch(KataGoAutoSetupHelper.RemoteWeightInfo::isTransformer));
-    assertTrue(weights.stream().allMatch(info -> info.downloadUrl.contains("/v1.17.0/")));
+    assertTrue(weights.stream().allMatch(info -> info.downloadUrl.contains("/v1.17.1/")));
   }
 
   @Test

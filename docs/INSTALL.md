@@ -45,7 +45,8 @@
 - RTX 5070/5080/5090：优先选 `windows64.nvidia50.cuda.portable.zip`
 - RTX 20/30/40/50 想试 TensorRT：先选对应 NVIDIA/CUDA 包，打开后在 `KataGo 一键设置` 中手动安装 TensorRT 加速
 - `KataGo 一键设置` 会检测 NVIDIA GPU / Compute Capability，再给出 TensorRT 推荐状态
-- GTX 10 系及更老 NVIDIA 显卡：优先 CUDA/OpenCL，不作为 TensorRT 推荐对象
+- GTX 10 系 NVIDIA 显卡：不建议 TensorRT；普通 NVIDIA 包需要 `527.41` 或更高驱动，仍启动失败时使用 OpenCL 包
+- GTX 10 系以前的 NVIDIA 显卡：优先使用 OpenCL 包
 - 想自己管引擎：Windows 选 `without.engine.portable.zip`，想安装再选同名 `installer.exe`
 - Windows 普通用户：优先选 `.portable.zip`，想保留安装流程再选同名 `.installer.exe`
 
@@ -207,7 +208,7 @@ chmod +x start-linux64.sh
 
 当前默认内置信息：
 
-- KataGo 版本：`v1.17.0`
+- KataGo 版本：`v1.17.1`
 - 默认权重：官方中型 Transformer `b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz`（界面显示“Transformer 10B 均衡版”，约 94 MB）
 - 旧完整包升级：请安装最新完整包；`core-update.zip` 不包含新引擎和权重
 

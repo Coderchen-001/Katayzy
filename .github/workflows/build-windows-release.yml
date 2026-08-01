@@ -62,7 +62,7 @@ jobs:
         shell: bash
         env:
           MODEL_NAME: b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
-          MODEL_URL: https://github.com/lightvector/KataGo/releases/download/v1.17.0/b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
+          MODEL_URL: https://github.com/lightvector/KataGo/releases/download/v1.17.1/b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
           MODEL_SHA256: c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995
         run: |
           set -euo pipefail
@@ -140,8 +140,8 @@ jobs:
           grep -qx "release-tag=v3.0.6" "dist/windows/input-with-katago/readboard/lizzieyzy-next-readboard-manifest.txt"
           grep -qx "asset-name=readboard-github-release-v3.0.6.zip" "dist/windows/input-with-katago/readboard/lizzieyzy-next-readboard-manifest.txt"
           grep -qx "sha256=1ba4c265f560cd988be24f4ea0eeb29516883f42ece477bd32b72f8bccf6565d" "dist/windows/input-with-katago/readboard/lizzieyzy-next-readboard-manifest.txt"
-          grep -qx 'KataGo release: v1.17.0' "dist/windows/input-with-katago/engines/katago/VERSION.txt"
-          grep -qx 'Windows bundle: katago-v1.17.0-eigen-windows-x64.zip' "dist/windows/input-with-katago/engines/katago/VERSION.txt"
+          grep -qx 'KataGo release: v1.17.1' "dist/windows/input-with-katago/engines/katago/VERSION.txt"
+          grep -qx 'Windows bundle: katago-v1.17.1-eigen-windows-x64.zip' "dist/windows/input-with-katago/engines/katago/VERSION.txt"
           grep -qx 'Model source: b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz' "dist/windows/input-with-katago/engines/katago/VERSION.txt"
           grep -qx 'Model architecture: transformer' "dist/windows/input-with-katago/engines/katago/VERSION.txt"
           grep -qx 'Minimum KataGo version: 1.17.0' "dist/windows/input-with-katago/engines/katago/VERSION.txt"
@@ -151,7 +151,7 @@ jobs:
           test -f "dist/windows/input-opencl/PROJECT_INFO.txt"
           test -f "dist/windows/input-opencl/readboard/readboard.exe"
           test -f "dist/windows/input-opencl/readboard/lizzieyzy-next-readboard-manifest.txt"
-          grep -qx 'Windows OpenCL bundle: katago-v1.17.0-opencl-windows-x64.zip' "dist/windows/input-opencl/engines/katago/VERSION.txt"
+          grep -qx 'Windows OpenCL bundle: katago-v1.17.1-opencl-windows-x64.zip' "dist/windows/input-opencl/engines/katago/VERSION.txt"
           test -f "dist/windows/app-image-with-katago/LizzieYzy Next/LizzieYzy Next.exe"
           test -f "dist/windows/app-image-with-katago/LizzieYzy Next/app/PROJECT_INFO.txt"
           grep -q "java-options=-Dlizzie.next.version=${{ inputs.release_tag }}" "dist/windows/app-image-with-katago/LizzieYzy Next/app/LizzieYzy Next.cfg"
@@ -222,9 +222,9 @@ jobs:
           test -f "dist/release/${{ inputs.date_tag }}-windows64.nvidia.tensorrt.portable.manifest.json"
           test -f "dist/release/${{ inputs.date_tag }}-windows64.nvidia.tensorrt.portable.sha256.txt"
           test -f "engines/katago/windows-x64-nvidia-tensorrt/lizzieyzy-next-katago-engine-manifest.txt"
-          grep -qx "KataGo release: v1.17.0" \
+          grep -qx "KataGo release: v1.17.1" \
             "engines/katago/windows-x64-nvidia-tensorrt/lizzieyzy-next-katago-engine-manifest.txt"
-          grep -qx "Asset SHA-256: f683bb87b42b9f56b03c847d5102d16265dd80b7584109edc5bae42f3e729438" \
+          grep -qx "Asset SHA-256: b5de0178194cf728c12994cf0ace8a105597e864e0d42d7c6b4e0a1e9ea7a943" \
             "engines/katago/windows-x64-nvidia-tensorrt/lizzieyzy-next-katago-engine-manifest.txt"
           grep -q "Advanced optional TensorRT split package" "dist/release/${{ inputs.date_tag }}-windows64.nvidia.tensorrt.portable.README.txt"
           grep -q '"engineBackend": "nvidia-tensorrt"' "dist/release/${{ inputs.date_tag }}-windows64.nvidia.tensorrt.portable.manifest.json"
@@ -303,6 +303,26 @@ jobs:
             grep -a -q 'level="asInvoker"' "$readboard_exe"
             if grep -a -q 'level="requireAdministrator"' "$readboard_exe"; then
               echo "readboard.exe must not request administrator privileges: $readboard_exe"
+              exit 1
+            fi
+          done
+
+      - name: Audit bundled Windows KataGo binary versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for engine in \
+            "dist/windows/app-image-with-katago/LizzieYzy Next/app/engines/katago/windows-x64/katago.exe" \
+            "dist/windows/app-image-opencl/LizzieYzy Next OpenCL/app/engines/katago/windows-x64/katago.exe" \
+            "dist/windows/app-image-nvidia/LizzieYzy Next NVIDIA/app/engines/katago/windows-x64/katago.exe" \
+            "dist/windows/app-image-nvidia50.cuda/LizzieYzy Next NVIDIA 50 CUDA/app/engines/katago/windows-x64/katago.exe" \
+            "dist/windows/app-image-nvidia.tensorrt/LizzieYzy Next NVIDIA TensorRT/app/engines/katago/windows-x64/katago.exe"; do
+            test -f "$engine"
+            version_output="$("$engine" version 2>&1)"
+            printf '%s\n%s\n' "$engine" "$version_output"
+            grep -q 'KataGo v1\.17\.1' <<<"$version_output"
+            if grep -q 'KataGo v1\.17\.0' <<<"$version_output"; then
+              echo "Packaged KataGo unexpectedly contains the old v1.17.0 binary: $engine" >&2
               exit 1
             fi
           done
