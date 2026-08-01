@@ -84,6 +84,27 @@ cleanup() {
 }
 trap cleanup EXIT
 
+create_writable_dmg() {
+  local attempt
+  for attempt in 1 2 3; do
+    rm -f "$RW_DMG"
+    echo "Creating writable DMG (attempt $attempt/3)..." >&2
+    if hdiutil create \
+      -volname "$BUILD_VOLUME_NAME" \
+      -fs HFS+ \
+      -srcfolder "$STAGING_DIR" \
+      -format UDRW \
+      -ov \
+      "$RW_DMG"; then
+      return 0
+    fi
+    echo "Writable DMG creation attempt $attempt/3 failed; retrying..." >&2
+    sleep "$attempt"
+  done
+  echo "Unable to create the writable DMG after 3 attempts." >&2
+  exit 1
+}
+
 mkdir -p "$STAGING_DIR" "$MOUNT_POINT"
 ditto "$SOURCE_FOLDER" "$STAGING_DIR"
 rm -f "$STAGING_DIR/.DS_Store"
@@ -152,14 +173,7 @@ output_path.write_text(
 )
 PY
 
-hdiutil create \
-  -quiet \
-  -volname "$BUILD_VOLUME_NAME" \
-  -fs HFS+ \
-  -srcfolder "$STAGING_DIR" \
-  -format UDRW \
-  -ov \
-  "$RW_DMG"
+create_writable_dmg
 
 hdiutil attach "$RW_DMG" \
   -mountpoint "$MOUNT_POINT" \

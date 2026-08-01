@@ -311,21 +311,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for engine in \
-            "dist/windows/app-image-with-katago/LizzieYzy Next/app/engines/katago/windows-x64/katago.exe" \
-            "dist/windows/app-image-opencl/LizzieYzy Next OpenCL/app/engines/katago/windows-x64/katago.exe" \
-            "dist/windows/app-image-nvidia/LizzieYzy Next NVIDIA/app/engines/katago/windows-x64/katago.exe" \
-            "dist/windows/app-image-nvidia50.cuda/LizzieYzy Next NVIDIA 50 CUDA/app/engines/katago/windows-x64/katago.exe" \
-            "dist/windows/app-image-nvidia.tensorrt/LizzieYzy Next NVIDIA TensorRT/app/engines/katago/windows-x64/katago.exe"; do
+          runnable_engines=(
+            "dist/windows/app-image-with-katago/LizzieYzy Next/app/engines/katago/windows-x64/katago.exe"
+            "dist/windows/app-image-opencl/LizzieYzy Next OpenCL/app/engines/katago/windows-x64/katago.exe"
+          )
+          packaged_engines=(
+            "${runnable_engines[@]}"
+            "dist/windows/app-image-nvidia/LizzieYzy Next NVIDIA/app/engines/katago/windows-x64/katago.exe"
+            "dist/windows/app-image-nvidia50.cuda/LizzieYzy Next NVIDIA 50 CUDA/app/engines/katago/windows-x64/katago.exe"
+            "dist/windows/app-image-nvidia.tensorrt/LizzieYzy Next NVIDIA TensorRT/app/engines/katago/windows-x64/katago.exe"
+          )
+          for engine in "${runnable_engines[@]}"; do
             test -f "$engine"
             version_output="$("$engine" version 2>&1)"
             printf '%s\n%s\n' "$engine" "$version_output"
             grep -q 'KataGo v1\.17\.1' <<<"$version_output"
-            if grep -q 'KataGo v1\.17\.0' <<<"$version_output"; then
-              echo "Packaged KataGo unexpectedly contains the old v1.17.0 binary: $engine" >&2
-              exit 1
-            fi
           done
+          # GitHub-hosted Windows runners do not have an NVIDIA display driver, so
+          # CUDA/TensorRT executables cannot pass the Windows loader even when every
+          # redistributable DLL is bundled. Audit their embedded version marker after
+          # the runtime-file checks above; real NVIDIA execution is a hardware gate.
+          python3 scripts/audit_katago_binary_version.py \
+            --expected-version 1.17.1 \
+            --reject-version 1.17.0 \
+            "${packaged_engines[@]}"
 
       - name: Smoke test bundled Windows app images
         shell: powershell
