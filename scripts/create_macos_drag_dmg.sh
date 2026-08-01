@@ -105,6 +105,37 @@ create_writable_dmg() {
   exit 1
 }
 
+attach_writable_dmg() {
+  local attempt
+  local attach_log="$WORK_DIR/hdiutil-attach.log"
+
+  for attempt in 1 2 3; do
+    rm -f "$attach_log"
+    rm -rf "$MOUNT_POINT"
+    mkdir -p "$MOUNT_POINT"
+    echo "Attaching writable DMG (attempt $attempt/3)..." >&2
+    if hdiutil attach "$RW_DMG" \
+      -mountpoint "$MOUNT_POINT" \
+      -readwrite \
+      -noverify \
+      -noautoopen \
+      -nobrowse \
+      >"$attach_log" 2>&1; then
+      cat "$attach_log" >&2
+      MOUNTED=1
+      return 0
+    fi
+
+    echo "Writable DMG attach attempt $attempt/3 failed:" >&2
+    cat "$attach_log" >&2
+    hdiutil detach "$MOUNT_POINT" -force -quiet >/dev/null 2>&1 || true
+    sleep "$attempt"
+  done
+
+  echo "Unable to attach the writable DMG after 3 attempts." >&2
+  exit 1
+}
+
 mkdir -p "$STAGING_DIR" "$MOUNT_POINT"
 ditto "$SOURCE_FOLDER" "$STAGING_DIR"
 rm -f "$STAGING_DIR/.DS_Store"
@@ -174,14 +205,7 @@ output_path.write_text(
 PY
 
 create_writable_dmg
-
-hdiutil attach "$RW_DMG" \
-  -mountpoint "$MOUNT_POINT" \
-  -readwrite \
-  -noverify \
-  -noautoopen \
-  -quiet
-MOUNTED=1
+attach_writable_dmg
 
 LAYOUT_CREATED=0
 for attempt in 1 2 3; do
