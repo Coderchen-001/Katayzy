@@ -17,6 +17,15 @@ class MacosDragDmgScriptTest(unittest.TestCase):
         self.assertIn("\ncreate_writable_dmg\n", script)
         self.assertNotIn("hdiutil create \\\n  -quiet", script)
 
+    def test_writable_image_attach_is_retried_with_diagnostics(self) -> None:
+        script = (ROOT / "scripts/create_macos_drag_dmg.sh").read_text(encoding="utf-8")
+        self.assertIn("attach_writable_dmg()", script)
+        self.assertIn("Attaching writable DMG (attempt $attempt/3)", script)
+        self.assertIn("Writable DMG attach attempt $attempt/3 failed:", script)
+        self.assertIn("Unable to attach the writable DMG after 3 attempts.", script)
+        self.assertIn('cat "$attach_log" >&2', script)
+        self.assertIn("\nattach_writable_dmg\n", script)
+
 
 if __name__ == "__main__":
     unittest.main()
