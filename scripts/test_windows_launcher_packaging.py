@@ -88,6 +88,14 @@ def main() -> None:
     require(workflow, "^jdk.accessibility@", "build-windows-release.yml")
     require(
         workflow,
+        "scripts/audit_katago_binary_version.py",
+        "build-windows-release.yml",
+    )
+    require(workflow, 'runnable_engines=(', "build-windows-release.yml")
+    require(workflow, 'packaged_engines=(', "build-windows-release.yml")
+    require(workflow, "GitHub-hosted Windows runners do not have an NVIDIA display driver", "build-windows-release.yml")
+    require(
+        workflow,
         "windows-x64/z.dll",
         "build-windows-release.yml",
     )
