@@ -3,7 +3,29 @@
 Katayzy（CUDA 12.8 + TensorRT 10.9 版）的构建与打包说明。
 项目要求 Java 17（`pom.xml` source/target 17），exe 由 JDK 自带 `jpackage` 生成。
 
-## 0. 工具链（已随项目准备）
+## 0. 一键打包（推荐）
+
+```powershell
+# 默认：编译 → jpackage → 组装到 成品\Katayzy-next-<今天日期>.N\（序号自动递增）
+powershell -ExecutionPolicy Bypass -File scripts\pack_windows.ps1
+
+# 手动指定版本
+powershell -ExecutionPolicy Bypass -File scripts\pack_windows.ps1 -Version next-2026-08-02.1
+
+# 只重新组装（复用已编译 jar）
+powershell -ExecutionPolicy Bypass -File scripts\pack_windows.ps1 -SkipCompile -Version next-2026-08-02.1
+```
+
+参数：
+- `-Version`：版本串（默认 `next-<今天日期>.N`，目录已存在则自动递增 N）
+- `-BaseBundle`：引擎/脚本/附加资源的来源整合包（默认 `成品\Katayzy`）
+- `-OutputRoot`：版本化整合包的输出父目录（默认 `D:\全新重构项目-卡塔狗桌面版\成品`）
+- `-SkipCompile`：复用 `target\lizzie-yzy2.5.3-shaded.jar`，跳过 mvn package
+- `-AppVersion`：exe 文件版本（默认 `2.6.20901`）
+
+脚本内部流程 = 下文 1~4 节的手动步骤。
+
+## 1. 构建 jar
 
 - portable JDK 17：`.tools\jdk-17`
 - portable Maven 3.9.16：`.tools\apache-maven-3.9.16`
