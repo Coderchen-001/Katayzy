@@ -180,12 +180,7 @@ python3 scripts/sync_baidu_pan.py \
 
 这件事现在已经完成，当前做法固定为：
 
-- `README.md`
-- `README_EN.md`
-- `README_JA.md`
-- `README_KO.md`
-
-统一展示同一个固定百度网盘链接和提取码。
+- 宣传资料 README（`宣传资料\README.md`）统一展示同一个固定百度网盘链接和提取码。
 
 后续如果分享链接或提取码发生变化，需要同时更新：
 

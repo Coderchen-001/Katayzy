@@ -96,13 +96,8 @@ GUI 的嵌入式浏览器（JCEF）与棋盘同步（readboard）不随 jpackage
 部署完成后，双击 `启动器.bat` → `[1] 启动 Katayzy`：
 环境门禁 → 首次运行引导构建（b10c384/b10c512/b11c768）→ 启动。
 
-## 5. 完整发布打包（可选）
 
-需要 JCEF / readboard / NVIDIA TRT runtime 自动下载与完整发布物的场景，
-在 WSL/Linux 中运行 `scripts\package_windows_exe.sh`（依赖 7z、python3、网络）。
-打包脚本的 `APP_NAME` 等已改为 Katayzy（含 `NVIDIA_TRT_APP_NAME`）。
-
-## 6. 注意事项
+## 5. 注意事项
 
 - 本整合包引擎目录为 `engines\katago-trt\`（TRT 变体），脚本全部使用相对路径，U 盘便携。
 - `user-data\config.txt` 的 `ui.analysis-engine-command`（b10c384 伴生进程）与

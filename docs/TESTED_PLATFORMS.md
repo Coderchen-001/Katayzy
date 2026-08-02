@@ -56,7 +56,7 @@
 
 相关入口：
 
-- [获取帮助](../SUPPORT.md)
+- [项目路线图](../ROADMAP.md)
 - [发布包说明](PACKAGES.md)
 - [安装指南](INSTALL.md)
 - [常见问题与排错](TROUBLESHOOTING.md)

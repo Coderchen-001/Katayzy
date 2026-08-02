@@ -5,14 +5,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 FILES = [
-    ROOT / "README.md",
-    ROOT / "README_EN.md",
-    ROOT / "README_JA.md",
-    ROOT / "README_KO.md",
-    ROOT / "CONTRIBUTING.md",
-    ROOT / "CODE_OF_CONDUCT.md",
-    ROOT / "SECURITY.md",
-    ROOT / "SUPPORT.md",
+    ROOT / "CHANGELOG.md",
+    ROOT / "PACKAGING.md",
     ROOT / "ROADMAP.md",
 ]
 FILES.extend(sorted((ROOT / "docs").glob("*.md")))

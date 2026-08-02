@@ -175,7 +175,7 @@ mvn -B -DskipTests package
 
 ## 建议搭配阅读
 
-- [贡献指南](../CONTRIBUTING.md)
+- [路线图](../ROADMAP.md)
 - [维护说明](MAINTENANCE.md)
 - [发布检查清单](RELEASE_CHECKLIST.md)
 - [发布包说明](PACKAGES.md)

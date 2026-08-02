@@ -205,4 +205,4 @@ OUT_DIR=dist/perf SCENARIO=startup DURATION_SECONDS=45 \
 - [常见问题与排错](TROUBLESHOOTING.md)
 - [已验证平台](TESTED_PLATFORMS.md)
 - [发布检查清单](RELEASE_CHECKLIST.md)
-- [项目首页](../README.md)
+- [项目路线图](../ROADMAP.md)

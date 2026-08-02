@@ -137,4 +137,4 @@ From the new maintained releases onward:
 - [Troubleshooting](TROUBLESHOOTING_EN.md)
 - [Tested Platforms](TESTED_PLATFORMS.md)
 - [Release Checklist](RELEASE_CHECKLIST.md)
-- [Chinese README](../README.md)
+- [Roadmap](../ROADMAP.md)

@@ -72,7 +72,7 @@ GitHub Actions：
 
 发版前至少确认：
 
-- `README.md` 和 `README_EN.md` 的包名与计划上传的文件完全一致
+- 宣传资料 `README.md`（`宣传资料\README.md`）的包名与计划上传的文件完全一致
 - 安装文档里的 Windows 主路径仍然是 `portable.zip`
 - 如果提供 NVIDIA 极速包，要同时核对 `nvidia.installer.exe` 和 `nvidia.portable.zip`
 - 如果提供 RTX 50 包，要核对 `nvidia50.cuda.*`，并在发布说明里写清 TensorRT 只从软件内按需安装，不再作为 release asset，安装界面会检测 NVIDIA GPU / Compute Capability

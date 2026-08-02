@@ -175,7 +175,7 @@ These changes usually also require updates to:
 
 ## Recommended Reading
 
-- [Contributing Guide](../CONTRIBUTING.md)
+- [Roadmap](../ROADMAP.md)
 - [Maintenance Notes](MAINTENANCE_EN.md)
 - [Release Checklist](RELEASE_CHECKLIST.md)
 - [Package Overview](PACKAGES_EN.md)
