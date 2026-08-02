@@ -435,7 +435,7 @@ public final class KataGoRuntimeHelper {
               "<html>"
                   + resource(
                           "AutoSetup.nvidiaBootstrapDescription",
-                          "LizzieYzy Next is checking the bundled NVIDIA files in your package."
+                          "Katayzy is checking the bundled NVIDIA files in your package."
                               + " If files are missing, reinstall the NVIDIA package.")
                       .replace("\n", "<br>")
                   + "</html>");
@@ -1104,7 +1104,7 @@ public final class KataGoRuntimeHelper {
   private static String tensorRtInstallAlreadyRunningMessage() {
     return resource(
         "AutoSetup.tensorRtInstallAlreadyRunning",
-        "TensorRT installation is already running in another LizzieYzy Next window. Please wait for it to finish.");
+        "TensorRT installation is already running in another Katayzy window. Please wait for it to finish.");
   }
 
   public static BenchmarkResult getStoredBenchmarkResult() {

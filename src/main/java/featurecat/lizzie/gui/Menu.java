@@ -10,7 +10,6 @@ import featurecat.lizzie.analysis.Leelaz;
 import featurecat.lizzie.analysis.MoveRankEvaluationMode;
 import featurecat.lizzie.theme.MorandiPalette;
 import featurecat.lizzie.theme.Theme;
-import featurecat.lizzie.update.WindowsUpdateController;
 import featurecat.lizzie.util.Utils;
 import java.awt.Color;
 import java.awt.Component;
@@ -5053,22 +5052,6 @@ public class Menu extends JMenuBar {
     // helpMenu.setFont(headFont);
     this.add(helpMenu);
 
-    final JFontMenuItem about =
-        new JFontMenuItem(resourceBundle.getString("Menu.about")); // ("关于");
-    helpMenu.add(about);
-
-    about.addActionListener(
-        new ActionListener() {
-          public void actionPerformed(ActionEvent e) {
-            Lizzie.frame.openConfigDialog2(2);
-          }
-        });
-
-    final JFontMenuItem checkUpdate = new JFontMenuItem("检查更新");
-    helpMenu.add(checkUpdate);
-    checkUpdate.addActionListener(e -> WindowsUpdateController.checkForUpdate(Lizzie.frame));
-
-    helpMenu.addSeparator();
     final JFontMenuItem clearUserData = new JFontMenuItem("清除所有个人数据");
     helpMenu.add(clearUserData);
     clearUserData.addActionListener(
@@ -5163,16 +5146,6 @@ public class Menu extends JMenuBar {
         new ActionListener() {
           public void actionPerformed(ActionEvent e) {
             Lizzie.openFirstUseSettings(false);
-          }
-        });
-
-    final JFontMenuItem autoSetup = new JFontMenuItem(resourceBundle.getString("Menu.autoSetup"));
-    settings.add(autoSetup);
-
-    autoSetup.addActionListener(
-        new ActionListener() {
-          public void actionPerformed(ActionEvent e) {
-            Lizzie.frame.openKataGoAutoSetup();
           }
         });
 
@@ -7743,22 +7716,6 @@ public class Menu extends JMenuBar {
             }
           });
 
-      JFontButton btnAutoSetup = new JFontButton(resourceBundle.getString("Menu.autoSetupButton"));
-      btnAutoSetup.setFocusable(false);
-      btnAutoSetup.setMargin(new Insets(0, 10, 0, 10));
-      AppleStyleSupport.markPrimary(btnAutoSetup);
-      btnAutoSetup.setPreferredSize(
-          new Dimension(
-              Lizzie.config.isChinese ? Config.menuHeight * 4 : Config.menuHeight * 6,
-              Config.menuHeight));
-      btnAutoSetup.setToolTipText(resourceBundle.getString("Menu.autoSetup"));
-      btnAutoSetup.addActionListener(
-          new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-              Lizzie.frame.openKataGoAutoSetup();
-            }
-          });
-
       JFontButton btnFoxKifu = new JFontButton(resourceBundle.getString("Menu.foxKifuButton"));
       btnFoxKifu.setFocusable(false);
       btnFoxKifu.setMargin(new Insets(0, 10, 0, 10));
@@ -8054,7 +8011,6 @@ public class Menu extends JMenuBar {
       Lizzie.frame.topPanel.leftArea.add(btnFoxKifu);
       Lizzie.frame.topPanel.leftArea.add(btnTencentKifu);
       Lizzie.frame.topPanel.leftArea.add(btnPlayerStrengthEstimate);
-      Lizzie.frame.topPanel.centerArea.add(btnAutoSetup);
       Lizzie.frame.topPanel.centerArea.add(btnFlashAnalyze);
 
       Lizzie.frame.topPanel.rightArea.add(btnHawkeye);

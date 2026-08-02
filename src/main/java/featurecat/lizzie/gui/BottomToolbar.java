@@ -96,7 +96,6 @@ public class BottomToolbar extends JPanel {
   JButton deleteMove;
   JButton share;
   JButton remoteComputeButton;
-  JButton downloadWeightButton;
   JButton moreActionsButton;
   JPopupMenu moreActionsPopup;
 
@@ -601,8 +600,6 @@ public class BottomToolbar extends JPanel {
     share = new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.share")); // ("分享");
     remoteComputeButton = new JFontButton(Lizzie.resourceBundle.getString("Menu.remoteCompute"));
     AppleStyleSupport.markPrimary(remoteComputeButton);
-    downloadWeightButton =
-        new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.downloadWeight"));
     liveButton =
         new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.liveButton")); // ("直播");
     clearButton =
@@ -707,7 +704,6 @@ public class BottomToolbar extends JPanel {
     if (showDetail) leftMove.setBounds(Config.isScaled ? 20 : 19, 0, 20, 26);
     else leftMove.setBounds(0, 0, 20, 26);
     buttonPane.add(remoteComputeButton);
-    buttonPane.add(downloadWeightButton);
     buttonPane.add(share);
     buttonPane.add(liveButton);
     buttonPane.add(deleteMove);
@@ -769,7 +765,6 @@ public class BottomToolbar extends JPanel {
     liveButton.setFocusable(false);
     share.setFocusable(false);
     remoteComputeButton.setFocusable(false);
-    downloadWeightButton.setFocusable(false);
     rightMove.setFocusable(false);
     leftMove.setFocusable(false);
     badMoves.setFocusable(false);
@@ -782,7 +777,6 @@ public class BottomToolbar extends JPanel {
     autoPlay.setMargin(new Insets(0, 0, 0, 0));
     badMoves.setMargin(new Insets(0, 0, 0, 0));
     remoteComputeButton.setMargin(new Insets(0, 0, 0, 0));
-    downloadWeightButton.setMargin(new Insets(0, 0, 0, 0));
     firstButton.setMargin(new Insets(0, 0, 0, 0));
     lastButton.setMargin(new Insets(0, 0, 0, 0));
     clearButton.setMargin(new Insets(0, 0, 0, 0));
@@ -824,7 +818,6 @@ public class BottomToolbar extends JPanel {
     //    }
     setButtonSize(autoPlay, false);
     setButtonSize(remoteComputeButton, false);
-    setButtonSize(downloadWeightButton, false);
     setButtonSize(deleteMove, true);
     setButtonSize(badMoves, false);
     setButtonSize(share, true);
@@ -921,13 +914,6 @@ public class BottomToolbar extends JPanel {
         new ActionListener() {
           public void actionPerformed(ActionEvent e) {
             Lizzie.frame.openRemoteComputeCenter();
-          }
-        });
-
-    downloadWeightButton.addActionListener(
-        new ActionListener() {
-          public void actionPerformed(ActionEvent e) {
-            Lizzie.frame.openKataGoWeightDownload();
           }
         });
 
@@ -4465,7 +4451,6 @@ public class BottomToolbar extends JPanel {
 
   private void setButtonVisiable() {
     remoteComputeButton.setVisible(true);
-    downloadWeightButton.setVisible(true);
     if (Lizzie.config.liveButton) liveButton.setVisible(true);
     else liveButton.setVisible(false);
     if (Lizzie.config.share) share.setVisible(true);
@@ -4631,9 +4616,6 @@ public class BottomToolbar extends JPanel {
     int length = 0;
     if (remoteComputeButton.isVisible()) {
       length = length + remoteComputeButton.getWidth() - (Config.isScaled ? 0 : 1);
-    }
-    if (downloadWeightButton.isVisible()) {
-      length = length + downloadWeightButton.getWidth() - (Config.isScaled ? 0 : 1);
     }
     if (liveButton.isVisible()) {
       length = length + liveButton.getWidth() - (Config.isScaled ? 0 : 1);
@@ -4856,10 +4838,6 @@ public class BottomToolbar extends JPanel {
       w = w - (liveButton.getWidth() - (Config.isScaled ? 0 : 1));
       liveButton.setLocation(w, 0);
     }
-    if (downloadWeightButton.isVisible()) {
-      w = w - (downloadWeightButton.getWidth() - (Config.isScaled ? 0 : 1));
-      downloadWeightButton.setLocation(w, 0);
-    }
     if (remoteComputeButton.isVisible()) {
       w = w - (remoteComputeButton.getWidth() - (Config.isScaled ? 0 : 1));
       remoteComputeButton.setLocation(w, 0);
@@ -4872,10 +4850,6 @@ public class BottomToolbar extends JPanel {
     if (remoteComputeButton.isVisible()) {
       remoteComputeButton.setLocation(w, 0);
       w = w + remoteComputeButton.getWidth() - (Config.isScaled ? 0 : 1);
-    }
-    if (downloadWeightButton.isVisible()) {
-      downloadWeightButton.setLocation(w, 0);
-      w = w + downloadWeightButton.getWidth() - (Config.isScaled ? 0 : 1);
     }
     if (liveButton.isVisible()) {
       liveButton.setLocation(w, 0);
@@ -5030,7 +5004,6 @@ public class BottomToolbar extends JPanel {
             openfile,
             savefile,
             remoteComputeButton,
-            downloadWeightButton,
             kataEstimate,
             heatMap,
             analyzeList,
@@ -5062,7 +5035,6 @@ public class BottomToolbar extends JPanel {
       overflowButtons.clear();
       hideButtons(
           remoteComputeButton,
-          downloadWeightButton,
           share,
           liveButton,
           deleteMove,

@@ -1181,7 +1181,7 @@ public class SGFParser {
               || Lizzie.board.isPkBoardKataW)
             generalProps.append(
                 String.format(
-                    "KM[%s]PW[%s]PB[%s]DT[%s]DZ[KW]AP[LizzieYzy Next: %s]RE[%s]SZ[%s]CA[UTF-8]",
+                    "KM[%s]PW[%s]PB[%s]DT[%s]DZ[KW]AP[Katayzy: %s]RE[%s]SZ[%s]CA[UTF-8]",
                     komi, playerW, playerB, date, Lizzie.nextVersion, result, boardSizeTag));
           else if (Lizzie.engineManager.engineList.get(
                       EngineManager.engineGameInfo.blackEngineIndex)
@@ -1191,23 +1191,23 @@ public class SGFParser {
               || Lizzie.board.isPkBoardKataB)
             generalProps.append(
                 String.format(
-                    "KM[%s]PW[%s]PB[%s]DT[%s]DZ[KB]AP[LizzieYzy Next: %s]RE[%s]SZ[%s]CA[UTF-8]",
+                    "KM[%s]PW[%s]PB[%s]DT[%s]DZ[KB]AP[Katayzy: %s]RE[%s]SZ[%s]CA[UTF-8]",
                     komi, playerW, playerB, date, Lizzie.nextVersion, result, boardSizeTag));
           else
             generalProps.append(
                 String.format(
-                    "KM[%s]PW[%s]PB[%s]DT[%s]DZ[Y]AP[LizzieYzy Next: %s]RE[%s]SZ[%s]CA[UTF-8]",
+                    "KM[%s]PW[%s]PB[%s]DT[%s]DZ[Y]AP[Katayzy: %s]RE[%s]SZ[%s]CA[UTF-8]",
                     komi, playerW, playerB, date, Lizzie.nextVersion, result, boardSizeTag));
         } else {
           if (Lizzie.leelaz.isKatago || Lizzie.board.isKataBoard)
             generalProps.append(
                 String.format(
-                    "KM[%s]PW[%s]PB[%s]DT[%s]DZ[G]AP[LizzieYzy Next: %s]RE[%s]SZ[%s]CA[UTF-8]",
+                    "KM[%s]PW[%s]PB[%s]DT[%s]DZ[G]AP[Katayzy: %s]RE[%s]SZ[%s]CA[UTF-8]",
                     komi, playerW, playerB, date, Lizzie.nextVersion, result, boardSizeTag));
           else
             generalProps.append(
                 String.format(
-                    "KM[%s]PW[%s]PB[%s]DT[%s]AP[LizzieYzy Next: %s]RE[%s]SZ[%s]CA[UTF-8]",
+                    "KM[%s]PW[%s]PB[%s]DT[%s]AP[Katayzy: %s]RE[%s]SZ[%s]CA[UTF-8]",
                     komi, playerW, playerB, date, Lizzie.nextVersion, result, boardSizeTag));
         }
       }

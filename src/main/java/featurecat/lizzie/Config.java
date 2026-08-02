@@ -149,7 +149,7 @@ public class Config {
 
   private static final String USER_WORK_DIR_NAME = ".lizzieyzy-next";
   private static final String LEGACY_USER_WORK_DIR_NAME = ".lizzieyzy-next-foxuid";
-  private static final String WINDOWS_SHARED_WORK_DIR_NAME = "LizzieYzyNext";
+  private static final String WINDOWS_SHARED_WORK_DIR_NAME = "Katayzy";
   private static final String WINDOWS_PORTABLE_MARKER_NAME = ".lizzie-portable";
   private static final String WINDOWS_PORTABLE_WORK_DIR_NAME = "user-data";
   private static final String WORK_DIR_PROPERTY = "lizzie.work.dir";

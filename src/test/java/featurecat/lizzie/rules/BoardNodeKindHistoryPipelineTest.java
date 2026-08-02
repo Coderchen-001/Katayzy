@@ -1077,7 +1077,7 @@ class BoardNodeKindHistoryPipelineTest {
               + "move Q4 visits 211 winrate 9918 prior 1764 scoreMean 13.80 pv Q4 R4";
       String sgf =
           "(;CA[UTF-8]AB[aa][ca]PL[W]FF[4]RU[jp]GM[1]SZ[3]SO[弈客直播员]"
-              + "AP[LizzieYzy Next: next-2026-07-13.2]HA[2]KM[0.0]"
+              + "AP[Katayzy: next-2026-07-13.2]HA[2]KM[0.0]"
               + "PW[KataGo]PB[申真谞]LZOP["
               + staleAnalysis
               + "]LZ["
@@ -3027,7 +3027,7 @@ class BoardNodeKindHistoryPipelineTest {
       Lizzie.board.setHistory(history);
 
       String expected =
-          "(;CA[UTF-8]AB[aa]AW[cc]PL[W]SZ[3]KM[6.5]PW[White]PB[Black]DT[2020-01-02]AP[LizzieYzy Next: "
+          "(;CA[UTF-8]AB[aa]AW[cc]PL[W]SZ[3]KM[6.5]PW[White]PB[Black]DT[2020-01-02]AP[Katayzy: "
               + Lizzie.nextVersion
               + "]RE[];B[ba])";
       String firstSave = SGFParser.saveToString(false);

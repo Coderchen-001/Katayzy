@@ -703,7 +703,6 @@ public class LizzieFrame extends JFrame {
   public static boolean isKeepForcing = false;
   public static boolean isTempForcing = false;
   public FoxKifuDownload foxKifuDownload;
-  public KataGoAutoSetupDialog kataGoAutoSetupDialog;
   public int noneMaxX, noneMaxY, noneMaxWidth, noneMaxHeight;
 
   private boolean tempShowBlack;
@@ -1841,7 +1840,7 @@ public class LizzieFrame extends JFrame {
     engineStartupStatusButton.addActionListener(
         event -> {
           if (Lizzie.engineStartupStatus.snapshot().isActionable()) {
-            openKataGoAutoSetup();
+            openMoreEngineDialog();
           }
         });
     basePanel.add(engineStartupStatusButton, Integer.valueOf(12));
@@ -18491,17 +18490,6 @@ public class LizzieFrame extends JFrame {
     foxKifuDownload.presentWindow();
   }
 
-  public void openKataGoAutoSetup() {
-    if (kataGoAutoSetupDialog == null || !kataGoAutoSetupDialog.isDisplayable()) {
-      kataGoAutoSetupDialog = new KataGoAutoSetupDialog(this);
-    }
-    kataGoAutoSetupDialog.refreshState();
-    kataGoAutoSetupDialog.ensureVisibleOnScreen();
-    kataGoAutoSetupDialog.setVisible(true);
-    kataGoAutoSetupDialog.ensureVisibleOnScreen();
-    kataGoAutoSetupDialog.toFront();
-  }
-
   public void openRemoteComputeCenter() {
     RemoteComputeDialog dialog;
     try {
@@ -18516,18 +18504,6 @@ public class LizzieFrame extends JFrame {
     }
     dialog.setVisible(true);
     dialog.toFront();
-  }
-
-  public void openKataGoWeightDownload() {
-    if (kataGoAutoSetupDialog == null || !kataGoAutoSetupDialog.isDisplayable()) {
-      kataGoAutoSetupDialog = new KataGoAutoSetupDialog(this);
-    }
-    kataGoAutoSetupDialog.refreshState();
-    kataGoAutoSetupDialog.showWeightsSection();
-    kataGoAutoSetupDialog.ensureVisibleOnScreen();
-    kataGoAutoSetupDialog.setVisible(true);
-    kataGoAutoSetupDialog.ensureVisibleOnScreen();
-    kataGoAutoSetupDialog.toFront();
   }
 
   private void resumeAnalysisAfterLoad() {

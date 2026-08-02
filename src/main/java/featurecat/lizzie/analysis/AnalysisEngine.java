@@ -16,6 +16,7 @@ import featurecat.lizzie.rules.Movelist;
 import featurecat.lizzie.rules.SGFParser;
 import featurecat.lizzie.rules.Stone;
 import featurecat.lizzie.rules.Zobrist;
+import featurecat.lizzie.util.AnalysisEngineCommandHelper;
 import featurecat.lizzie.util.CommandLaunchHelper;
 import featurecat.lizzie.util.KataGoRuntimeHelper;
 import featurecat.lizzie.util.Utils;
@@ -26,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -209,7 +211,100 @@ public class AnalysisEngine {
   }
 
   private static String resolveConfiguredAnalysisEngineCommand(boolean isPreLoad) {
-    return Lizzie.config.analysisEngineCommand;
+    String configured = Lizzie.config.analysisEngineCommand;
+    if (isUsableAnalysisCommand(configured)) {
+      return configured;
+    }
+    // Companion-process fallback: when no usable analysis command is configured,
+    // drive the quick win-rate analysis (opened-kifu auto analysis) with the small
+    // b10c384 model that the launcher builds, instead of failing or using a large model.
+    String fallback = buildFallbackAnalysisCommand(Path.of("engines", "katago-trt"));
+    return fallback != null ? fallback : configured;
+  }
+
+  /**
+   * True when the command is non-empty, is not the bundled placeholder, and its model (and config,
+   * when present) files actually exist relative to the working directory.
+   */
+  static boolean isUsableAnalysisCommand(String command) {
+    if (command == null) {
+      return false;
+    }
+    String trimmed = command.trim();
+    if (trimmed.isEmpty()) {
+      return false;
+    }
+    if (normalizedCommand(trimmed)
+        .equals(normalizedCommand(AnalysisEngineCommandHelper.DEFAULT_ANALYSIS_COMMAND))) {
+      return false;
+    }
+    List<String> parts = Utils.splitCommand(trimmed);
+    String model = tokenValue(parts, "-model");
+    if (model == null || !Files.isRegularFile(Path.of(model))) {
+      return false;
+    }
+    String config = tokenValue(parts, "-config");
+    return config == null || Files.isRegularFile(Path.of(config));
+  }
+
+  /**
+   * Builds an analysis command for the bundled b10c384 companion model inside the TensorRT engine
+   * directory (relative paths, portable). Returns null when the engine, the b10c384 weight or its
+   * generated config is not present.
+   */
+  static String buildFallbackAnalysisCommand(Path engineDir) {
+    if (engineDir == null) {
+      return null;
+    }
+    Path katagoExe = engineDir.resolve("katago.exe");
+    if (!Files.isRegularFile(katagoExe)) {
+      return null;
+    }
+    Path weight = findEngineFile(engineDir, "b10c384", ".bin.gz");
+    Path config = findEngineFile(engineDir, "b10c384", ".cfg");
+    if (weight == null || config == null) {
+      return null;
+    }
+    return quoteCommandToken(katagoExe.toString())
+        + " analysis -model "
+        + quoteCommandToken(weight.toString())
+        + " -config "
+        + quoteCommandToken(config.toString())
+        + " -quit-without-waiting";
+  }
+
+  private static String normalizedCommand(String command) {
+    return String.join(" ", Utils.splitCommand(command));
+  }
+
+  private static String tokenValue(List<String> parts, String token) {
+    for (int i = 0; i < parts.size() - 1; i++) {
+      if (token.equals(parts.get(i))) {
+        return parts.get(i + 1);
+      }
+    }
+    return null;
+  }
+
+  private static Path findEngineFile(Path dir, String nameFragment, String suffix) {
+    try (var stream = Files.list(dir)) {
+      return stream
+          .filter(Files::isRegularFile)
+          .filter(p -> p.getFileName().toString().contains(nameFragment))
+          .filter(p -> p.getFileName().toString().endsWith(suffix))
+          .sorted()
+          .findFirst()
+          .orElse(null);
+    } catch (IOException e) {
+      return null;
+    }
+  }
+
+  private static String quoteCommandToken(String token) {
+    if (token.indexOf(' ') >= 0 || token.indexOf('"') >= 0) {
+      return "\"" + token.replace("\"", "\\\"") + "\"";
+    }
+    return token;
   }
 
   static boolean shouldShowGeneratedConfigNotice(boolean isPreLoad, boolean generatedConfig) {

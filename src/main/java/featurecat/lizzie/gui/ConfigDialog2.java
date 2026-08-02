@@ -155,7 +155,6 @@ public class ConfigDialog2 extends JDialog {
 
   private PanelWithToolTips uiTab;
   private PanelWithToolTips themeTab;
-  private PanelWithToolTips aboutTab;
   private JButton okButton;
   private final List<ModernTabComponent> modernNavItems = new ArrayList<>();
   private final Map<Integer, JComponent> modernSectionAnchors = new HashMap<>();
@@ -418,9 +417,6 @@ public class ConfigDialog2 extends JDialog {
 
     themeTab.setLayout(null);
 
-    // About Tab
-    aboutTab = new SettingsContentPanel(SettingsContentPanel.Mode.ABOUT);
-    rebuildAboutTabLikeDesign();
     ButtonGroup group = new ButtonGroup();
     nf.setGroupingUsed(false);
     ButtonGroup showMoveGroup = new ButtonGroup();
@@ -1212,8 +1208,6 @@ public class ConfigDialog2 extends JDialog {
         null,
         wrapSettingsPanel(themeTab),
         resourceBundle.getString("LizzieConfig.title.theme"));
-    tabbedPane.addTab(
-        resourceBundle.getString("LizzieConfig.title.about"), null, wrapAboutPanel(aboutTab), null);
     rootPane.add(createModernSettingsBody(tabbedPane), BorderLayout.CENTER);
     // txtMaxAnalyzeTime.setText(String.valueOf(leelazConfig.getInt("max-analyze-time-minutes")));
     txtAnalyzeUpdateInterval.setText(String.valueOf(Lizzie.config.analyzeUpdateIntervalCentisec));
@@ -2389,369 +2383,6 @@ public class ConfigDialog2 extends JDialog {
         });
   }
 
-  private void rebuildAboutTabLikeDesign() {
-    if (aboutTab == null) return;
-    aboutTab.removeAll();
-    aboutTab.setOpaque(true);
-    aboutTab.setBackground(SETTINGS_BG);
-    aboutTab.setLayout(new BorderLayout());
-
-    JPanel content = new JPanel();
-    content.setOpaque(false);
-    content.setLayout(new BorderLayout());
-    content.setBorder(BorderFactory.createEmptyBorder(18, 20, 18, 20));
-    content.add(createUnifiedAboutPanel(), BorderLayout.CENTER);
-
-    aboutTab.add(content, BorderLayout.CENTER);
-    aboutTab.setPreferredSize(new Dimension(900, 620));
-    aboutTab.revalidate();
-    aboutTab.repaint();
-  }
-
-  private JPanel createUnifiedAboutPanel() {
-    JPanel page =
-        new JPanel() {
-          @Override
-          protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
-            int w = getWidth();
-            int h = getHeight();
-            g2.setColor(new Color(0, 0, 0, 14));
-            g2.fillRoundRect(5, 7, w - 10, h - 10, 24, 24);
-            g2.setPaint(
-                new GradientPaint(0, 0, new Color(255, 253, 247), w, h, new Color(247, 240, 224)));
-            g2.fillRoundRect(0, 0, w - 8, h - 8, 24, 24);
-            g2.setColor(new Color(223, 237, 225, 140));
-            g2.fillOval(w - 220, -90, 300, 170);
-            g2.setColor(new Color(237, 220, 177, 105));
-            g2.fillOval(-70, h - 120, 220, 150);
-            g2.setColor(SETTINGS_BORDER);
-            g2.drawRoundRect(0, 0, w - 9, h - 9, 24, 24);
-            g2.dispose();
-          }
-        };
-    page.setOpaque(false);
-    page.setLayout(new BorderLayout(0, 18));
-    page.setBorder(BorderFactory.createEmptyBorder(28, 32, 28, 32));
-    page.setAlignmentX(Component.LEFT_ALIGNMENT);
-    page.setPreferredSize(new Dimension(900, 560));
-    page.setMaximumSize(new Dimension(Integer.MAX_VALUE, 560));
-
-    page.add(createUnifiedAboutHero(), BorderLayout.NORTH);
-    JPanel cards = new JPanel(new java.awt.GridLayout(1, 3, 14, 0));
-    cards.setOpaque(false);
-    cards.add(
-        createUserAboutCard(
-            configText("ConfigDialog2.modern.about.kifuTitle", "找棋谱更省心"),
-            configText(
-                "ConfigDialog2.modern.about.kifuDescription",
-                "支持野狐、腾讯棋谱等常用入口，少复制、少切窗口，打开后直接复盘。"),
-            "/assets/ui/about_card_kifu.png"));
-    cards.add(
-        createUserAboutCard(
-            configText("ConfigDialog2.modern.about.katagoTitle", "KataGo 更好上手"),
-            configText(
-                "ConfigDialog2.modern.about.katagoDescription",
-                "一键设置整理权重、引擎和测速，尽量把复杂配置变成看得懂的流程。"),
-            "/assets/ui/about_card_katago.png"));
-    cards.add(
-        createUserAboutCard(
-            configText("ConfigDialog2.modern.about.reviewTitle", "复盘更专注"),
-            configText(
-                "ConfigDialog2.modern.about.reviewDescription",
-                "保留胜率曲线、候选点和整局快速分析，把重点放在棋局本身。"),
-            "/assets/ui/about_card_review.png"));
-    page.add(cards, BorderLayout.CENTER);
-    page.add(createUnifiedAboutCommunity(), BorderLayout.SOUTH);
-    return page;
-  }
-
-  private JPanel createUnifiedAboutHero() {
-    JPanel hero = new JPanel(new BorderLayout(20, 0));
-    hero.setOpaque(false);
-    hero.setMaximumSize(new Dimension(Integer.MAX_VALUE, 132));
-    hero.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-    JPanel copy = new JPanel();
-    copy.setOpaque(false);
-    copy.setLayout(new javax.swing.BoxLayout(copy, javax.swing.BoxLayout.Y_AXIS));
-    JLabel title = new JLabel("LizzieYzy Next");
-    title.putClientProperty(CLIENT_SKIP_TEXT_STYLE, Boolean.TRUE);
-    title.setForeground(SETTINGS_TEXT);
-    title.setFont(new Font(Config.sysDefaultFontName, Font.BOLD, 32));
-    JLabel version =
-        new JLabel(
-            java.text.MessageFormat.format(
-                configText(
-                    "ConfigDialog2.modern.about.versionLine",
-                    "版本 {0} · 面向日常复盘与围棋训练"),
-                Lizzie.nextVersion));
-    version.putClientProperty(CLIENT_SKIP_TEXT_STYLE, Boolean.TRUE);
-    version.setForeground(SETTINGS_JADE_DARK);
-    version.setFont(new Font(Config.sysDefaultFontName, Font.PLAIN, 13));
-    JLabel intro =
-        createAboutParagraph(
-            configText(
-                "ConfigDialog2.modern.about.intro",
-                "LizzieYzy Next 帮你更方便地找棋谱、看胜率、用 KataGo 复盘，让常用功能尽量开箱即用。"));
-    copy.add(title);
-    copy.add(javax.swing.Box.createVerticalStrut(4));
-    copy.add(version);
-    copy.add(javax.swing.Box.createVerticalStrut(12));
-    copy.add(intro);
-
-    JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-    actions.setOpaque(false);
-    actions.add(
-        createAboutLinkButton(
-            configText("ConfigDialog2.modern.about.homepage", "项目主页"),
-            "https://github.com/wimi321/lizzieyzy-next"));
-    actions.add(
-        createAboutLinkButton(
-            configText("ConfigDialog2.modern.about.releases", "发布下载"),
-            "https://github.com/wimi321/lizzieyzy-next/releases"));
-    actions.add(
-        createAboutLinkButton(
-            configText("ConfigDialog2.modern.about.issues", "问题反馈"),
-            "https://github.com/wimi321/lizzieyzy-next/issues"));
-    hero.add(copy, BorderLayout.CENTER);
-    hero.add(actions, BorderLayout.SOUTH);
-    return hero;
-  }
-
-  private JPanel createUserAboutCard(String title, String description, String imagePath) {
-    BufferedImage image = null;
-    try {
-      image = loadUiImage(imagePath);
-    } catch (IOException ignored) {
-    }
-    final BufferedImage cardImage = image;
-    JPanel card =
-        new JPanel(new BorderLayout()) {
-          @Override
-          protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
-            g2.setClip(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 18, 18));
-            if (cardImage != null) {
-              paintImageCover(g2, cardImage, 0, 0, getWidth(), getHeight());
-            } else {
-              g2.setColor(new Color(255, 255, 250, 178));
-              g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
-            }
-            g2.setPaint(
-                new GradientPaint(
-                    0,
-                    0,
-                    new Color(255, 255, 250, 35),
-                    0,
-                    getHeight(),
-                    new Color(255, 252, 244, 130)));
-            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
-            g2.setClip(null);
-            g2.setColor(new Color(219, 211, 193));
-            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 18, 18);
-            g2.dispose();
-          }
-        };
-    card.setOpaque(false);
-    card.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
-    JLabel titleLabel = createAboutCardTitle(title);
-    titleLabel.setFont(new Font(Config.sysDefaultFontName, Font.BOLD, 16));
-    titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-    JLabel body = createAboutParagraph(description);
-    body.setFont(new Font(Config.sysDefaultFontName, Font.PLAIN, 13));
-    body.setAlignmentX(Component.LEFT_ALIGNMENT);
-    JPanel copy =
-        new JPanel() {
-          @Override
-          protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
-            g2.setColor(new Color(255, 253, 246, 224));
-            g2.fillRoundRect(10, 0, getWidth() - 20, getHeight() - 12, 18, 18);
-            g2.setColor(new Color(255, 255, 255, 128));
-            g2.drawRoundRect(10, 0, getWidth() - 21, getHeight() - 13, 18, 18);
-            g2.dispose();
-          }
-        };
-    copy.setOpaque(false);
-    copy.setLayout(new javax.swing.BoxLayout(copy, javax.swing.BoxLayout.Y_AXIS));
-    copy.setBorder(BorderFactory.createEmptyBorder(16, 24, 24, 24));
-    copy.add(titleLabel);
-    copy.add(javax.swing.Box.createVerticalStrut(8));
-    copy.add(body);
-    card.add(copy, BorderLayout.SOUTH);
-    return card;
-  }
-
-  private static void paintImageCover(
-      Graphics2D g2, Image image, int x, int y, int width, int height) {
-    int imageWidth = image.getWidth(null);
-    int imageHeight = image.getHeight(null);
-    if (imageWidth <= 0 || imageHeight <= 0 || width <= 0 || height <= 0) return;
-    double scale = Math.max(width / (double) imageWidth, height / (double) imageHeight);
-    int drawWidth = (int) Math.ceil(imageWidth * scale);
-    int drawHeight = (int) Math.ceil(imageHeight * scale);
-    int drawX = x + (width - drawWidth) / 2;
-    int drawY = y + (height - drawHeight) / 2;
-    g2.drawImage(image, drawX, drawY, drawWidth, drawHeight, null);
-  }
-
-  private static void paintSettingsPaperBackground(Graphics2D g2, int width, int height) {
-    if (settingsPaperTexture != null) {
-      paintImageCover(g2, settingsPaperTexture, 0, 0, width, height);
-      g2.setColor(new Color(255, 252, 244, 72));
-      g2.fillRect(0, 0, width, height);
-    } else {
-      g2.setColor(SETTINGS_BG);
-      g2.fillRect(0, 0, width, height);
-    }
-  }
-
-  private void addAboutDivider(JPanel body) {
-    body.add(javax.swing.Box.createVerticalStrut(18));
-    JComponent divider =
-        new JComponent() {
-          @Override
-          protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setColor(new Color(226, 216, 196));
-            g2.drawLine(0, 0, getWidth(), 0);
-            g2.setColor(new Color(255, 255, 255, 145));
-            g2.drawLine(0, 1, getWidth(), 1);
-            g2.dispose();
-          }
-        };
-    divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 2));
-    divider.setPreferredSize(new Dimension(760, 2));
-    divider.setAlignmentX(Component.LEFT_ALIGNMENT);
-    body.add(divider);
-    body.add(javax.swing.Box.createVerticalStrut(16));
-  }
-
-  private void addAboutSectionHeader(JPanel body, String text) {
-    JLabel label = createAboutCardTitle(text);
-    label.setAlignmentX(Component.LEFT_ALIGNMENT);
-    body.add(label);
-    body.add(javax.swing.Box.createVerticalStrut(8));
-  }
-
-  private void addAboutFeatureRow(JPanel body, String title, String description) {
-    JPanel row = new JPanel(new BorderLayout(14, 0));
-    row.setOpaque(false);
-    row.setBorder(BorderFactory.createEmptyBorder(7, 0, 7, 0));
-    row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46));
-    JLabel marker = new JLabel("●", SwingConstants.CENTER);
-    marker.putClientProperty(CLIENT_SKIP_TEXT_STYLE, Boolean.TRUE);
-    marker.setForeground(SETTINGS_JADE);
-    marker.setFont(new Font(Config.sysDefaultFontName, Font.PLAIN, 9));
-    marker.setPreferredSize(new Dimension(18, 20));
-    JLabel text =
-        new JLabel(
-            "<html><b>"
-                + title
-                + "</b><span style='color:#687068'>　"
-                + description
-                + "</span></html>");
-    text.putClientProperty(CLIENT_SKIP_TEXT_STYLE, Boolean.TRUE);
-    text.setForeground(SETTINGS_TEXT);
-    text.setFont(new Font(Config.sysDefaultFontName, Font.PLAIN, 13));
-    row.add(marker, BorderLayout.WEST);
-    row.add(text, BorderLayout.CENTER);
-    body.add(row);
-  }
-
-  private void addUnifiedAboutMetaRow(JPanel body, String title, JComponent value) {
-    JPanel row = new JPanel(new BorderLayout(12, 0));
-    row.setOpaque(false);
-    row.setBorder(BorderFactory.createEmptyBorder(7, 0, 7, 0));
-    row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
-    JLabel key = new JLabel(title);
-    key.putClientProperty(CLIENT_SKIP_TEXT_STYLE, Boolean.TRUE);
-    key.setForeground(SETTINGS_MUTED);
-    key.setFont(new Font(Config.sysDefaultFontName, Font.PLAIN, 12));
-    value.putClientProperty(CLIENT_SKIP_TEXT_STYLE, Boolean.TRUE);
-    if (value instanceof JLabel) {
-      value.setForeground(SETTINGS_TEXT);
-      value.setFont(new Font(Config.sysDefaultFontName, Font.PLAIN, 13));
-    }
-    row.add(key, BorderLayout.WEST);
-    row.add(value, BorderLayout.EAST);
-    body.add(row);
-  }
-
-  private JPanel createUnifiedAboutCommunity() {
-    JPanel row = new JPanel(new BorderLayout(18, 0));
-    row.setOpaque(false);
-    row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
-    row.setAlignmentX(Component.LEFT_ALIGNMENT);
-    JPanel copy = new JPanel();
-    copy.setOpaque(false);
-    copy.setLayout(new javax.swing.BoxLayout(copy, javax.swing.BoxLayout.Y_AXIS));
-    copy.add(createAboutCardTitle(configText("ConfigDialog2.modern.about.community", "参与交流")));
-    copy.add(javax.swing.Box.createVerticalStrut(6));
-    copy.add(
-        createAboutParagraph(
-            configText(
-                "ConfigDialog2.modern.about.communityDescription",
-                "项目讨论 QQ 群：299419120。欢迎反馈 bug、分享使用体验，也欢迎继续参与棋谱同步、UI 和发布包优化。")));
-    JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-    actions.setOpaque(false);
-    actions.add(
-        createAboutLinkButton(
-            configText("ConfigDialog2.modern.about.reportIssue", "反馈问题"),
-            "https://github.com/wimi321/lizzieyzy-next/issues"));
-    actions.add(
-        createAboutLinkButton(
-            configText("ConfigDialog2.modern.about.viewUpdates", "查看更新"),
-            "https://github.com/wimi321/lizzieyzy-next/releases"));
-    row.add(copy, BorderLayout.CENTER);
-    row.add(actions, BorderLayout.EAST);
-    return row;
-  }
-
-  private JLabel createAboutCardTitle(String text) {
-    JLabel label = new JLabel(text);
-    label.putClientProperty(CLIENT_SKIP_TEXT_STYLE, Boolean.TRUE);
-    label.setForeground(SETTINGS_TEXT);
-    label.setFont(new Font(Config.sysDefaultFontName, Font.BOLD, 17));
-    return label;
-  }
-
-  private JLabel createAboutParagraph(String text) {
-    JLabel label = new JLabel("<html>" + text + "</html>");
-    label.putClientProperty(CLIENT_SKIP_TEXT_STYLE, Boolean.TRUE);
-    label.setForeground(SETTINGS_MUTED);
-    label.setFont(new Font(Config.sysDefaultFontName, Font.PLAIN, 13));
-    return label;
-  }
-
-  private JButton createAboutLinkButton(String text, String url) {
-    JButton button = new JButton(text);
-    button.putClientProperty(CLIENT_SKIP_TEXT_STYLE, Boolean.TRUE);
-    button.setForeground(SETTINGS_JADE_DARK);
-    button.setBackground(new Color(244, 249, 244));
-    button.setBorder(
-        BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(193, 216, 199)),
-            BorderFactory.createEmptyBorder(5, 10, 5, 10)));
-    button.setFont(new Font(Config.sysDefaultFontName, Font.PLAIN, 12));
-    button.setFocusPainted(false);
-    button.setContentAreaFilled(true);
-    button.addActionListener(e -> openExternalUrl(url));
-    return button;
-  }
-
-  private void openExternalUrl(String url) {
-    if (!Desktop.isDesktopSupported()) return;
-    try {
-      Desktop.getDesktop().browse(URI.create(url));
-    } catch (Exception ignored) {
-    }
-  }
-
   private void rebuildDisplayTabLikeDesign() {
     rebuildDisplayTabLikeDesign(MODERN_NAV_DISPLAY);
   }
@@ -3598,14 +3229,28 @@ public class ConfigDialog2 extends JDialog {
     return scrollPane;
   }
 
-  private JPanel wrapAboutPanel(PanelWithToolTips panel) {
-    panel.setOpaque(true);
-    panel.setBackground(SETTINGS_BG);
-    JPanel wrapper = new JPanel(new BorderLayout());
-    wrapper.setOpaque(true);
-    wrapper.setBackground(SETTINGS_BG);
-    wrapper.add(panel, BorderLayout.CENTER);
-    return wrapper;
+  private static void paintImageCover(
+      Graphics2D g2, Image image, int x, int y, int width, int height) {
+    int imageWidth = image.getWidth(null);
+    int imageHeight = image.getHeight(null);
+    if (imageWidth <= 0 || imageHeight <= 0 || width <= 0 || height <= 0) return;
+    double scale = Math.max(width / (double) imageWidth, height / (double) imageHeight);
+    int drawWidth = (int) Math.ceil(imageWidth * scale);
+    int drawHeight = (int) Math.ceil(imageHeight * scale);
+    int drawX = x + (width - drawWidth) / 2;
+    int drawY = y + (height - drawHeight) / 2;
+    g2.drawImage(image, drawX, drawY, drawWidth, drawHeight, null);
+  }
+
+  private static void paintSettingsPaperBackground(Graphics2D g2, int width, int height) {
+    if (settingsPaperTexture != null) {
+      paintImageCover(g2, settingsPaperTexture, 0, 0, width, height);
+      g2.setColor(new Color(255, 252, 244, 72));
+      g2.fillRect(0, 0, width, height);
+    } else {
+      g2.setColor(SETTINGS_BG);
+      g2.fillRect(0, 0, width, height);
+    }
   }
 
   private void styleModernScrollBar(JScrollPane scrollPane) {

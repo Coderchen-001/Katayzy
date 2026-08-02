@@ -25,16 +25,16 @@ if [[ ! -f "$JAR_PATH" ]]; then
   exit 1
 fi
 
-APP_NAME="LizzieYzy Next"
-APP_DESCRIPTION="Maintained LizzieYzy build with Fox nickname fetch and easier KataGo setup"
-OPENCL_APP_NAME="LizzieYzy Next OpenCL"
-OPENCL_APP_DESCRIPTION="Maintained LizzieYzy build with Fox nickname fetch and bundled OpenCL KataGo"
-NVIDIA_APP_NAME="LizzieYzy Next NVIDIA"
-NVIDIA_APP_DESCRIPTION="Maintained LizzieYzy build with bundled NVIDIA CUDA KataGo"
-NVIDIA50_CUDA_APP_NAME="LizzieYzy Next NVIDIA 50 CUDA"
-NVIDIA50_CUDA_APP_DESCRIPTION="Maintained LizzieYzy build with bundled RTX 50 CUDA KataGo"
-NVIDIA_TRT_APP_NAME="LizzieYzy Next NVIDIA TensorRT"
-NVIDIA_TRT_APP_DESCRIPTION="Maintained LizzieYzy build with optional bundled TensorRT acceleration"
+APP_NAME="Katayzy"
+APP_DESCRIPTION="Maintained Katayzy build with Fox nickname fetch and easier KataGo setup"
+OPENCL_APP_NAME="Katayzy OpenCL"
+OPENCL_APP_DESCRIPTION="Maintained Katayzy build with Fox nickname fetch and bundled OpenCL KataGo"
+NVIDIA_APP_NAME="Katayzy NVIDIA"
+NVIDIA_APP_DESCRIPTION="Maintained Katayzy build with bundled NVIDIA CUDA KataGo"
+NVIDIA50_CUDA_APP_NAME="Katayzy NVIDIA 50 CUDA"
+NVIDIA50_CUDA_APP_DESCRIPTION="Maintained Katayzy build with bundled RTX 50 CUDA KataGo"
+NVIDIA_TRT_APP_NAME="Katayzy NVIDIA TensorRT"
+NVIDIA_TRT_APP_DESCRIPTION="Maintained Katayzy build with optional bundled TensorRT acceleration"
 MAIN_JAR="$(basename "$JAR_PATH")"
 ICON_PATH="$ROOT_DIR/packaging/icons/app-icon.ico"
 ARCH_TAG="windows64"
@@ -163,7 +163,7 @@ expected_sha256 = expected_sha256.replace("sha256:", "").lower()
 def github_headers(accept):
     headers = {
         "Accept": accept,
-        "User-Agent": "LizzieYzy-Next-Packager",
+        "User-Agent": "Katayzy-Packager",
         "X-GitHub-Api-Version": "2022-11-28",
     }
     if github_token:
@@ -559,7 +559,7 @@ def download_with_resume():
     resume_from = os.path.getsize(part_path) if os.path.exists(part_path) else 0
     context = ssl.create_default_context()
     while True:
-        headers = {"User-Agent": "LizzieYzy-Next-Packager"}
+        headers = {"User-Agent": "Katayzy-Packager"}
         if resume_from:
             headers["Range"] = f"bytes={resume_from}-"
             print(f"Resuming {asset_name} from {resume_from} bytes")
@@ -775,7 +775,7 @@ Release display version: $APP_DISPLAY_VERSION
 How to pick the right file:
 - ${DATE_TAG}-${ARCH_TAG}.core-update.zip
   Lightweight update for existing Windows portable users. Use it only after you already have a full portable folder.
-  Close the app, extract this zip into the folder that contains LizzieYzy Next*.exe and app/, and allow overwriting app/${MAIN_JAR}.
+  Close the app, extract this zip into the folder that contains Katayzy*.exe and app/, and allow overwriting app/${MAIN_JAR}.
   It updates only the application core; engines, weights, Java runtime, JCEF, readboard, TensorRT, settings, saves, and user-data stay in place.
   New users should still download one of the full portable packages below first.
 EOF
@@ -931,7 +931,7 @@ create_portable_zip() {
   native_zip="$(to_native_path "$portable_zip")"
   log_step "Creating Windows portable zip: $(basename "$portable_zip")"
   printf '%s\n' \
-    "LizzieYzy Next portable package. Keep this file so settings, logs, downloaded weights, and TensorRT stay inside this folder." \
+    "Katayzy portable package. Keep this file so settings, logs, downloaded weights, and TensorRT stay inside this folder." \
     >"$app_image_root/.lizzie-portable"
   mkdir -p "$app_image_root/user-data"
   powershell.exe -NoProfile -Command \
@@ -1065,7 +1065,7 @@ create_tensorrt_split_package() {
   native_archive="$(to_native_path "$archive_base.7z")"
 
   printf '%s\n' \
-    "LizzieYzy Next advanced optional TensorRT split package. Keep this file so settings, logs, downloaded weights, and TensorRT stay inside this folder." \
+    "Katayzy advanced optional TensorRT split package. Keep this file so settings, logs, downloaded weights, and TensorRT stay inside this folder." \
     >"$app_image_root/.lizzie-portable"
   mkdir -p "$app_image_root/user-data"
 
@@ -1112,7 +1112,7 @@ create_core_update_asset() {
     return 1
   fi
   cat >"$core_dir/README.txt" <<EOF
-LizzieYzy Next lightweight core update
+Katayzy lightweight core update
 =====================================
 
 Release: $APP_DISPLAY_VERSION
@@ -1120,20 +1120,20 @@ Date: $DATE_TAG
 
 用途：
 - 已经在使用 Windows 免安装版的老用户，日常升级优先下载这个小更新包。
-- 关闭 LizzieYzy Next 后，把这个 zip 解压到旧的免安装目录里覆盖。
-- 目标目录应该是包含 "LizzieYzy Next*.exe" 和 "app" 文件夹的目录。
-- 解压时允许覆盖 app/$MAIN_JAR 和 app/LizzieYzy Next*.cfg。
+- 关闭 Katayzy 后，把这个 zip 解压到旧的免安装目录里覆盖。
+- 目标目录应该是包含 "Katayzy*.exe" 和 "app" 文件夹的目录。
+- 解压时允许覆盖 app/$MAIN_JAR 和 app/Katayzy*.cfg。
 
-这个包只更新 LizzieYzy Next 主程序核心和启动器配置。
+这个包只更新 Katayzy 主程序核心和启动器配置。
 启动器配置用于同步标题栏版本号和必要 JVM 参数；不会改变你的引擎、权重或用户数据。
 KataGo 引擎、权重、JCEF、readboard、Java runtime、设置、棋谱、TensorRT 和 user-data 都会保留。
 只有未来更新 manifest 明确列出资源组件时，才需要下载对应的大资源更新。
 
 Manual update:
 - Existing Windows portable users can use this small package for regular updates.
-- Close LizzieYzy Next, then extract this zip into the existing portable app folder.
-- The target folder should contain "LizzieYzy Next*.exe" and an "app" folder.
-- Allow overwriting app/$MAIN_JAR and app/LizzieYzy Next*.cfg.
+- Close Katayzy, then extract this zip into the existing portable app folder.
+- The target folder should contain "Katayzy*.exe" and an "app" folder.
+- Allow overwriting app/$MAIN_JAR and app/Katayzy*.cfg.
 
 This package updates the application core and launcher configuration only.
 The launcher configuration keeps the title-bar version and required JVM options in sync.
@@ -1195,7 +1195,7 @@ payload = {
     "kind": "windows-core-update",
     "releaseTag": release_tag,
     "dateTag": date_tag,
-    "manualOverlayTarget": "folder containing LizzieYzy Next*.exe and app/",
+    "manualOverlayTarget": "folder containing Katayzy*.exe and app/",
     "preserves": [
         "user-data/",
         "app/weights/",

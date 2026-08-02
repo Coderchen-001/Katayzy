@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 class NetworkProxyInventoryTest {
   private static final Path MAIN_SOURCES = Path.of("src/main/java");
   private static final String HELPER = "featurecat/lizzie/util/NetworkProxy.java";
-  private static final String UPDATER = "featurecat/lizzie/update/WindowsUpdateService.java";
   private static final String ONLINE_DIALOG = "featurecat/lizzie/gui/OnlineDialog.java";
 
   @Test
@@ -28,14 +27,6 @@ class NetworkProxyInventoryTest {
         violations.isEmpty(),
         "Outbound Java HTTP/WebSocket callers must use NetworkProxy:\n"
             + String.join("\n", violations));
-  }
-
-  @Test
-  void windowsUpdaterUsesSharedProxyOpener() throws IOException {
-    String source = Files.readString(MAIN_SOURCES.resolve(UPDATER));
-
-    assertTrue(source.contains("NetworkProxy.openConnection("));
-    assertTrue(!source.contains(".toURL().openConnection("));
   }
 
   private static void collectNetworkViolations(Path path, List<String> violations) {
