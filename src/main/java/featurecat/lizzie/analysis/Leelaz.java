@@ -709,15 +709,6 @@ public class Leelaz {
       }
       if (Config.isBundledKataGoCommand(engineCommand)) {
         try {
-          if (nvidiaBundled) {
-            updateBundledStartupStage(
-                engineExecutable,
-                nvidiaBundled ? 2 : 1,
-                "BundledEngineStartup.status.preparingRuntime",
-                "Preparing NVIDIA acceleration...",
-                "BundledEngineStartup.hint.nvidia",
-                "First launch on the NVIDIA package may take a little longer.");
-          }
           KataGoRuntimeHelper.ensureBundledRuntimeReady(engineExecutable, Lizzie.frame);
         } catch (IOException e) {
           closeBundledStartupDialog();
@@ -741,26 +732,10 @@ public class Leelaz {
           return;
         }
       }
-      if (bundledCommand) {
-        updateBundledStartupStage(
-            engineExecutable,
-            nvidiaBundled ? 3 : 2,
-            "BundledEngineStartup.status.startingProcess",
-            "Starting KataGo...",
-            nvidiaBundled ? "BundledEngineStartup.hint.nvidia" : "BundledEngineStartup.hint",
-            nvidiaBundled
-                ? "First launch on the NVIDIA package may take a little longer."
-                : "First launch may take a little longer.");
-      }
       List<String> launchCommands =
           KataGoRuntimeHelper.prepareBundledLaunchCommand(commands, engineExecutable);
       openClFp32CompatibilityActive =
           KataGoRuntimeHelper.isOpenClFp32CompatibilityActive(launchCommands, engineExecutable);
-      if (openClFp32CompatibilityActive && bundledCommand && !preload) {
-        Lizzie.engineStartupStatus.checking(
-            "BundledEngineStartup.status.openclCompatibility",
-            "Using stable NVIDIA OpenCL compatibility mode...");
-      }
       ProcessBuilder processBuilder = new ProcessBuilder(launchCommands);
       CommandLaunchHelper.configureProcessBuilder(processBuilder, launchSpec);
       KataGoRuntimeHelper.configureBundledProcessBuilder(processBuilder, engineExecutable);
@@ -790,13 +765,6 @@ public class Leelaz {
       }
       initializeStreams();
       if (bundledCommand) {
-        updateBundledStartupStage(
-            engineExecutable,
-            nvidiaBundled ? 4 : 3,
-            "BundledEngineStartup.status.waitingResponse",
-            "Waiting for engine response...",
-            "BundledEngineStartup.hint.waiting",
-            "The first response can take a little longer while the engine finishes loading.");
         startBundledStartupWatchdog(startupToken, engineExecutable);
       }
     }
@@ -4127,9 +4095,6 @@ public class Leelaz {
     isLoaded = false;
     canCheckAlive = false;
     if (this == Lizzie.leelaz) {
-      Lizzie.engineStartupStatus.checking(
-          "BundledEngineStartup.status.openclRecovering",
-          "NVIDIA OpenCL compatibility recovery is starting...");
       if (Lizzie.frame != null) {
         SwingUtilities.invokeLater(Lizzie.frame::prepareQuickAnalysisForPrimaryOpenClRecovery);
       }
@@ -10499,15 +10464,6 @@ public class Leelaz {
   public void tryToDignostic(String message, boolean isModal) {
     closeBundledStartupDialog();
     boolean primaryEngine = this == Lizzie.leelaz;
-    if (primaryEngine) {
-      if (hasMissingLocalStartupAsset(commands, useRemoteCompute, useJavaSSH)) {
-        Lizzie.engineStartupStatus.needsRepair(
-            "EngineStartup.needsRepair", "AI is not ready - click to repair", message);
-      } else {
-        Lizzie.engineStartupStatus.failed(
-            "EngineStartup.failed", "AI failed to start - click to repair", message);
-      }
-    }
     if (!shouldOpenInteractiveDiagnostic(primaryEngine, Lizzie.isFirstLaunchSession())) {
       return;
     }
@@ -10580,34 +10536,7 @@ public class Leelaz {
   private long beginBundledStartup(Path engineExecutable) {
     long token = System.nanoTime();
     bundledStartupToken = token;
-    updateBundledStartupStage(
-        engineExecutable,
-        1,
-        "BundledEngineStartup.status.checking",
-        "Checking built-in engine files...",
-        KataGoRuntimeHelper.isNvidiaBundledPath(engineExecutable)
-            ? "BundledEngineStartup.hint.nvidia"
-            : "BundledEngineStartup.hint",
-        KataGoRuntimeHelper.isNvidiaBundledPath(engineExecutable)
-            ? "First launch on the NVIDIA package may take a little longer."
-            : "First launch may take a little longer.");
     return token;
-  }
-
-  private void updateBundledStartupStage(
-      Path engineExecutable,
-      int step,
-      String statusKey,
-      String statusFallback,
-      String hintKey,
-      String hintFallback) {
-    if (preload || useJavaSSH || !Config.isBundledKataGoCommand(engineCommand)) {
-      return;
-    }
-    final boolean nvidiaBundled = KataGoRuntimeHelper.isNvidiaBundledPath(engineExecutable);
-    final int totalSteps = nvidiaBundled ? 4 : 3;
-    String progressFallback = statusFallback + " (" + step + "/" + totalSteps + ")";
-    Lizzie.engineStartupStatus.checking(statusKey, progressFallback);
   }
 
   private void closeBundledStartupDialog() {

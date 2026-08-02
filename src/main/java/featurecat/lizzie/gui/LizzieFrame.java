@@ -7,7 +7,6 @@ import static java.lang.Math.min;
 
 import com.jhlabs.image.GaussianFilter;
 import featurecat.lizzie.Config;
-import featurecat.lizzie.EngineStartupStatus;
 import featurecat.lizzie.ExtraMode;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.analysis.AnalysisEngine;
@@ -304,7 +303,6 @@ public class LizzieFrame extends JFrame {
   };
   private String DEFAULT_TITLE = Lizzie.getAppDisplayName();
   private JLayeredPane basePanel;
-  private JFontButton engineStartupStatusButton;
   public static BoardRenderer boardRenderer;
   public static BoardRenderer boardRenderer2;
   public static SubBoardRenderer subBoardRenderer;
@@ -1796,54 +1794,6 @@ public class LizzieFrame extends JFrame {
     } else basePanel.setBackground(Color.GRAY);
     getContentPane().add(basePanel);
     basePanel.setLayout(null);
-    engineStartupStatusButton =
-        new JFontButton() {
-          @Override
-          protected void paintComponent(Graphics graphics) {
-            Graphics2D g2 = (Graphics2D) graphics.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            Color background =
-                isEnabled() ? new Color(91, 65, 25, 238) : new Color(34, 48, 64, 232);
-            if (getModel().isRollover() && isEnabled()) {
-              background = new Color(112, 78, 27, 242);
-            }
-            g2.setColor(background);
-            g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
-            g2.setColor(isEnabled() ? new Color(224, 177, 83) : new Color(116, 145, 174));
-            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
-            if (isFocusOwner()) {
-              g2.setColor(new Color(255, 216, 132));
-              g2.setStroke(new BasicStroke(2f));
-              g2.drawRoundRect(2, 2, getWidth() - 5, getHeight() - 5, 10, 10);
-            }
-            g2.setFont(getFont());
-            FontMetrics metrics = g2.getFontMetrics();
-            String label = getText() == null ? "" : getText();
-            int x = Math.max(8, (getWidth() - metrics.stringWidth(label)) / 2);
-            int y = (getHeight() - metrics.getHeight()) / 2 + metrics.getAscent();
-            g2.setColor(Color.WHITE);
-            g2.drawString(label, x, y);
-            g2.dispose();
-          }
-        };
-    engineStartupStatusButton.setVisible(false);
-    engineStartupStatusButton.setFocusPainted(true);
-    engineStartupStatusButton.setContentAreaFilled(false);
-    engineStartupStatusButton.setBorderPainted(false);
-    engineStartupStatusButton.setOpaque(false);
-    engineStartupStatusButton.setRolloverEnabled(true);
-    engineStartupStatusButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-    engineStartupStatusButton.setMargin(new Insets(3, 10, 3, 10));
-    engineStartupStatusButton.setForeground(Color.WHITE);
-    engineStartupStatusButton.setFont(
-        new Font(Config.sysDefaultFontName, Font.BOLD, Math.max(12, Config.frameFontSize)));
-    engineStartupStatusButton.addActionListener(
-        event -> {
-          if (Lizzie.engineStartupStatus.snapshot().isActionable()) {
-            openMoreEngineDialog();
-          }
-        });
-    basePanel.add(engineStartupStatusButton, Integer.valueOf(12));
     basePanel.add(commentBlunderControlPane, Integer.valueOf(10));
     basePanel.add(tempGamePanelAll, Integer.valueOf(9));
     basePanel.add(varTreeScrollPane, Integer.valueOf(8));
@@ -1880,9 +1830,7 @@ public class LizzieFrame extends JFrame {
         topPanel,
         mainPanel,
         sidebarPanel,
-        toolbar,
-        engineStartupStatusButton);
-    Lizzie.engineStartupStatus.addListener(this::updateEngineStartupStatus);
+        toolbar);
     mainPanel.setVisible(false);
     commentScrollPane.setVisible(false);
     blunderContentPane.setVisible(false);
@@ -6625,7 +6573,7 @@ public class LizzieFrame extends JFrame {
 
   private void drawPonderingState(
       Graphics2D g, String text1, String text2, int x, int statusAreaTop) {
-    if (Lizzie.readMode || hasEngineStartupNotice()) {
+    if (Lizzie.readMode) {
       return;
     }
     int lineCount = Lizzie.config.userKnownX ? 2 : 3;
@@ -6726,9 +6674,6 @@ public class LizzieFrame extends JFrame {
     if (Lizzie.readMode) {
       return;
     }
-    if (hasEngineStartupNotice()) {
-      return;
-    }
     int lineCount = Lizzie.config.userKnownX ? 1 : 3;
     int[][] lines = statusLineBounds(statusAreaTop, currentStatusAreaBottom(), lineCount);
     int[] bounds = lines[0];
@@ -6741,9 +6686,6 @@ public class LizzieFrame extends JFrame {
 
   private void drawPonderingState2(Graphics2D g, String text, int x, int y, double size) {
     if (Lizzie.readMode) {
-      return;
-    }
-    if (hasEngineStartupNotice()) {
       return;
     }
     int fontSize = ponderingFontSize(size, true);
@@ -11916,7 +11858,6 @@ public class LizzieFrame extends JFrame {
                     - toolbarHeight,
                 width,
                 toolbarHeight);
-            layoutEngineStartupStatus(width);
             if (toolbar.showDetail) toolbar.setDetailIcon();
             toolbar.reSetButtonLocation();
             if (tempGamePanelAll.isVisible()) showTempGamePanel();
@@ -13793,7 +13734,20 @@ public class LizzieFrame extends JFrame {
       wholeGameAnalysisDialog.dispose();
     }
     WholeGameAnalysisDialog dialog = new WholeGameAnalysisDialog(this);
-    WholeGameAnalysisSession session = new WholeGameAnalysisSession(this, plan, dialog);
+    WholeGameAnalysisSession session =
+        new WholeGameAnalysisSession(
+            this,
+            plan,
+            dialog,
+            () -> {
+              // 负载转换：优先复用快速分析伴生进程（b10c384，已加载则借用，不新启动）；
+              // 未就绪时回退新建 WHOLE_GAME 引擎。
+              AnalysisEngine companion = companionAnalysisEngine();
+              if (companion != null && companion.isLoaded()) {
+                return companion;
+              }
+              return new AnalysisEngine(true, AnalysisEngine.Workload.WHOLE_GAME, plan.deepVisits());
+            });
     dialog.setSession(session);
     wholeGameAnalysisDialog = dialog;
     wholeGameAnalysisSession = session;
@@ -13856,9 +13810,14 @@ public class LizzieFrame extends JFrame {
   public void attachWholeGameAnalysisEngine(
       WholeGameAnalysisSession session, AnalysisEngine engine) {
     if (wholeGameAnalysisSession != session) {
+      // 伴生进程借用期间不杀进程（负载转换），仅停止请求
       engine.clearRequestCallbacks();
-      engine.normalQuit();
     }
+  }
+
+  /** 返回快速分析伴生进程（b10c384），供整盘精析负载转换借用。 */
+  public AnalysisEngine companionAnalysisEngine() {
+    return analysisEngine;
   }
 
   public void onWholeGameAnalysisFinished(
@@ -13870,9 +13829,7 @@ public class LizzieFrame extends JFrame {
     }
     boolean complete =
         session != null && session.state() == WholeGameAnalysisSession.State.COMPLETE;
-    if (analysisEngine == completedEngine) {
-      analysisEngine = null;
-    }
+    // 借用的伴生进程不置 null（保持引用，精析后继续服务快速分析）
     wholeGameAnalysisSession = null;
     if (resumeForegroundAnalysis) {
       resumeForegroundAnalysisAfterQuickAnalysisComplete();
@@ -14607,55 +14564,6 @@ public class LizzieFrame extends JFrame {
                 JOptionPane.ERROR_MESSAGE);
           }
         });
-  }
-
-  private void updateEngineStartupStatus(EngineStartupStatus.Snapshot snapshot) {
-    SwingUtilities.invokeLater(
-        () -> {
-          if (engineStartupStatusButton == null) {
-            return;
-          }
-          String oldText = engineStartupStatusButton.getText();
-          if (snapshot.state == EngineStartupStatus.State.READY) {
-            engineStartupStatusButton.setVisible(false);
-            engineStartupStatusButton.setEnabled(false);
-            return;
-          }
-          String message = text(snapshot.messageKey, snapshot.fallback);
-          engineStartupStatusButton.setText(message);
-          engineStartupStatusButton.setEnabled(snapshot.isActionable());
-          engineStartupStatusButton.setToolTipText(
-              snapshot.detail.isBlank()
-                  ? message
-                  : message + " - " + snapshot.detail.replace('\n', ' '));
-          AccessibilitySupport.button(
-              engineStartupStatusButton,
-              message,
-              snapshot.isActionable()
-                  ? text(
-                      "EngineStartup.repairDescription",
-                      "Open AI setup to inspect and repair the engine")
-                  : message);
-          engineStartupStatusButton.setVisible(true);
-          layoutEngineStartupStatus(Math.max(1, getWidth() - getInsets().left - getInsets().right));
-          AccessibilitySupport.announce(engineStartupStatusButton, oldText, message);
-          basePanel.repaint();
-        });
-  }
-
-  private void layoutEngineStartupStatus(int availableWidth) {
-    if (engineStartupStatusButton == null || !engineStartupStatusButton.isVisible()) {
-      return;
-    }
-    Dimension preferred = engineStartupStatusButton.getPreferredSize();
-    int width = Math.min(Math.max(180, preferred.width + 8), Math.max(180, availableWidth - 20));
-    int contentHeight = getHeight() - getInsets().top - getInsets().bottom;
-    int y = Math.max(windowMenuHeight + topPanelHeight + 4, contentHeight - toolbarHeight - 48);
-    engineStartupStatusButton.setBounds(10, y, width, 32);
-  }
-
-  private boolean hasEngineStartupNotice() {
-    return Lizzie.engineStartupStatus.snapshot().state != EngineStartupStatus.State.READY;
   }
 
   private WaitForAnalysis createFlashAnalysisLoadingFrame() {

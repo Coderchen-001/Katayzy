@@ -59,7 +59,6 @@ public class Lizzie {
   }
 
   public static ResourceBundle resourceBundle = ResourceBundle.getBundle("l10n.DisplayStrings");
-  public static final EngineStartupStatus engineStartupStatus = new EngineStartupStatus();
   public static Config config;
   public static GtpConsolePane gtpConsole;
   public static LizzieFrame frame;
@@ -209,14 +208,6 @@ public class Lizzie {
     setLookAndFeel();
     Locale.setDefault(Locale.ENGLISH);
     boolean noConfiguredEngine = !hasConfiguredEngine();
-    if (!startupProfileSaveFailed
-        && shouldOfferEngineRepair(
-            !noConfiguredEngine, config.uiConfig.optBoolean("autoload-empty", false))) {
-      engineStartupStatus.needsRepair(
-          "EngineStartup.needsRepair",
-          "AI is not ready - click to repair",
-          text("EngineStartup.noBundledEngine", "No complete built-in engine setup was found."));
-    }
     if (Lizzie.config.uiConfig.optBoolean("autoload-default", false)) {
       startConfiguredEngine(-1, true);
     } else if (Lizzie.config.uiConfig.optBoolean("autoload-last", false)) {
@@ -588,19 +579,6 @@ public class Lizzie {
       ready = hasUsableStartupConfiguration();
     }
     startupProfileSaveFailed = !finalizeAutomaticFirstRunSetup();
-    if (startupProfileSaveFailed) {
-      engineStartupStatus.failed(
-          "EngineStartup.profileSaveFailed",
-          "Settings could not be saved - click to repair",
-          text(
-              "EngineStartup.profileSaveFailedDescription",
-              "The new user profile could not be saved. Check folder permissions and free space."));
-    } else if (!ready) {
-      engineStartupStatus.needsRepair(
-          "EngineStartup.needsRepair",
-          "AI is not ready - click to repair",
-          text("EngineStartup.noBundledEngine", "No complete built-in engine setup was found."));
-    }
   }
 
   private static boolean hasUsableStartupConfiguration() {
@@ -684,10 +662,6 @@ public class Lizzie {
               Lizzie.engineManager = new EngineManager(Lizzie.config, index, loadDefault);
             } catch (Exception e) {
               e.printStackTrace();
-              engineStartupStatus.failed(
-                  "EngineStartup.failed",
-                  "AI failed to start - click to repair",
-                  e.getMessage());
               try {
                 Lizzie.engineManager = new EngineManager(Lizzie.config, -1, false);
               } catch (JSONException e1) {
@@ -748,7 +722,6 @@ public class Lizzie {
         return;
       }
     }
-    engineStartupStatus.ready();
   }
 
   public static void setLookAndFeel() {

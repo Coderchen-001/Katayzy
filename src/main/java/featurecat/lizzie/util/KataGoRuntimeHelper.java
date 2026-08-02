@@ -2246,12 +2246,9 @@ public final class KataGoRuntimeHelper {
       return buildCommandLine(commandParts);
     }
 
-    if (maxVisits <= 36 && !hasSearchThreadOverride) {
-      appendOverrideConfig(
-          commandParts, "numSearchThreadsPerAnalysisThread=" + Math.max(1, maxVisits / 10));
-      return buildCommandLine(commandParts);
-    }
-
+    // 快速分析（小 visits）不再强制单线程覆盖：让 cfg 的 numSearchThreadsPerAnalysisThread
+    // 生效。伴生进程（b10c384）同时服务快速分析与整盘精析（复用同一进程），
+    // 16 线程对两者都更快（分析进程的线程池常驻，无启动开销）。
     return commandChanged ? buildCommandLine(commandParts) : engineCommand;
   }
 

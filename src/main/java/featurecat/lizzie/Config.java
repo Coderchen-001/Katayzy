@@ -1245,7 +1245,7 @@ public class Config {
 
   public String analysisEngineCommand = AnalysisEngineCommandHelper.DEFAULT_ANALYSIS_COMMAND;
   public boolean analysisEngineCommandCustomized = false;
-  public int analysisMaxVisits = 1;
+  public int analysisMaxVisits = 15;
   public int analysisStartMove = -1;
   public int analysisEndMove = -1;
   public boolean analysisUseCurrentRules = true;
@@ -2029,7 +2029,7 @@ public class Config {
             uiConfig.has("analysis-engine-command-customized"),
             uiConfig.optBoolean("analysis-engine-command-customized", false),
             analysisEngineCommand);
-    analysisMaxVisits = uiConfig.optInt("analysis-max-visits", 1);
+    analysisMaxVisits = uiConfig.optInt("analysis-max-visits", 15);
     analysisStartMove = uiConfig.optInt("analysis-start-move", -1);
     analysisEndMove = uiConfig.optInt("analysis-end-move", -1);
     analysisUseCurrentRules = uiConfig.optBoolean("analysis-use-current-rules", true);

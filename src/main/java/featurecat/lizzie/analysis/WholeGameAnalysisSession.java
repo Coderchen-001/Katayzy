@@ -26,7 +26,7 @@ public final class WholeGameAnalysisSession {
   }
 
   @FunctionalInterface
-  interface EngineFactory {
+  public interface EngineFactory {
     AnalysisEngine create() throws IOException;
   }
 
@@ -80,6 +80,7 @@ public final class WholeGameAnalysisSession {
   private volatile State state = State.IDLE;
   private volatile boolean terminal;
   private AnalysisEngine engine;
+  private boolean borrowedEngine;
   private boolean remoteBackend;
   private boolean resumeForegroundAnalysis;
   private int baselineCompleted;
@@ -106,7 +107,7 @@ public final class WholeGameAnalysisSession {
         () -> new AnalysisEngine(true, AnalysisEngine.Workload.WHOLE_GAME, plan.deepVisits()));
   }
 
-  WholeGameAnalysisSession(
+  public WholeGameAnalysisSession(
       LizzieFrame frame,
       WholeGameAnalysisPlan plan,
       Listener listener,
@@ -319,6 +320,9 @@ public final class WholeGameAnalysisSession {
       }
       engine = created;
     }
+    // 负载转换：若创建的引擎就是快速分析伴生进程（b10c384），标记为借用，
+    // 结束时归还（不杀进程），整盘精析与快速分析共享同一个进程。
+    borrowedEngine = created == frame.companionAnalysisEngine();
     remoteBackend = created.usesRemoteBackend();
     frame.attachWholeGameAnalysisEngine(this, created);
     if (!created.usesSharedForegroundEngine()
@@ -546,6 +550,15 @@ public final class WholeGameAnalysisSession {
 
   private void closeEngine(AnalysisEngine engineToClose, Runnable completion) {
     if (engineToClose == null) {
+      if (completion != null) {
+        SwingUtilities.invokeLater(completion);
+      }
+      return;
+    }
+    if (borrowedEngine) {
+      // 借用的快速分析伴生进程：仅清请求后归还（不 normalQuit），
+      // 进程保持常驻供快速分析继续使用。
+      engineToClose.clearRequestCallbacks();
       if (completion != null) {
         SwingUtilities.invokeLater(completion);
       }
