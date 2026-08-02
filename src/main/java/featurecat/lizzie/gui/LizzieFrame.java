@@ -18861,8 +18861,15 @@ public class LizzieFrame extends JFrame {
                 AnalysisEngine newAnalysisEngine = null;
                 try {
                   newAnalysisEngine = new AnalysisEngine(true);
-                } catch (IOException e) {
-                  e.printStackTrace();
+                } catch (Throwable t) {
+                  // 必须捕获 Throwable（而不只是 IOException）：若构造抛 RuntimeException
+                  // （如非法路径 InvalidPathException），daemon 线程会直接死亡，
+                  // 导致下方 invokeLater 不执行、quickAnalysisEngineStarting 永久卡 true，
+                  // 伴生进程此后永远无法再启动（除非重启 GUI）。
+                  // 捕获后照常走 finish（复位 starting），并输出可见日志。
+                  System.err.println(
+                      "[Katayzy] 快速分析引擎（伴生进程）启动失败：" + t.getMessage());
+                  t.printStackTrace();
                 }
                 final AnalysisEngine warmedEngine = newAnalysisEngine;
                 SwingUtilities.invokeLater(

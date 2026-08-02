@@ -4,6 +4,23 @@ title Katayzy 启动器
 
 cd /d "%~dp0"
 
+rem ---- 环境门禁：打开即检测 ----
+echo ================================================
+echo    Katayzy 启动器 (CUDA 12.8 + TensorRT 10.9)
+echo ================================================
+echo.
+echo 正在检测显卡环境...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0check_env.ps1"
+if errorlevel 1 (
+    echo.
+    echo 环境检查未通过！请按上方提示处理显卡或驱动后重试。
+    echo.
+    pause
+    exit /b 1
+)
+echo.
+echo 环境检查通过！
+
 :main
 cls
 echo ================================================
@@ -11,26 +28,18 @@ echo    Katayzy 启动器
 echo    (CUDA 12.8 + TensorRT 10.9)
 echo ================================================
 echo.
-echo    [1] 启动 Katayzy（自动检测环境与首次构建）
-echo    [2] 检测环境
-echo    [3] 构建/重建引擎配置
-echo    [4] 更新权重模型（官网布置中）
+echo    [1] 启动 Katayzy
+echo    [2] 构建/重建引擎配置
+echo    [3] 更新权重模型（官网布置中）
 echo    [0] 退出
 echo.
 set "choice="
 set /p choice=请选择:
 if "%choice%"=="" exit /b 0
 if "%choice%"=="1" goto start
-if "%choice%"=="2" goto env
-if "%choice%"=="3" goto build
-if "%choice%"=="4" goto weights
+if "%choice%"=="2" goto build
+if "%choice%"=="3" goto weights
 if "%choice%"=="0" exit /b 0
-goto main
-
-:env
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0check_env.ps1"
-echo.
-pause
 goto main
 
 :start
@@ -62,8 +71,9 @@ echo     - b10c384  （伴生进程基础模型，打开棋谱自动分析）
 echo     - b10c512  （默认引擎 / 棋力评估）
 echo     - b11c768  （大模型，棋力最强）
 echo.
-echo   首次构建需生成 TensorRT 引擎缓存，每个模型约 3~8 分钟，
-echo   全部约 10~25 分钟。期间输出实时滚动，请勿关闭窗口。
+echo   b10c384 使用 analysis 模板（秒级）；b10c512/b11c768 首次构建
+echo   TensorRT 缓存各约 3~8 分钟，全部约 6~16 分钟。输出实时滚动。
+echo   b10c384 的缓存将在首次自动分析时构建（约 1~3 分钟）。
 echo ================================================
 echo.
 set /p confirm=确认构建? (Y/N):
@@ -73,7 +83,7 @@ if /i "%confirm%"=="y" (
     powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0build_engines.ps1"
     if errorlevel 1 (
         echo.
-        echo 构建未完成！请检查驱动/显存后，稍后选择菜单 [3] 重试。
+        echo 构建未完成！请检查驱动/显存后，稍后选择菜单 [2] 重试。
         echo.
         pause
         goto main
@@ -87,6 +97,13 @@ if /i "%confirm%"=="y" (
 echo.
 
 :launch
+rem ---- TRT 缓存预检提示 ----
+if not exist "%~dp0engines\katago-trt\KataGoData\trtcache\*" (
+    echo.
+    echo 提示：首次打开棋谱自动分析时，b10c384 需构建 TensorRT 缓存
+    echo       （约 1~3 分钟，属正常现象，之后秒加载）。
+    echo.
+)
 if exist "%~dp0Katayzy.exe" (
     echo 正在启动 Katayzy...
     start "" "%~dp0Katayzy.exe"

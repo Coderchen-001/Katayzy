@@ -2,16 +2,16 @@
 #
 # Behaviour:
 #   1. Runs the environment gate (check_env.ps1).
-#   2. Runs `katago genconfig` for each model in order:
-#        b10c384 (companion process model, forced) -> b10c512 (default engine) -> b11c768
-#      Output is streamed live (TensorRT engine build takes ~3-8 min per model on first run).
-#   3. b10c384 only generates its config; it is NOT added to the engine list
-#      (hidden from the user; it backs the quick win-rate analysis companion process).
-#   4. b10c512 / b11c768 are generated AND added to config.txt (b10c512 as default).
-#   5. Writes the command fields into config.txt:
-#        ui.analysis-engine-command            = b10c384 analysis command (companion process)
-#        ui.analysis-engine-command-customized = true  (prevent auto-overwrite)
+#   2. b10c384 (companion analysis process): copies KataGo analysis_example.cfg -> analysis.cfg
+#      and applies quick-analysis tuning (maxVisits=50, maxTime=0.5, trtDeviceToUse=0).
+#      No genconfig, no TensorRT engine build (cache builds on first analysis request).
+#   3. b10c512 (default engine) / b11c768: run `katago genconfig` (TensorRT build ~3-8 min each).
+#   4. b10c512 / b11c768 are added to config.txt (b10c512 as default); b10c384 stays hidden.
+#   5. Writes command fields + disables GUI kata thread overrides:
+#        ui.analysis-engine-command            = b10c384 analysis command (uses analysis.cfg)
+#        ui.analysis-engine-command-customized = true
 #        ui.estimate-command                   = b10c512 gtp command (Kata评估)
+#        ui.first-load-katago / chk- / autoload-kata-engine-threads -> off (threads from cfg only)
 #
 # Parameters:
 #   -Only <model>   build only one model, e.g. -Only b10c384 (skip the environment gate? no, gate still runs)
@@ -33,7 +33,7 @@ $relPrefix = "engines\katago-trt"
 
 # ---------------------------------------------------------------- models
 $models = @(
-  @{ Id="b10c384"; Weight="b10c384h6nbttflrs.bin.gz";                Config="b10c384.cfg"; AddEngine=$false; Default=$false; Note="伴生进程基础模型（打开棋谱自动分析，必装）" },
+  @{ Id="b10c384"; Weight="b10c384h6nbttflrs.bin.gz";                Config="analysis.cfg";  AddEngine=$false; Default=$false; Note="伴生进程基础模型（打开棋谱自动分析，用 analysis.cfg 特调）" },
   @{ Id="b10c512"; Weight="b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz"; Config="b10c512.cfg"; AddEngine=$true;  Default=$true;  Note="中模型（默认引擎 / 棋力评估）" },
   @{ Id="b11c768"; Weight="b11c768h12nbt3tflrs-fson-silu.bin.gz";     Config="b11c768.cfg"; AddEngine=$true;  Default=$false; Note="大模型（棋力最强）" }
 )
@@ -66,10 +66,12 @@ if (-not (Test-Path $katago)) {
     exit 1
 }
 
-# ---------------------------------------------------------------- genconfig
+# ---------------------------------------------------------------- prepare configs
 Write-Host ""
-Write-Host "[1/2] 正在为各模型运行 genconfig（首次需构建 TensorRT 引擎，输出实时滚动）..." -ForegroundColor Yellow
-Write-Host "      每个模型约需 3~8 分钟，请勿关闭窗口。" -ForegroundColor DarkGray
+Write-Host "[1/2] 准备引擎配置..." -ForegroundColor Yellow
+Write-Host "      b10c384 使用 analysis 模板特调（不 genconfig，安装更快）；" -ForegroundColor DarkGray
+Write-Host "      b10c512/b11c768 运行 genconfig（首次需构建 TensorRT 引擎，约 3~8 分钟/个，输出实时滚动）。" -ForegroundColor DarkGray
+Write-Host "      请勿关闭窗口。" -ForegroundColor DarkGray
 
 $answers = Join-Path $rootDir "_answers.tmp"
 "chinese" | Out-File $answers -Encoding ASCII
@@ -79,11 +81,41 @@ $failed = @()
 foreach ($m in $models) {
   $weight = Join-Path $engineDir $m.Weight
   $cfg    = Join-Path $engineDir $m.Config
-  $cfgExists = Test-Path $cfg
 
   Write-Host ""
   Write-Host "---------------------------------------------------" -ForegroundColor Cyan
   Write-Host ("  构建 {0}  ({1})" -f $m.Id, $m.Note) -ForegroundColor White
+
+  if ($m.Id -eq "b10c384") {
+    # b10c384 伴生进程：不 genconfig，复制 KataGo analysis 模板并特调
+    $template = Join-Path $engineDir "analysis_example.cfg"
+    if (-not (Test-Path $template)) {
+      Write-Host "  错误：缺少 analysis 模板 $template" -ForegroundColor Red
+      $failed += $m.Id
+      continue
+    }
+    if (-not (Test-Path $weight)) {
+      Write-Host "  错误：缺少权重文件 $($m.Weight)" -ForegroundColor Red
+      $failed += $m.Id
+      continue
+    }
+    if (Test-Path $cfg) {
+      Write-Host "  已存在 $($m.Config)，重新应用特调（幂等）。" -ForegroundColor DarkGray
+    } else {
+      Copy-Item $template $cfg
+      Write-Host "  已从模板生成 $($m.Config)（不运行 genconfig）。" -ForegroundColor DarkGray
+    }
+    # 特调：maxVisits 500->50；maxTime 60 取消注释->0.5；trtDeviceToUse=0 取消注释（显式指定设备 0）
+    $content = [System.IO.File]::ReadAllText($cfg, [System.Text.Encoding]::UTF8)
+    $content = $content -replace '(?m)^maxVisits\s*=\s*500\s*$', 'maxVisits = 50'
+    $content = $content -replace '(?m)^#\s*maxTime\s*=\s*60\s*$', 'maxTime = 0.5'
+    $content = $content -replace '(?m)^#\s*trtDeviceToUse\s*=\s*0\s*$', 'trtDeviceToUse = 0'
+    [System.IO.File]::WriteAllText($cfg, $content, (New-Object System.Text.UTF8Encoding $false))
+    Write-Host "  [OK] $($m.Config) 特调完成（maxVisits=50, maxTime=0.5, trtDeviceToUse=0）" -ForegroundColor Green
+    continue
+  }
+
+  $cfgExists = Test-Path $cfg
   if ($cfgExists) {
     Write-Host "  已存在 $($m.Config)，跳过（如需重建请先删除该文件）。" -ForegroundColor DarkGray
   } else {
@@ -155,6 +187,15 @@ if (Test-Path $configTxt) {
     Write-Host ("  estimate-command        -> {0}" -f $estimateCmd) -ForegroundColor DarkGray
   }
 
+  # 关闭 GUI 的 kata 线程自动干预：线程完全由 genconfig/analysis cfg 决定，
+  # 避免多余的 kata-set-param numSearchThreads（与配置文件重复/冲突）
+  Set-JsonField $json.ui 'first-load-katago' $false
+  Set-JsonField $json.ui 'chk-kata-engine-threads' $false
+  Set-JsonField $json.ui 'autoload-kata-engine-threads' $false
+  Set-JsonField $json.ui 'txt-kata-engine-threads' ""
+  Set-JsonField $json.ui 'enable-startup-benchmark' $false
+  Write-Host "  已关闭 kata 线程自动干预（线程由各配置文件决定）" -ForegroundColor DarkGray
+
   $out = $json | ConvertTo-Json -Depth 50
   $utf8NoBom = New-Object System.Text.UTF8Encoding $false
   [System.IO.File]::WriteAllText($configTxt, $out, $utf8NoBom)
@@ -165,8 +206,10 @@ if (Test-Path $configTxt) {
 Write-Host ""
 Write-Host "===================================================" -ForegroundColor Green
 Write-Host "  引擎配置构建完成！" -ForegroundColor Green
-Write-Host "  b10c384  -> 伴生进程专用（不在引擎列表显示）" -ForegroundColor Green
+Write-Host "  b10c384  -> 伴生进程专用（analysis.cfg 特调，不在引擎列表显示）" -ForegroundColor Green
 Write-Host "  b10c512  -> 默认引擎（引擎列表）" -ForegroundColor Green
 Write-Host "  b11c768  -> 引擎列表" -ForegroundColor Green
 Write-Host "===================================================" -ForegroundColor Green
+Write-Host "  提示：首次打开棋谱自动分析时，b10c384 需构建 TensorRT 缓存" -ForegroundColor Yellow
+Write-Host "        （约 1~3 分钟，日志显示 Building TensorRT engine 属正常现象）。" -ForegroundColor Yellow
 exit 0
