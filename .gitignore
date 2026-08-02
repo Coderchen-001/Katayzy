@@ -9,6 +9,7 @@ engines/
 runtime/
 weights/
 .settings/
+.vscode/
 config.txt
 persist
 save/
