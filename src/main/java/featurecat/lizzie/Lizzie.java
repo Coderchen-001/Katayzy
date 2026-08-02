@@ -707,8 +707,6 @@ public class Lizzie {
             } else {
               frame.scheduleQuickAnalysisEngineWarmupAfterStartup();
             }
-            KataGoRuntimeHelper.startAppleSiliconAutoOptimizationAsync();
-            KataGoRuntimeHelper.startFirstRunBenchmarkAsync();
           }
         });
   }

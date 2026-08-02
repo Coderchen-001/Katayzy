@@ -1319,10 +1319,10 @@ public class Config {
   public boolean showTopToolBar = true;
   public boolean autoSavePlayedGame = true;
 
-  public boolean limitPlayout = false;
+  public boolean limitPlayout = true;
   public boolean limitTime = true;
-  public long limitPlayouts = 2000;
-  public long maxAnalyzeTimeMillis = 600000; // 600*1000
+  public long limitPlayouts = 1500;
+  public long maxAnalyzeTimeMillis = 60000; // 60*1000
 
   public boolean showKataGoEstimateBySize = false;
   public boolean showKataGoEstimateBigBelow = false;
@@ -1408,7 +1408,6 @@ public class Config {
   public boolean disableMoveRankInOrigin = false;
   public boolean logConsoleToFile = false;
   public boolean logGtpToFile = false;
-  public boolean enableStartupBenchmark = true;
   public boolean readBoardPonder = false;
   public boolean suppressReadBoardWebSocketPonderingNotice = false;
   public boolean readBoardGetFocus = true;
@@ -1416,7 +1415,7 @@ public class Config {
   public int otherSizeWidth = 21;
   public int otherSizeHeight = 21;
 
-  public boolean stopAtEmptyBoard = false;
+  public boolean stopAtEmptyBoard = true;
 
   public boolean useScoreDiffInVariationTree = true;
   public double scoreDiffInVariationTreeFactor = 0.5;
@@ -2114,9 +2113,9 @@ public class Config {
     autoWrapToolBar = uiConfig.optBoolean("auto-wrap-tool-bar", true);
     showTopToolBar = uiConfig.optBoolean("show-top-tool-bar", true);
     autoSavePlayedGame = uiConfig.optBoolean("auto-save-played-game", true);
-    limitPlayout = uiConfig.optBoolean("limit-playout", false);
+    limitPlayout = uiConfig.optBoolean("limit-playout", true);
     limitTime = uiConfig.optBoolean("limit-time", true);
-    limitPlayouts = uiConfig.optLong("limit-playouts", 100000);
+    limitPlayouts = uiConfig.optLong("limit-playouts", 1500);
     minPlayoutRatioForStats = uiConfig.optDouble("min-playout-ratio-for-stats", 0.0);
     matchAiMoves = uiConfig.optInt("match-ai-moves", 3);
     matchAiPercentsPlayouts = uiConfig.optDouble("match-ai-percents-playouts", 20.0);
@@ -2208,7 +2207,6 @@ public class Config {
     disableMoveRankInOrigin = uiConfig.optBoolean("disable-move-rank-in-origin", false);
     logConsoleToFile = uiConfig.optBoolean("log-console-to-file", false);
     logGtpToFile = uiConfig.optBoolean("log-gtp-to-file", false);
-    enableStartupBenchmark = uiConfig.optBoolean("enable-startup-benchmark", true);
     readBoardGetFocus = uiConfig.optBoolean("read-board-get-focus", true);
     useScoreLossInMoveRank = uiConfig.optBoolean("use-score-loss-in-move-rank", true);
     useWinLossInMoveRank = uiConfig.optBoolean("use-win-loss-in-move-rank", true);
@@ -2316,12 +2314,13 @@ public class Config {
     deleteMove = uiConfig.optBoolean("deleteMove", true);
     // showlcbwinrate = config.getJSONObject("leelaz").optBoolean("show-lcb-winrate", false);
     playponder = leelazConfig.optBoolean("play-ponder", true);
-    stopAtEmptyBoard = leelazConfig.optBoolean("stop-at-empty-board", false);
+    // 空棋盘停止计算强制开启（开局时避免主引擎与伴生 b10c384 抢资源），不再开放给用户配置
+    stopAtEmptyBoard = true;
     maxGameThinkingTimeSeconds = leelazConfig.optInt("max-game-thinking-time-seconds", 2);
 
     // showlcbcolor = config.getJSONObject("leelaz").optBoolean("show-lcb-color", false);
     fastChange = leelazConfig.optBoolean("fast-engine-change", true);
-    maxAnalyzeTimeMillis = 1000 * leelazConfig.optInt("max-analyze-time-seconds", 600);
+    maxAnalyzeTimeMillis = 1000 * leelazConfig.optInt("max-analyze-time-seconds", 60);
     recentFilePaths = getRecentFilePaths();
     //    if (config.getJSONObject("leelaz").optInt("max-analyze-time-minutes", 70) < 60) {
     //      maxAnalyzeTimeMillis =
@@ -3601,9 +3600,6 @@ public class Config {
       return;
     }
     ui.put("use-language", AppLocale.fromSystemLocale(systemLocale).configValue());
-    // First launch must reach the board without a minutes-long benchmark dialog. Users can run
-    // the same official benchmark explicitly from KataGo Auto Setup when convenient.
-    ui.put("enable-startup-benchmark", false);
   }
 
   public File getWorkDirectory() {

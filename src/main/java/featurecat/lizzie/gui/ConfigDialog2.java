@@ -335,8 +335,6 @@ public class ConfigDialog2 extends JDialog {
   private JCheckBox chkLimitPlayouts;
   private JCheckBox chkFastSwtich;
   private JCheckBox chkPonder;
-  private JCheckBox chkStopAtEmpty;
-  private JCheckBox chkEnableStartupBenchmark;
   private JComboBox<String> comboNetworkProxyMode;
   private JTextField txtNetworkProxyHost;
   private JTextField txtNetworkProxyPort;
@@ -1924,16 +1922,6 @@ public class ConfigDialog2 extends JDialog {
         resourceBundle.getString("LizzieConfig.lblLogGtpToFile.tooltips"));
     chkLogGtpToFile.setSelected(Lizzie.config.logGtpToFile);
 
-    JLabel lblEnableStartupBenchmark =
-        new JLabel(resourceBundle.getString("LizzieConfig.lblEnableStartupBenchmark"));
-    lblEnableStartupBenchmark.setBounds(10, 757, 205, 15);
-    uiTab.add(lblEnableStartupBenchmark);
-
-    chkEnableStartupBenchmark = new JCheckBox();
-    chkEnableStartupBenchmark.setBounds(215, 754, 26, 23);
-    uiTab.add(chkEnableStartupBenchmark);
-    chkEnableStartupBenchmark.setSelected(Lizzie.config.enableStartupBenchmark);
-
     chkPonder = new JCheckBox();
     chkPonder.setBounds(125, 497, 26, 23);
     uiTab.add(chkPonder);
@@ -1943,15 +1931,6 @@ public class ConfigDialog2 extends JDialog {
     chkFastSwtich.setBounds(270, 497, 26, 23);
     uiTab.add(chkFastSwtich);
     chkFastSwtich.setSelected(Lizzie.config.fastChange);
-
-    JLabel lblStopAtEmpty = new JLabel(resourceBundle.getString("LizzieConfig.lblStopAtEmpty"));
-    lblStopAtEmpty.setBounds(312, 500, 207, 15);
-    uiTab.add(lblStopAtEmpty);
-
-    chkStopAtEmpty = new JCheckBox();
-    chkStopAtEmpty.setBounds(532, 497, 38, 23);
-    uiTab.add(chkStopAtEmpty);
-    chkStopAtEmpty.setSelected(Lizzie.config.stopAtEmptyBoard);
 
     comboMoveHint.addItem(resourceBundle.getString("LizzieConfig.comboMoveHint.none")); // ("无");
     comboMoveHint.addItem(
@@ -2514,8 +2493,6 @@ public class ConfigDialog2 extends JDialog {
         addToggleRow(advanced, configText("ConfigDialog2.modern.advanced.ponder", "对局时后台计算"), configText("ConfigDialog2.modern.advanced.ponderSub", "人机对局时保持后台分析"), chkPonder);
         addToggleRow(advanced, configText("ConfigDialog2.modern.advanced.fastSwitch", "启用引擎快速切换"), configText("ConfigDialog2.modern.advanced.fastSwitchSub", "在多个引擎之间更快切换"), chkFastSwtich);
         addToggleRow(advanced, configText("ConfigDialog2.modern.advanced.cache", "启用 Lizzie 缓存"), configText("ConfigDialog2.modern.advanced.cacheSub", "缓存常用局面与分析状态，减少重复加载"), chkLizzieCache);
-        addToggleRow(advanced, configText("ConfigDialog2.modern.advanced.stopEmpty", "空棋盘停止计算"), configText("ConfigDialog2.modern.advanced.stopEmptySub", "空棋盘时自动暂停分析"), chkStopAtEmpty);
-        addToggleRow(advanced, configText("ConfigDialog2.modern.advanced.firstBenchmark", "首次启动智能测速"), configText("ConfigDialog2.modern.advanced.firstBenchmarkSub", "首次启动时引导运行智能测速优化"), chkEnableStartupBenchmark);
         addToggleRow(advanced, configText("ConfigDialog2.modern.advanced.noCapture", "五子棋无提子规则"), configText("ConfigDialog2.modern.advanced.noCaptureSub", "五子棋模式下禁用提子逻辑"), chkNoCapture);
         addNetworkProxyRows(advanced);
         return advanced;
@@ -5502,8 +5479,6 @@ public class ConfigDialog2 extends JDialog {
     Lizzie.config.logGtpToFile = chkLogGtpToFile.isSelected();
     Lizzie.config.uiConfig.put("log-console-to-file", Lizzie.config.logConsoleToFile);
     Lizzie.config.uiConfig.put("log-gtp-to-file", Lizzie.config.logGtpToFile);
-    Lizzie.config.enableStartupBenchmark = chkEnableStartupBenchmark.isSelected();
-    Lizzie.config.uiConfig.put("enable-startup-benchmark", Lizzie.config.enableStartupBenchmark);
     if (rdoLastMark.isSelected()) {
       int lastRankMove = Utils.parseTextToInt(txtLastMark, 1);
       Lizzie.config.moveRankMarkLastMove = lastRankMove;
@@ -5706,8 +5681,6 @@ public class ConfigDialog2 extends JDialog {
       leelazConfig.putOpt("play-ponder", Lizzie.config.playponder);
       Lizzie.config.fastChange = chkFastSwtich.isSelected();
       leelazConfig.putOpt("fast-engine-change", Lizzie.config.fastChange);
-      Lizzie.config.stopAtEmptyBoard = chkStopAtEmpty.isSelected();
-      leelazConfig.putOpt("stop-at-empty-board", Lizzie.config.stopAtEmptyBoard);
       if (Lizzie.frame.shouldShowRect() && !rdoShowMoveRect.isSelected()) {
         if (LizzieFrame.boardRenderer != null) LizzieFrame.boardRenderer.removeblock();
         if (Lizzie.config.isDoubleEngineMode()) {
