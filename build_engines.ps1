@@ -99,17 +99,24 @@ foreach ($m in $models) {
       $failed += $m.Id
       continue
     }
+    # 清理废弃的旧 genconfig 产物（b10c384.cfg 已由 analysis.cfg 取代）
+    $legacyCfg = Join-Path $engineDir "b10c384.cfg"
+    if (Test-Path $legacyCfg) {
+      Remove-Item $legacyCfg -Force
+      Write-Host "  已删除废弃的 b10c384.cfg（由 analysis.cfg 取代）" -ForegroundColor DarkGray
+    }
     if (Test-Path $cfg) {
-      Write-Host "  已存在 $($m.Config)，重新应用特调（幂等）。" -ForegroundColor DarkGray
+      Write-Host "  已存在 $($m.Config)，重新应用特调（收敛到设计值）。" -ForegroundColor DarkGray
     } else {
       Copy-Item $template $cfg
       Write-Host "  已从模板生成 $($m.Config)（不运行 genconfig）。" -ForegroundColor DarkGray
     }
-    # 特调：maxVisits 500->50；maxTime 60 取消注释->0.5；trtDeviceToUse=0 取消注释（显式指定设备 0）
+    # 特调：按 key 无条件重置（收敛到设计值，无论旧值/注释状态/模板版本）
+    #   maxVisits -> 50，maxTime -> 0.5（取消注释），trtDeviceToUse -> 0（取消注释）
     $content = [System.IO.File]::ReadAllText($cfg, [System.Text.Encoding]::UTF8)
-    $content = $content -replace '(?m)^maxVisits\s*=\s*500\s*$', 'maxVisits = 50'
-    $content = $content -replace '(?m)^#\s*maxTime\s*=\s*60\s*$', 'maxTime = 0.5'
-    $content = $content -replace '(?m)^#\s*trtDeviceToUse\s*=\s*0\s*$', 'trtDeviceToUse = 0'
+    $content = $content -replace '(?m)^\s*#?\s*maxVisits\s*=\s*[^\r\n]*$', 'maxVisits = 50'
+    $content = $content -replace '(?m)^\s*#?\s*maxTime\s*=\s*[^\r\n]*$', 'maxTime = 0.5'
+    $content = $content -replace '(?m)^\s*#?\s*trtDeviceToUse\s*=\s*[^\r\n]*$', 'trtDeviceToUse = 0'
     [System.IO.File]::WriteAllText($cfg, $content, (New-Object System.Text.UTF8Encoding $false))
     Write-Host "  [OK] $($m.Config) 特调完成（maxVisits=50, maxTime=0.5, trtDeviceToUse=0）" -ForegroundColor Green
     continue

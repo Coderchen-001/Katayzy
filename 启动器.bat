@@ -20,12 +20,21 @@ if errorlevel 1 (
 )
 echo.
 echo 环境检查通过！
+rem ---- 捕获显卡信息（常驻显示，后续不再检测） ----
+for /f "usebackq tokens=1-3 delims=," %%a in (`nvidia-smi --query-gpu="name,compute_cap,driver_version" --format="csv,noheader,nounits"`) do (
+    set GPU_MODEL=%%a
+    set GPU_CC=%%b
+    set GPU_DRV=%%c
+)
+set GPU_INFO=%GPU_MODEL% ｜ CC %GPU_CC% ｜ 驱动 %GPU_DRV%
 
 :main
 cls
 echo ================================================
 echo    Katayzy 启动器
 echo    (CUDA 12.8 + TensorRT 10.9)
+echo ================================================
+echo    %GPU_INFO%
 echo ================================================
 echo.
 echo    [1] 启动 Katayzy
@@ -45,18 +54,8 @@ goto main
 :start
 echo.
 echo ================================================
-echo    正在检查显卡环境...
+echo    正在准备启动...
 echo ================================================
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0check_env.ps1"
-if errorlevel 1 (
-    echo.
-    echo 环境检查未通过！请按上方提示处理显卡或驱动后重试。
-    echo.
-    pause
-    goto main
-)
-echo.
-echo 环境检查通过！
 echo.
 
 rem ---- 首次运行检测 ----
