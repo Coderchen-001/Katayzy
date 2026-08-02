@@ -3,7 +3,7 @@
 # Behaviour:
 #   1. Runs the environment gate (check_env.ps1).
 #   2. b10c384 (companion analysis process): copies KataGo analysis_example.cfg -> analysis.cfg
-#      and applies quick-analysis tuning (maxVisits=50, maxTime=0.5, trtDeviceToUse=0).
+#      and applies quick-analysis tuning (maxVisits=100, no maxTime cap, trtDeviceToUse=0).
 #      No genconfig, no TensorRT engine build (cache builds on first analysis request).
 #   3. b10c512 (default engine) / b11c768: run `katago genconfig` (TensorRT build ~3-8 min each).
 #   4. b10c512 / b11c768 are added to config.txt (b10c512 as default); b10c384 stays hidden.
@@ -112,13 +112,16 @@ foreach ($m in $models) {
       Write-Host "  已从模板生成 $($m.Config)（不运行 genconfig）。" -ForegroundColor DarkGray
     }
     # 特调：按 key 无条件重置（收敛到设计值，无论旧值/注释状态/模板版本）
-    #   maxVisits -> 50，maxTime -> 0.5（取消注释），trtDeviceToUse -> 0（取消注释）
+    #   maxVisits -> 100（保险上限）；maxTime -> 保持注释（无时间上限，
+    #   否则会截断整盘精析的 deep 500-visits 请求）；trtDeviceToUse -> 0
     $content = [System.IO.File]::ReadAllText($cfg, [System.Text.Encoding]::UTF8)
-    $content = $content -replace '(?m)^\s*#?\s*maxVisits\s*=\s*[^\r\n]*$', 'maxVisits = 50'
-    $content = $content -replace '(?m)^\s*#?\s*maxTime\s*=\s*[^\r\n]*$', 'maxTime = 0.5'
-    $content = $content -replace '(?m)^\s*#?\s*trtDeviceToUse\s*=\s*[^\r\n]*$', 'trtDeviceToUse = 0'
+    # 正则尾部加 \r? 兼容 CRLF 行尾（模板为 CRLF，否则 $ 无法匹配 \r 前位置导致替换失效）
+    $content = $content -replace '(?m)^\s*#?\s*maxVisits\s*=\s*[^\r\n]*\r?$', 'maxVisits = 100'
+    # 将任何有效 maxTime 行恢复为注释（去掉时间上限，保留模板注释行不变）
+    $content = $content -replace '(?m)^\s*maxTime\s*=\s*[^\r\n]*\r?$', '# maxTime = 60'
+    $content = $content -replace '(?m)^\s*#?\s*trtDeviceToUse\s*=\s*[^\r\n]*\r?$', 'trtDeviceToUse = 0'
     [System.IO.File]::WriteAllText($cfg, $content, (New-Object System.Text.UTF8Encoding $false))
-    Write-Host "  [OK] $($m.Config) 特调完成（maxVisits=50, maxTime=0.5, trtDeviceToUse=0）" -ForegroundColor Green
+    Write-Host "  [OK] $($m.Config) 特调完成（maxVisits=100, 无 maxTime 上限, trtDeviceToUse=0）" -ForegroundColor Green
     continue
   }
 

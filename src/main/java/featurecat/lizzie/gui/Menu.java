@@ -3227,6 +3227,11 @@ public class Menu extends JMenuBar {
         });
     analyzeMenu.add(autoAnalyze);
 
+    final JFontMenuItem wholeGameDeepAnalysis =
+        AutoAnalyzeMenu.wholeGameDeepAnalysisItem(
+            resourceBundle, () -> Lizzie.frame.openWholeGameDeepAnalysis());
+    analyzeMenu.add(wholeGameDeepAnalysis);
+
     final JFontMenuItem batchAnalyze =
         new JFontMenuItem(resourceBundle.getString("Menu.batchAnalyze")); // ("批量分析(Ctrl+O)");
     batchAnalyze.addActionListener(
@@ -3270,12 +3275,6 @@ public class Menu extends JMenuBar {
           }
         });
 
-    analyzeMenu.addSeparator();
-
-    final JFontMenuItem wholeGameDeepAnalysis =
-        AutoAnalyzeMenu.wholeGameDeepAnalysisItem(
-            resourceBundle, () -> Lizzie.frame.openWholeGameDeepAnalysis());
-    analyzeMenu.add(wholeGameDeepAnalysis);
     analyzeMenu.addSeparator();
 
     final JFontMenuItem flashAnalyzeAllGame =

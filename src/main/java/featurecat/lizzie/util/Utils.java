@@ -130,15 +130,6 @@ public class Utils {
     if (applyRecommendedKataGoThreads(false)) {
       changed = true;
     }
-    if (KataGoAutoSetupHelper.migrateAutoSetupCommandsIfNeeded()) {
-      changed = true;
-    }
-    if (KataGoAutoSetupHelper.repairBrokenStartupEngineIfNeeded()) {
-      changed = true;
-    }
-    if (KataGoAutoSetupHelper.repairBrokenBundledCommandsIfNeeded()) {
-      changed = true;
-    }
     if (changed) {
       persistConfigQuietly();
     }

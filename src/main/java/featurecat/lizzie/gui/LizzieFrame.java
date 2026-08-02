@@ -13820,14 +13820,11 @@ public class LizzieFrame extends JFrame {
         Utils.showMsg(Lizzie.resourceBundle.getString("WholeGameAnalysis.conflict.analysis"));
         return false;
       }
+      // 静默快速分析进行中：仅取消当前请求，伴生进程保留常驻，
+      // 与整盘精析的 WHOLE_GAME 引擎（同 b10c384 + analysis.cfg）共存，互不冲突。
       analysisEngine.clearRequestCallbacks();
-      analysisEngine.normalQuit();
-      analysisEngine = null;
-    } else if (analysisEngine != null) {
-      analysisEngine.clearRequestCallbacks();
-      analysisEngine.normalQuit();
-      analysisEngine = null;
     }
+    // 空闲的快速分析伴生进程保持常驻（不再 normalQuit/置 null）
     stopQuickAnalysisNavigationResumeTimer();
     synchronized (pendingQuickAnalysisCallbacks) {
       pendingQuickAnalysisCallbacks.clear();
