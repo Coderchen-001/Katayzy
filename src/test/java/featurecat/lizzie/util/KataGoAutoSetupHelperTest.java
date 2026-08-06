@@ -1,6 +1,5 @@
 package featurecat.lizzie.util;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -9,22 +8,17 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
-import com.sun.net.httpserver.HttpServer;
 import featurecat.lizzie.Config;
 import featurecat.lizzie.ConfigTestHelper;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.gui.EngineData;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import org.junit.jupiter.api.Test;
 
 public class KataGoAutoSetupHelperTest {
@@ -534,26 +528,6 @@ public class KataGoAutoSetupHelperTest {
   }
 
   @Test
-  void officialTransformerCatalogPinsAllThreeReleaseAssets() {
-    List<KataGoAutoSetupHelper.RemoteWeightInfo> weights =
-        KataGoAutoSetupHelper.officialTransformerWeights();
-
-    assertEquals(3, weights.size());
-    KataGoAutoSetupHelper.RemoteWeightInfo balanced =
-        weights.stream()
-            .filter(info -> info.transformerTier == KataGoAutoSetupHelper.TransformerTier.BALANCED)
-            .findFirst()
-            .orElseThrow();
-    assertEquals(KataGoAutoSetupHelper.DEFAULT_TRANSFORMER_MODEL, balanced.modelName);
-    assertEquals(KataGoAutoSetupHelper.DEFAULT_TRANSFORMER_SIZE_BYTES, balanced.sizeBytes);
-    assertEquals(KataGoAutoSetupHelper.DEFAULT_TRANSFORMER_SHA256, balanced.sha256);
-    assertEquals("1.17.0", balanced.minimumKataGoVersion);
-    assertTrue(balanced.recommended);
-    assertTrue(weights.stream().allMatch(KataGoAutoSetupHelper.RemoteWeightInfo::isTransformer));
-    assertTrue(weights.stream().allMatch(info -> info.downloadUrl.contains("/v1.17.1/")));
-  }
-
-  @Test
   void engineVersionParserDistinguishesOldAndTransformerCapableKataGo() {
     assertEquals("1.17.0", KataGoAutoSetupHelper.parseKataGoVersion("KataGo v1.17.0"));
     assertEquals("1.16.5", KataGoAutoSetupHelper.parseKataGoVersion("KataGo v1.16.5\nUsing CUDA"));
@@ -574,212 +548,6 @@ public class KataGoAutoSetupHelperTest {
     assertTrue(displayName.contains("Transformer"));
     assertTrue(displayName.contains("10B"));
     assertFalse(displayName.equals("default"));
-  }
-
-  @Test
-  void officialTransformerCatalogRemainsAvailableWhenNetworksPageIsOffline() throws Exception {
-    try (ErrorFixtureServer server = ErrorFixtureServer.start()) {
-      String previous = System.getProperty("lizzie.katago.networks.url");
-      try {
-        System.setProperty("lizzie.katago.networks.url", server.url());
-        List<KataGoAutoSetupHelper.RemoteWeightInfo> weights =
-            KataGoAutoSetupHelper.fetchOfficialWeights();
-
-        assertEquals(3, weights.size());
-        assertTrue(
-            weights.stream().allMatch(KataGoAutoSetupHelper.RemoteWeightInfo::isTransformer));
-      } finally {
-        restoreProperty("lizzie.katago.networks.url", previous);
-      }
-    }
-  }
-
-  @Test
-  void officialWeightChoicesKeepTwoPerPreferredFamilyAndPrioritizeBadges() throws Exception {
-    String latestModel = officialModel("b28", 3);
-    String strongestModel = officialModel("b40", 3);
-    StringBuilder html =
-        new StringBuilder()
-            .append("<span>Strongest confidently-rated network:</span>")
-            .append(officialLink(strongestModel))
-            .append("<span>Latest network:</span>")
-            .append(officialLink(latestModel))
-            .append("<table class=\"table mt-3\">");
-    for (String family : List.of("b6", "b10", "b15", "b18", "b20", "b28", "b40", "b60", "b80")) {
-      for (int version = 1; version <= 3; version++) {
-        String model = officialModel(family, version);
-        html.append("<tr>")
-            .append("<td>")
-            .append(model)
-            .append("</td>")
-            .append("<td>2026-06-")
-            .append(10 + version)
-            .append("</td>")
-            .append("<td>")
-            .append(15000 + version)
-            .append(" Elo</td>")
-            .append("<td>")
-            .append(officialLink(model))
-            .append("</td>")
-            .append("</tr>");
-      }
-    }
-    html.append("</table>");
-
-    List<KataGoAutoSetupHelper.RemoteWeightInfo> choices =
-        KataGoAutoSetupHelper.parseOfficialWeights(html.toString());
-
-    assertEquals(16, choices.size());
-    assertEquals(
-        List.of(
-            "b28", "b28", "b40", "b40", "b60", "b60", "b20", "b20", "b18", "b18", "b15", "b15",
-            "b10", "b10", "b6", "b6"),
-        choices.stream().map(KataGoAutoSetupHelperTest::officialFamily).toList());
-    assertTrue(
-        choices.stream().anyMatch(info -> info.modelName.equals(latestModel) && info.latest));
-    assertTrue(
-        choices.stream()
-            .anyMatch(info -> info.modelName.equals(strongestModel) && info.recommended));
-    assertFalse(choices.stream().anyMatch(info -> officialFamily(info).equals("b80")));
-  }
-
-  @Test
-  void officialWeightChoicesNoLongerReserveTheLegacyDefaultZhizi() throws Exception {
-    String latestModel = officialModel("b28", 3);
-    String olderModel = officialModel("b28", 2);
-    String bundledModel = "kata1-zhizi-b28c512nbt-muonfd2";
-    String html =
-        new StringBuilder()
-            .append("<span>Latest network:</span>")
-            .append(officialLink(latestModel))
-            .append("<table class=\"table mt-3\">")
-            .append(officialRow(latestModel, "2026-06-28", "14180 Elo"))
-            .append(officialRow(olderModel, "2026-06-20", "14130 Elo"))
-            .append(officialRow(bundledModel, "2026-03-22", "14158 Elo"))
-            .append("</table>")
-            .toString();
-
-    List<KataGoAutoSetupHelper.RemoteWeightInfo> choices =
-        KataGoAutoSetupHelper.parseOfficialWeights(html);
-    List<KataGoAutoSetupHelper.RemoteWeightInfo> family =
-        choices.stream().filter(info -> officialFamily(info).equals("b28")).toList();
-
-    assertEquals(2, family.size());
-    assertTrue(family.stream().anyMatch(info -> info.modelName.equals(latestModel) && info.latest));
-    assertTrue(family.stream().anyMatch(info -> info.modelName.equals(olderModel)));
-    assertFalse(family.stream().anyMatch(info -> info.modelName.equals(bundledModel)));
-  }
-
-  @Test
-  void transformerWeightDownloadResumesAndVerifiesChecksum() throws Exception {
-    Path tempRoot = Files.createTempDirectory("katago-transformer-resume");
-    byte[] modelBytes = repeatedBytes(32 * 1024, (byte) 23);
-    int partialSize = 7 * 1024;
-    try (RangeFixtureServer server = RangeFixtureServer.start(modelBytes)) {
-      withUserDirAndConfig(
-          tempRoot,
-          () -> {
-            Path weightsDir = Files.createDirectories(tempRoot.resolve("weights"));
-            Files.write(
-                weightsDir.resolve("model.bin.gz.part"),
-                java.util.Arrays.copyOf(modelBytes, partialSize));
-            KataGoAutoSetupHelper.RemoteWeightInfo info =
-                new KataGoAutoSetupHelper.RemoteWeightInfo(
-                    "Transformer",
-                    "fixture-transformer",
-                    server.url(),
-                    "2026-07-29",
-                    "",
-                    true,
-                    true,
-                    sha256(modelBytes),
-                    modelBytes.length,
-                    "1.17.0",
-                    KataGoAutoSetupHelper.TransformerTier.BALANCED);
-
-            Path downloaded = KataGoAutoSetupHelper.downloadWeight(info, null);
-
-            assertEquals("bytes=" + partialSize + "-", server.lastRangeHeader());
-            assertArrayEquals(modelBytes, Files.readAllBytes(downloaded));
-            assertFalse(Files.exists(weightsDir.resolve("model.bin.gz.part")));
-          });
-    }
-  }
-
-  @Test
-  void cleanlyTruncatedTransformerDownloadKeepsPartialForNextResume() throws Exception {
-    Path tempRoot = Files.createTempDirectory("katago-transformer-truncated");
-    byte[] modelBytes = repeatedBytes(32 * 1024, (byte) 29);
-    int partialSize = 7 * 1024;
-    try (FixtureServer truncated =
-            FixtureServer.start(java.util.Arrays.copyOf(modelBytes, partialSize));
-        RangeFixtureServer resumed = RangeFixtureServer.start(modelBytes)) {
-      withUserDirAndConfig(
-          tempRoot,
-          () -> {
-            KataGoAutoSetupHelper.RemoteWeightInfo firstAttempt =
-                transformerFixtureWeight(truncated.url(), modelBytes);
-
-            assertThrows(
-                IOException.class, () -> KataGoAutoSetupHelper.downloadWeight(firstAttempt, null));
-            Path partial = tempRoot.resolve("weights").resolve("model.bin.gz.part");
-            assertArrayEquals(
-                java.util.Arrays.copyOf(modelBytes, partialSize), Files.readAllBytes(partial));
-
-            Path downloaded =
-                KataGoAutoSetupHelper.downloadWeight(
-                    transformerFixtureWeight(resumed.url(), modelBytes), null);
-
-            assertEquals("bytes=" + partialSize + "-", resumed.lastRangeHeader());
-            assertArrayEquals(modelBytes, Files.readAllBytes(downloaded));
-            assertFalse(Files.exists(partial));
-          });
-    }
-  }
-
-  @Test
-  void transformerWeightChecksumFailureDeletesDamagedPartialFile() throws Exception {
-    Path tempRoot = Files.createTempDirectory("katago-transformer-bad-sha");
-    byte[] modelBytes = repeatedBytes(16 * 1024, (byte) 31);
-    try (FixtureServer server = FixtureServer.start(modelBytes)) {
-      withUserDirAndConfig(
-          tempRoot,
-          () -> {
-            KataGoAutoSetupHelper.RemoteWeightInfo info =
-                new KataGoAutoSetupHelper.RemoteWeightInfo(
-                    "Transformer",
-                    "fixture-transformer",
-                    server.url(),
-                    "2026-07-29",
-                    "",
-                    true,
-                    true,
-                    "0000000000000000000000000000000000000000000000000000000000000000",
-                    modelBytes.length,
-                    "1.17.0",
-                    KataGoAutoSetupHelper.TransformerTier.BALANCED);
-
-            assertThrows(IOException.class, () -> KataGoAutoSetupHelper.downloadWeight(info, null));
-            assertFalse(Files.exists(tempRoot.resolve("weights").resolve("model.bin.gz")));
-            assertFalse(Files.exists(tempRoot.resolve("weights").resolve("model.bin.gz.part")));
-          });
-    }
-  }
-
-  private static KataGoAutoSetupHelper.RemoteWeightInfo transformerFixtureWeight(
-      String url, byte[] modelBytes) throws Exception {
-    return new KataGoAutoSetupHelper.RemoteWeightInfo(
-        "Transformer",
-        "fixture-transformer",
-        url,
-        "2026-07-29",
-        "",
-        true,
-        true,
-        sha256(modelBytes),
-        modelBytes.length,
-        "1.17.0",
-        KataGoAutoSetupHelper.TransformerTier.BALANCED);
   }
 
   @Test
@@ -846,34 +614,6 @@ public class KataGoAutoSetupHelperTest {
           assertEquals(bundledWeight, refreshed.activeWeightPath);
           assertFalse(imported.equals(refreshed.activeWeightPath));
           assertEquals("default", KataGoAutoSetupHelper.resolveWeightDisplayName(imported));
-        });
-  }
-
-  @Test
-  void importHumanSlModelCopiesToSeparateDirectoryAndDoesNotChangeActiveWeight() throws Exception {
-    Path tempRoot = Files.createTempDirectory("katago-import-humansl");
-    Path source = Files.write(tempRoot.resolve("custom-human.bin.gz"), new byte[2 * 1024 * 1024]);
-    Path weight = touch(tempRoot.resolve("weights").resolve("default.bin.gz"));
-
-    withUserDirAndConfig(
-        tempRoot,
-        () -> {
-          Lizzie.config.uiConfig.put("katago-preferred-weight-path", weight.toString());
-
-          Path imported = KataGoAutoSetupHelper.importHumanSlModel(source);
-          KataGoAutoSetupHelper.SetupSnapshot snapshot = KataGoAutoSetupHelper.inspectLocalSetup();
-          KataGoAutoSetupHelper.HumanSlModelStatus status =
-              KataGoAutoSetupHelper.inspectHumanSlModel();
-
-          assertTrue(imported.startsWith(tempRoot.resolve("human-sl-models")));
-          assertTrue(Files.isRegularFile(imported));
-          assertEquals(weight, snapshot.activeWeightPath);
-          assertEquals(
-              weight.toString(), Lizzie.config.uiConfig.optString("katago-preferred-weight-path"));
-          assertEquals(
-              imported.toString(), Lizzie.config.uiConfig.optString("katago-human-sl-model-path"));
-          assertTrue(status.isInstalled());
-          assertEquals(imported, status.modelPath);
         });
   }
 
@@ -981,16 +721,15 @@ public class KataGoAutoSetupHelperTest {
     Path estimateConfig = touch(configDir.resolve("estimate.cfg"));
     touch(appRoot.resolve("weights").resolve("default.bin.gz"));
     Path customWeight = touch(workDir.resolve("weights").resolve("custom.bin.gz"));
-    Path humanSlSource =
-        Files.write(tempRoot.resolve("custom-human.bin.gz"), new byte[2 * 1024 * 1024]);
+    Path importedModel =
+        touchModel(workDir.resolve("human-sl-models").resolve("custom-human.bin.gz"));
 
     withProcessDirAndConfig(
         processDir,
         workDir,
         () -> {
           Lizzie.config.uiConfig.put("katago-preferred-weight-path", customWeight.toString());
-
-          Path importedModel = KataGoAutoSetupHelper.importHumanSlModel(humanSlSource);
+          Lizzie.config.uiConfig.put("katago-human-sl-model-path", importedModel.toString());
           KataGoAutoSetupHelper.SetupSnapshot snapshot = KataGoAutoSetupHelper.inspectLocalSetup();
           KataGoAutoSetupHelper.HumanSlModelStatus humanSlStatus =
               KataGoAutoSetupHelper.inspectHumanSlModel();
@@ -1009,54 +748,6 @@ public class KataGoAutoSetupHelperTest {
           assertTrue(humanSlStatus.isInstalled());
           assertEquals(importedModel, humanSlStatus.modelPath);
         });
-  }
-
-  @Test
-  void downloadingHumanSlAfterCustomWeightKeepsCompleteAppRoot() throws Exception {
-    Path tempRoot = Files.createTempDirectory("katago-humansl-download-root-priority");
-    Path appRoot = Files.createDirectories(tempRoot.resolve("app"));
-    Path workDir = Files.createDirectories(appRoot.resolve("user-data"));
-    Path processDir = Files.createDirectories(workDir.resolve("cwd"));
-    Path engine =
-        touch(
-            appRoot
-                .resolve("engines")
-                .resolve("katago")
-                .resolve(detectTestPlatformDir())
-                .resolve(testKataGoBinaryName()));
-    Path configDir =
-        Files.createDirectories(appRoot.resolve("engines").resolve("katago").resolve("configs"));
-    Path gtpConfig = touch(configDir.resolve("gtp.cfg"));
-    touch(configDir.resolve("analysis.cfg"));
-    touch(configDir.resolve("estimate.cfg"));
-    touch(appRoot.resolve("weights").resolve("default.bin.gz"));
-    Path customWeight = touch(workDir.resolve("weights").resolve("custom.bin.gz"));
-    byte[] modelBytes = repeatedBytes(4096, (byte) 11);
-
-    try (FixtureServer server = FixtureServer.start(modelBytes)) {
-      withProcessDirAndConfig(
-          processDir,
-          workDir,
-          () ->
-              withHumanSlDownloadProperties(
-                  server.url(),
-                  sha256(modelBytes),
-                  modelBytes.length,
-                  () -> {
-                    Lizzie.config.uiConfig.put(
-                        "katago-preferred-weight-path", customWeight.toString());
-
-                    Path downloaded = KataGoAutoSetupHelper.downloadHumanSlModel(null);
-                    KataGoAutoSetupHelper.SetupSnapshot snapshot =
-                        KataGoAutoSetupHelper.inspectLocalSetup();
-
-                    assertTrue(downloaded.startsWith(workDir.resolve("human-sl-models")));
-                    assertEquals(appRoot.toAbsolutePath().normalize(), snapshot.appRoot);
-                    assertEquals(engine, snapshot.enginePath);
-                    assertEquals(gtpConfig, snapshot.gtpConfigPath);
-                    assertEquals(customWeight, snapshot.activeWeightPath);
-                  }));
-    }
   }
 
   @Test
@@ -1081,62 +772,6 @@ public class KataGoAutoSetupHelperTest {
 
     assertEquals(portableModel, candidates.get(0));
     assertTrue(candidates.contains(selectedRootModel));
-  }
-
-  @Test
-  void downloadHumanSlModelVerifiesChecksumAndRemembersPath() throws Exception {
-    Path tempRoot = Files.createTempDirectory("katago-humansl-download");
-    byte[] modelBytes = repeatedBytes(4096, (byte) 7);
-    try (FixtureServer server = FixtureServer.start(modelBytes)) {
-      withUserDirAndConfig(
-          tempRoot,
-          () ->
-              withHumanSlDownloadProperties(
-                  server.url(),
-                  sha256(modelBytes),
-                  modelBytes.length,
-                  () -> {
-                    Path downloaded = KataGoAutoSetupHelper.downloadHumanSlModel(null);
-                    KataGoAutoSetupHelper.HumanSlModelStatus status =
-                        KataGoAutoSetupHelper.inspectHumanSlModel();
-
-                    assertEquals(modelBytes.length, Files.size(downloaded));
-                    assertEquals(
-                        downloaded.toString(),
-                        Lizzie.config.uiConfig.optString("katago-human-sl-model-path"));
-                    assertTrue(status.isInstalled());
-                    assertEquals(downloaded, status.modelPath);
-                  }));
-    }
-  }
-
-  @Test
-  void downloadHumanSlModelRejectsChecksumMismatchAndDeletesPartialFile() throws Exception {
-    Path tempRoot = Files.createTempDirectory("katago-humansl-download-bad");
-    byte[] modelBytes = repeatedBytes(4096, (byte) 9);
-    try (FixtureServer server = FixtureServer.start(modelBytes)) {
-      withUserDirAndConfig(
-          tempRoot,
-          () ->
-              withHumanSlDownloadProperties(
-                  server.url(),
-                  "0000000000000000000000000000000000000000000000000000000000000000",
-                  modelBytes.length,
-                  () -> {
-                    assertThrows(
-                        IOException.class, () -> KataGoAutoSetupHelper.downloadHumanSlModel(null));
-
-                    Path modelsDir = tempRoot.resolve("human-sl-models");
-                    assertFalse(
-                        Files.exists(
-                            modelsDir.resolve(KataGoAutoSetupHelper.HUMAN_SL_MODEL_FILE_NAME)));
-                    assertFalse(
-                        Files.exists(
-                            modelsDir.resolve(
-                                KataGoAutoSetupHelper.HUMAN_SL_MODEL_FILE_NAME + ".part")));
-                    assertFalse(KataGoAutoSetupHelper.inspectHumanSlModel().isInstalled());
-                  }));
-    }
   }
 
   @Test
@@ -1438,32 +1073,6 @@ public class KataGoAutoSetupHelperTest {
     return data;
   }
 
-  private static String officialModel(String family, int version) {
-    return "kata1-" + family + "c512nbt-s" + version + "-d" + version;
-  }
-
-  private static String officialLink(String model) {
-    return "<a href=\"https://example.com/" + model + ".bin.gz\">" + model + "</a>";
-  }
-
-  private static String officialRow(String model, String releaseDate, String elo) {
-    return "<tr><td>"
-        + model
-        + "</td><td>"
-        + releaseDate
-        + "</td><td>"
-        + elo
-        + "</td><td>"
-        + officialLink(model)
-        + "</td></tr>";
-  }
-
-  private static String officialFamily(KataGoAutoSetupHelper.RemoteWeightInfo info) {
-    int start = info.modelName.indexOf("-b");
-    int end = info.modelName.indexOf('c', start + 2);
-    return start >= 0 && end > start ? info.modelName.substring(start + 1, end) : "";
-  }
-
   private static Path touch(Path path) throws Exception {
     Files.createDirectories(path.getParent());
     return Files.write(path, new byte[0]).toAbsolutePath().normalize();
@@ -1577,131 +1186,4 @@ public class KataGoAutoSetupHelperTest {
     return builder.toString();
   }
 
-  private static final class FixtureServer implements AutoCloseable {
-    private final HttpServer server;
-    private final ExecutorService executor;
-
-    private FixtureServer(HttpServer server, ExecutorService executor) {
-      this.server = server;
-      this.executor = executor;
-    }
-
-    private static FixtureServer start(byte[] bytes) throws IOException {
-      HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-      ExecutorService executor = Executors.newSingleThreadExecutor();
-      server.createContext(
-          "/model.bin.gz",
-          exchange -> {
-            exchange.getResponseHeaders().set("Content-Type", "application/octet-stream");
-            exchange.sendResponseHeaders(200, bytes.length);
-            try (OutputStream body = exchange.getResponseBody()) {
-              body.write(bytes);
-            }
-          });
-      server.setExecutor(executor);
-      server.start();
-      return new FixtureServer(server, executor);
-    }
-
-    private String url() {
-      return "http://127.0.0.1:" + server.getAddress().getPort() + "/model.bin.gz";
-    }
-
-    @Override
-    public void close() {
-      server.stop(0);
-      executor.shutdownNow();
-    }
-  }
-
-  private static final class RangeFixtureServer implements AutoCloseable {
-    private final HttpServer server;
-    private final ExecutorService executor;
-    private volatile String lastRangeHeader = "";
-
-    private RangeFixtureServer(HttpServer server, ExecutorService executor) {
-      this.server = server;
-      this.executor = executor;
-    }
-
-    private static RangeFixtureServer start(byte[] bytes) throws IOException {
-      HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-      ExecutorService executor = Executors.newSingleThreadExecutor();
-      RangeFixtureServer fixture = new RangeFixtureServer(server, executor);
-      server.createContext(
-          "/model.bin.gz",
-          exchange -> {
-            String range = exchange.getRequestHeaders().getFirst("Range");
-            fixture.lastRangeHeader = range == null ? "" : range;
-            int start = 0;
-            int status = 200;
-            if (range != null && range.startsWith("bytes=") && range.endsWith("-")) {
-              start = Integer.parseInt(range.substring(6, range.length() - 1));
-              status = 206;
-              exchange
-                  .getResponseHeaders()
-                  .set(
-                      "Content-Range",
-                      "bytes " + start + "-" + (bytes.length - 1) + "/" + bytes.length);
-            }
-            int length = bytes.length - start;
-            exchange.getResponseHeaders().set("Content-Type", "application/octet-stream");
-            exchange.sendResponseHeaders(status, length);
-            try (OutputStream body = exchange.getResponseBody()) {
-              body.write(bytes, start, length);
-            }
-          });
-      server.setExecutor(executor);
-      server.start();
-      return fixture;
-    }
-
-    private String url() {
-      return "http://127.0.0.1:" + server.getAddress().getPort() + "/model.bin.gz";
-    }
-
-    private String lastRangeHeader() {
-      return lastRangeHeader;
-    }
-
-    @Override
-    public void close() {
-      server.stop(0);
-      executor.shutdownNow();
-    }
-  }
-
-  private static final class ErrorFixtureServer implements AutoCloseable {
-    private final HttpServer server;
-    private final ExecutorService executor;
-
-    private ErrorFixtureServer(HttpServer server, ExecutorService executor) {
-      this.server = server;
-      this.executor = executor;
-    }
-
-    private static ErrorFixtureServer start() throws IOException {
-      HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-      ExecutorService executor = Executors.newSingleThreadExecutor();
-      server.createContext(
-          "/networks/",
-          exchange -> {
-            exchange.sendResponseHeaders(503, -1);
-            exchange.close();
-          });
-      server.setExecutor(executor);
-      server.start();
-      return new ErrorFixtureServer(server, executor);
-    }
-
-    private String url() {
-      return "http://127.0.0.1:" + server.getAddress().getPort() + "/networks/";
-    }
-
-    @Override
-    public void close() {
-      server.stop(0);
-      executor.shutdownNow();
-    }
-  }
 }

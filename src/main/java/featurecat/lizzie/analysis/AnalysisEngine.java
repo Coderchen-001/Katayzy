@@ -2371,8 +2371,11 @@ public class AnalysisEngine {
   }
 
   private static boolean shouldAnalyzeMissingNode(BoardHistoryNode node) {
+    // 与全盘快速分析（shouldAnalyzeNode）使用同一 visits 阈值判据：
+    // 已有分析结果但 visits 低于目标（如旧 2visits 残留）时仍视为缺失，
+    // 确保弈客曲线补全 / 导航补全与野狐（腾讯）棋谱一样按目标 visits 逐节点分析。
     BoardData data = node == null ? null : node.getData();
-    return isRealHistoryAction(data) && !data.hasPrimaryAnalysisPayload();
+    return isRealHistoryAction(data) && shouldAnalyzeNode(node, targetAnalysisVisits());
   }
 
   public static int targetAnalysisVisits() {
@@ -2560,6 +2563,13 @@ public class AnalysisEngine {
     if (pendingTarget != null && pendingTarget.claim != null) {
       pendingTarget.claim.cancel();
     }
+  }
+
+  /** Returns whether a shutdown has been requested. Once set, this engine can no longer
+   *  serve any analysis request (there is no reset path). Used to avoid reusing a poisoned
+   *  engine after a whole-game session that shut it down. */
+  public boolean isShutdownRequested() {
+    return shutdownRequested;
   }
 
   public void shutdown() {

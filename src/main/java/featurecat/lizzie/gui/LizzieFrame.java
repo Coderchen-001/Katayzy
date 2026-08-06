@@ -18850,7 +18850,7 @@ public class LizzieFrame extends JFrame {
   }
 
   private boolean isAnalysisEngineReusable(AnalysisEngine engine) {
-    if (engine == null || !engine.isLoaded()) {
+    if (engine == null || !engine.isLoaded() || engine.isShutdownRequested()) {
       return false;
     }
     if (!engine.matchesCurrentAnalysisBackend()) {

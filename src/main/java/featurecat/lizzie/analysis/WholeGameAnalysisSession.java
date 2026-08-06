@@ -523,7 +523,12 @@ public final class WholeGameAnalysisSession {
     }
     stopGameGuard();
     if (engineToClose != null) {
-      engineToClose.requestShutdown();
+      // 借用的快速分析伴生进程必须保持健康（shutdownRequested 无复位点，
+      // 一旦置位该引擎将永久无法再发起任何分析请求）。
+      // 因此借用场景不 requestShutdown()，仅清回调后归还，供快速分析继续复用。
+      if (!borrowedEngine) {
+        engineToClose.requestShutdown();
+      }
       engineToClose.clearRequestCallbacks();
       closeEngine(engineToClose);
     }

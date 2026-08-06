@@ -4,29 +4,21 @@ import featurecat.lizzie.Config;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.analysis.EngineManager;
 import featurecat.lizzie.gui.EngineData;
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.InterruptedIOException;
-import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -45,30 +37,6 @@ public final class KataGoAutoSetupHelper {
   private static final String AUTO_SETUP_ENGINE_NAME = "KataGo Auto Setup";
   private static final String WEIGHT_ENGINE_NAME_PREFIX = "KataGo · ";
   private static final String TENSORRT_ENGINE_NAME = "KataGo TensorRT";
-  private static final String USER_AGENT =
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-          + "(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
-  private static final String NETWORKS_URL = "https://katagotraining.org/networks/";
-  private static final String NETWORKS_URL_PROPERTY = "lizzie.katago.networks.url";
-  private static final String KATAGO_117_RELEASE_BASE =
-      "https://github.com/lightvector/KataGo/releases/download/v1.17.1/";
-  private static final Pattern STRONGEST_PATTERN =
-      Pattern.compile(
-          "Strongest confidently-rated network:</span>\\s*<a href=\"([^\"]+)\">([^<]+)</a>",
-          Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-  private static final Pattern LATEST_PATTERN =
-      Pattern.compile(
-          "Latest network:</span>\\s*<a href=\"([^\"]+)\">([^<]+)</a>",
-          Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-  private static final Pattern TABLE_PATTERN =
-      Pattern.compile(
-          "<table class=\"table mt-3\">(.*?)</table>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-  private static final Pattern ROW_PATTERN =
-      Pattern.compile("<tr([^>]*)>(.*?)</tr>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-  private static final Pattern CELL_PATTERN =
-      Pattern.compile("<td[^>]*>(.*?)</td>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-  private static final Pattern HREF_PATTERN =
-      Pattern.compile("<a[^>]*href=\"([^\"]+)\"", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
   private static final Pattern WEIGHT_FAMILY_PATTERN =
       Pattern.compile("\\b(b\\d+)c\\d+", Pattern.CASE_INSENSITIVE);
   private static final Pattern WEIGHT_MODEL_DISPLAY_PATTERN =
@@ -77,12 +45,6 @@ public final class KataGoAutoSetupHelper {
           Pattern.CASE_INSENSITIVE);
   private static final Pattern VERSION_MODEL_SOURCE_PATTERN =
       Pattern.compile("^Model source:\\s*(.+)$", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
-  private static final int MAX_OFFICIAL_WEIGHTS = 16;
-  private static final int MAX_OFFICIAL_WEIGHT_FAMILIES = 8;
-  private static final int MAX_OFFICIAL_WEIGHTS_PER_FAMILY = 2;
-  private static final List<String> PREFERRED_WEIGHT_FAMILIES =
-      Collections.unmodifiableList(
-          Arrays.asList("b28", "b40", "b60", "b20", "b18", "b15", "b10", "b6"));
   private static final String DEFAULT_WEIGHT_FILE_NAME = "default.bin.gz";
   public static final String LEGACY_DEFAULT_WEIGHT_MODEL = "kata1-zhizi-b28c512nbt-muonfd2";
   public static final String TRANSFORMER_MINIMUM_KATAGO_VERSION = "1.17.0";
@@ -91,21 +53,15 @@ public final class KataGoAutoSetupHelper {
   private static final String TRANSFORMER_STRONGEST_MODEL = "b11c768h12nbt3tflrs-fson-silu";
   public static final String DEFAULT_TRANSFORMER_MODEL = TRANSFORMER_BALANCED_MODEL;
   public static final String DEFAULT_TRANSFORMER_FILE_NAME = DEFAULT_TRANSFORMER_MODEL + ".bin.gz";
-  public static final long DEFAULT_TRANSFORMER_SIZE_BYTES = 94_281_753L;
-  public static final String DEFAULT_TRANSFORMER_SHA256 =
-      "c04db4a503721d948bb720324f3cbdac6088cc9eb243632f020e4b6846f58995";
   private static final Pattern KATAGO_VERSION_PATTERN =
       Pattern.compile("\\bKataGo\\s+v(\\d+)\\.(\\d+)(?:\\.(\\d+))?\\b", Pattern.CASE_INSENSITIVE);
   private static final String BUNDLED_2026_06_28B_MODEL =
       "kata1-b28c512nbt-s13255194368-d5935380940";
   private static final String BUNDLED_2026_06_28B_DISPLAY_NAME = "28B 2026-06";
   public static final String HUMAN_SL_MODEL_FILE_NAME = "b18c384nbt-humanv0.bin.gz";
-  public static final String HUMAN_SL_MODEL_DOWNLOAD_URL =
-      "https://media.katagotraining.org/uploaded/networks/models_extra/" + HUMAN_SL_MODEL_FILE_NAME;
   public static final long HUMAN_SL_MODEL_SIZE_BYTES = 99066230L;
   public static final String HUMAN_SL_MODEL_SHA256 =
       "637746e44f0efe00ad1245a50aa9bbf0716efe364c43965ead97bd6835d84ab5";
-  private static final String HUMAN_SL_MODEL_URL_PROPERTY = "lizzie.humansl.model.url";
   private static final String HUMAN_SL_MODEL_SHA256_PROPERTY = "lizzie.humansl.model.sha256";
   private static final String HUMAN_SL_MODEL_SIZE_PROPERTY = "lizzie.humansl.model.size";
   private static final String HUMAN_SL_MODEL_CONFIG_KEY = "katago-human-sl-model-path";
@@ -225,12 +181,7 @@ public final class KataGoAutoSetupHelper {
     }
   }
 
-  public enum TransformerTier {
-    NONE,
-    LIGHTWEIGHT,
-    BALANCED,
-    STRONGEST
-  }
+
 
   public static final class LocalKataGoDiscoveryResult {
     public final Path workingDir;
@@ -414,78 +365,7 @@ public final class KataGoAutoSetupHelper {
     }
   }
 
-  public static final class RemoteWeightInfo {
-    public final String typeLabel;
-    public final String modelName;
-    public final String downloadUrl;
-    public final String uploadedAt;
-    public final String eloRating;
-    public final boolean recommended;
-    public final boolean latest;
-    public final String sha256;
-    public final long sizeBytes;
-    public final String minimumKataGoVersion;
-    public final TransformerTier transformerTier;
 
-    RemoteWeightInfo(
-        String typeLabel,
-        String modelName,
-        String downloadUrl,
-        String uploadedAt,
-        String eloRating,
-        boolean recommended,
-        boolean latest) {
-      this(
-          typeLabel,
-          modelName,
-          downloadUrl,
-          uploadedAt,
-          eloRating,
-          recommended,
-          latest,
-          "",
-          -1L,
-          "",
-          TransformerTier.NONE);
-    }
-
-    RemoteWeightInfo(
-        String typeLabel,
-        String modelName,
-        String downloadUrl,
-        String uploadedAt,
-        String eloRating,
-        boolean recommended,
-        boolean latest,
-        String sha256,
-        long sizeBytes,
-        String minimumKataGoVersion,
-        TransformerTier transformerTier) {
-      this.typeLabel = typeLabel;
-      this.modelName = modelName;
-      this.downloadUrl = downloadUrl;
-      this.uploadedAt = uploadedAt;
-      this.eloRating = eloRating;
-      this.recommended = recommended;
-      this.latest = latest;
-      this.sha256 = sha256 == null ? "" : sha256.trim().toLowerCase(Locale.ROOT);
-      this.sizeBytes = sizeBytes;
-      this.minimumKataGoVersion = minimumKataGoVersion == null ? "" : minimumKataGoVersion.trim();
-      this.transformerTier = transformerTier == null ? TransformerTier.NONE : transformerTier;
-    }
-
-    public String fileName() {
-      String urlFileName = fileNameFromUrl(downloadUrl);
-      if (!urlFileName.isEmpty()) {
-        return urlFileName;
-      }
-      return modelName.endsWith(".bin.gz") ? modelName : modelName + ".bin.gz";
-    }
-
-    public boolean isTransformer() {
-      return transformerTier != TransformerTier.NONE;
-    }
-  }
 
   public static final class SetupResult {
     public final SetupSnapshot snapshot;
@@ -917,378 +797,11 @@ public final class KataGoAutoSetupHelper {
     return false;
   }
 
-  public static List<RemoteWeightInfo> fetchOfficialWeights() throws IOException {
-    List<RemoteWeightInfo> weights = new ArrayList<>(officialTransformerWeights());
-    try {
-      weights.addAll(parseOfficialWeights(httpGet(officialNetworksUrl())));
-    } catch (IOException e) {
-      if (weights.isEmpty()) {
-        throw e;
-      }
-    }
-    return weights;
-  }
 
-  private static String officialNetworksUrl() {
-    return System.getProperty(NETWORKS_URL_PROPERTY, NETWORKS_URL).trim();
-  }
 
-  static List<RemoteWeightInfo> officialTransformerWeights() {
-    String officialTransformer = resource("AutoSetup.transformerOfficial", "Official Transformer");
-    return Arrays.asList(
-        transformerWeight(
-            officialTransformer,
-            TRANSFORMER_BALANCED_MODEL,
-            DEFAULT_TRANSFORMER_SIZE_BYTES,
-            DEFAULT_TRANSFORMER_SHA256,
-            TransformerTier.BALANCED),
-        transformerWeight(
-            officialTransformer,
-            TRANSFORMER_STRONGEST_MODEL,
-            211_660_960L,
-            "1881600caab9e9d85a3dd6a019e9b8e7d2c237b5f984e13ed49a8645be3077c6",
-            TransformerTier.STRONGEST),
-        transformerWeight(
-            officialTransformer,
-            TRANSFORMER_LIGHTWEIGHT_MODEL,
-            38_245_488L,
-            "0ba27eced5180b3e3d0b898b280c541112989765e789d1eb6cd0d31b2b2c1229",
-            TransformerTier.LIGHTWEIGHT));
-  }
 
-  private static RemoteWeightInfo transformerWeight(
-      String typeLabel, String modelName, long sizeBytes, String sha256, TransformerTier tier) {
-    return new RemoteWeightInfo(
-        typeLabel,
-        modelName,
-        KATAGO_117_RELEASE_BASE + modelName + ".bin.gz",
-        "2026-07-29",
-        "",
-        tier == TransformerTier.BALANCED,
-        true,
-        sha256,
-        sizeBytes,
-        TRANSFORMER_MINIMUM_KATAGO_VERSION,
-        tier);
-  }
 
-  public static RemoteWeightInfo fetchRecommendedWeight() throws IOException {
-    List<RemoteWeightInfo> weights = fetchOfficialWeights();
-    for (RemoteWeightInfo info : weights) {
-      if (isDefaultGeneralUseWeight(info)) {
-        return info;
-      }
-    }
-    for (RemoteWeightInfo info : weights) {
-      if (info.recommended) {
-        return info;
-      }
-    }
-    if (!weights.isEmpty()) {
-      return weights.get(0);
-    }
-    throw new IOException("Unable to parse KataGo official weights.");
-  }
 
-  public static Path downloadRecommendedWeight(ProgressListener listener) throws IOException {
-    RemoteWeightInfo info = fetchRecommendedWeight();
-    if (listener != null) {
-      listener.onProgress(info.modelName, 0, -1);
-    }
-    return downloadWeight(info, listener);
-  }
-
-  public static boolean isDefaultGeneralUseWeight(RemoteWeightInfo info) {
-    if (info == null) {
-      return false;
-    }
-    return DEFAULT_TRANSFORMER_MODEL.equalsIgnoreCase(stripWeightFileExtension(info.modelName))
-        || DEFAULT_TRANSFORMER_MODEL.equalsIgnoreCase(stripWeightFileExtension(info.fileName()));
-  }
-
-  public static Path downloadHumanSlModel(ProgressListener listener) throws IOException {
-    return downloadHumanSlModel(listener, null);
-  }
-
-  public static Path downloadHumanSlModel(ProgressListener listener, DownloadSession session)
-      throws IOException {
-    SetupSnapshot snapshot = inspectLocalSetup();
-    Path modelsDir = humanSlModelsDir(snapshot.workingDir);
-    Files.createDirectories(modelsDir);
-    DownloadSession activeSession = session != null ? session : new DownloadSession();
-    activeSession.throwIfCancelled();
-
-    Path target = modelsDir.resolve(HUMAN_SL_MODEL_FILE_NAME);
-    if (isValidHumanSlModelFile(target)) {
-      rememberHumanSlModel(target);
-      if (listener != null) {
-        listener.onProgress(HUMAN_SL_MODEL_FILE_NAME, Files.size(target), Files.size(target));
-      }
-      return target;
-    }
-    Files.deleteIfExists(target);
-
-    Path temp = modelsDir.resolve(HUMAN_SL_MODEL_FILE_NAME + ".part");
-    HttpURLConnection conn = null;
-    try {
-      conn =
-          (HttpURLConnection)
-              NetworkProxy.openConnection(URI.create(humanSlModelDownloadUrl()).toURL());
-      activeSession.attach(conn);
-      activeSession.throwIfCancelled();
-      conn.setInstanceFollowRedirects(true);
-      conn.setRequestMethod("GET");
-      conn.setConnectTimeout(15000);
-      conn.setReadTimeout(30000);
-      conn.setRequestProperty("User-Agent", USER_AGENT);
-      conn.setRequestProperty("Accept", "application/octet-stream,*/*");
-      int code = conn.getResponseCode();
-      if (code < 200 || code >= 400) {
-        throw new IOException("HTTP " + code + " from " + humanSlModelDownloadUrl());
-      }
-      long totalBytes = conn.getContentLengthLong();
-      long expectedBytes = humanSlModelSizeBytes();
-      if (totalBytes <= 0L && expectedBytes > 0L) {
-        totalBytes = expectedBytes;
-      }
-      long downloaded = 0L;
-      try (InputStream raw = conn.getInputStream();
-          BufferedInputStream input = new BufferedInputStream(raw);
-          OutputStream output = Files.newOutputStream(temp)) {
-        byte[] buffer = new byte[8192];
-        int read;
-        long lastReportTime = 0L;
-        while (true) {
-          activeSession.throwIfCancelled();
-          read = input.read(buffer);
-          if (read < 0) {
-            break;
-          }
-          output.write(buffer, 0, read);
-          downloaded += read;
-          activeSession.throwIfCancelled();
-          long now = System.currentTimeMillis();
-          if (listener != null && (now - lastReportTime > 120 || totalBytes == downloaded)) {
-            listener.onProgress(HUMAN_SL_MODEL_FILE_NAME, downloaded, totalBytes);
-            lastReportTime = now;
-          }
-        }
-      }
-      activeSession.throwIfCancelled();
-      if (totalBytes > 0L && downloaded != totalBytes) {
-        throw new IOException(
-            resource("AutoSetup.humanSlModelIncomplete", "HumanSL model download is incomplete."));
-      }
-      verifyOfficialHumanSlModel(temp);
-      try {
-        Files.move(
-            temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-      } catch (AtomicMoveNotSupportedException e) {
-        Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
-      }
-      rememberHumanSlModel(target);
-      return target;
-    } catch (IOException e) {
-      Files.deleteIfExists(temp);
-      if (activeSession.isCancelled() && !(e instanceof DownloadCancelledException)) {
-        throw new DownloadCancelledException(
-            resource("AutoSetup.downloadCancelled", "Download cancelled."));
-      }
-      throw e;
-    } finally {
-      if (conn != null) {
-        conn.disconnect();
-      }
-      activeSession.clear();
-    }
-  }
-
-  public static Path downloadWeight(RemoteWeightInfo info, ProgressListener listener)
-      throws IOException {
-    return downloadWeight(info, listener, null);
-  }
-
-  public static Path downloadWeight(
-      RemoteWeightInfo info, ProgressListener listener, DownloadSession session)
-      throws IOException {
-    SetupSnapshot snapshot = inspectLocalSetup();
-    Path weightsDir = snapshot.workingDir.resolve("weights");
-    Files.createDirectories(weightsDir);
-    DownloadSession activeSession = session != null ? session : new DownloadSession();
-    activeSession.throwIfCancelled();
-
-    Path target = weightsDir.resolve(info.fileName());
-    if (isDownloadedWeightValid(target, info)) {
-      if (listener != null) {
-        listener.onProgress(info.modelName, Files.size(target), Files.size(target));
-      }
-      return target;
-    }
-    Files.deleteIfExists(target);
-
-    Path temp = weightsDir.resolve(info.fileName() + ".part");
-    HttpURLConnection conn = null;
-    try {
-      if (isDownloadedWeightValid(temp, info)) {
-        Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
-        return target;
-      }
-      if (Files.isRegularFile(temp) && info.sizeBytes > 0L && Files.size(temp) > info.sizeBytes) {
-        Files.delete(temp);
-      }
-      long resumeFrom = Files.isRegularFile(temp) ? Files.size(temp) : 0L;
-      while (true) {
-        conn =
-            (HttpURLConnection) NetworkProxy.openConnection(URI.create(info.downloadUrl).toURL());
-        activeSession.attach(conn);
-        activeSession.throwIfCancelled();
-        conn.setInstanceFollowRedirects(true);
-        conn.setRequestMethod("GET");
-        conn.setConnectTimeout(15000);
-        conn.setReadTimeout(30000);
-        conn.setRequestProperty("User-Agent", USER_AGENT);
-        conn.setRequestProperty("Accept", "application/octet-stream,*/*");
-        if (resumeFrom > 0L) {
-          conn.setRequestProperty("Range", "bytes=" + resumeFrom + "-");
-        }
-        int code = conn.getResponseCode();
-        if (resumeFrom > 0L && code == 416) {
-          conn.disconnect();
-          activeSession.clear();
-          if (isDownloadedWeightValid(temp, info)) {
-            break;
-          }
-          Files.deleteIfExists(temp);
-          resumeFrom = 0L;
-          continue;
-        }
-        if (resumeFrom > 0L && code == HttpURLConnection.HTTP_OK) {
-          conn.disconnect();
-          activeSession.clear();
-          Files.deleteIfExists(temp);
-          resumeFrom = 0L;
-          continue;
-        }
-        if (code < 200 || code >= 400) {
-          throw new IOException("HTTP " + code + " from " + info.downloadUrl);
-        }
-        boolean resumed = resumeFrom > 0L && code == HttpURLConnection.HTTP_PARTIAL;
-        long responseBytes = conn.getContentLengthLong();
-        long totalBytes =
-            info.sizeBytes > 0L
-                ? info.sizeBytes
-                : responseBytes < 0L ? -1L : (resumed ? resumeFrom : 0L) + responseBytes;
-        try (InputStream raw = conn.getInputStream();
-            BufferedInputStream input = new BufferedInputStream(raw);
-            OutputStream output =
-                resumed
-                    ? Files.newOutputStream(
-                        temp, StandardOpenOption.CREATE, StandardOpenOption.APPEND)
-                    : Files.newOutputStream(
-                        temp,
-                        StandardOpenOption.CREATE,
-                        StandardOpenOption.TRUNCATE_EXISTING,
-                        StandardOpenOption.WRITE)) {
-          byte[] buffer = new byte[64 * 1024];
-          long downloaded = resumed ? resumeFrom : 0L;
-          int read;
-          long lastReportTime = 0L;
-          while (true) {
-            activeSession.throwIfCancelled();
-            read = input.read(buffer);
-            if (read < 0) {
-              break;
-            }
-            output.write(buffer, 0, read);
-            downloaded += read;
-            activeSession.throwIfCancelled();
-            long now = System.currentTimeMillis();
-            if (listener != null && (now - lastReportTime > 120 || totalBytes == downloaded)) {
-              listener.onProgress(info.modelName, downloaded, totalBytes);
-              lastReportTime = now;
-            }
-          }
-        }
-        break;
-      }
-      activeSession.throwIfCancelled();
-      verifyDownloadedWeight(temp, info);
-      try {
-        Files.move(
-            temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-      } catch (AtomicMoveNotSupportedException e) {
-        Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
-      }
-      if (listener != null) {
-        listener.onProgress(info.modelName, Files.size(target), Files.size(target));
-      }
-      return target;
-    } catch (IOException e) {
-      if (shouldDiscardWeightPartial(e)) {
-        Files.deleteIfExists(temp);
-      }
-      if (activeSession.isCancelled() && !(e instanceof DownloadCancelledException)) {
-        throw new DownloadCancelledException(
-            resource("AutoSetup.downloadCancelled", "Download cancelled."));
-      }
-      throw e;
-    } finally {
-      if (conn != null) {
-        conn.disconnect();
-      }
-      activeSession.clear();
-    }
-  }
-
-  private static boolean isDownloadedWeightValid(Path path, RemoteWeightInfo info) {
-    if (path == null || !Files.isRegularFile(path)) {
-      return false;
-    }
-    try {
-      verifyDownloadedWeight(path, info);
-      return true;
-    } catch (IOException e) {
-      return false;
-    }
-  }
-
-  private static void verifyDownloadedWeight(Path path, RemoteWeightInfo info) throws IOException {
-    if (path == null || !Files.isRegularFile(path)) {
-      throw new WeightIntegrityException(
-          resource("AutoSetup.weightDownloadIncomplete", "Weight download is incomplete."), false);
-    }
-    long expectedSize = info == null ? -1L : info.sizeBytes;
-    if (expectedSize > 0L && Files.size(path) != expectedSize) {
-      throw new WeightIntegrityException(
-          resource("AutoSetup.weightDownloadIncomplete", "Weight download is incomplete."), false);
-    }
-    if (expectedSize <= 0L && Files.size(path) <= 1024L * 1024L) {
-      throw new WeightIntegrityException(
-          resource("AutoSetup.weightDownloadIncomplete", "Weight download is incomplete."), false);
-    }
-    String expectedSha = info == null ? "" : info.sha256;
-    if (!expectedSha.isEmpty() && !expectedSha.equalsIgnoreCase(sha256(path))) {
-      throw new WeightIntegrityException(
-          resource(
-              "AutoSetup.weightChecksumFailed", "Weight checksum failed. Please download again."),
-          true);
-    }
-  }
-
-  private static boolean shouldDiscardWeightPartial(IOException error) {
-    return error instanceof WeightIntegrityException
-        && ((WeightIntegrityException) error).discardPartial;
-  }
-
-  private static final class WeightIntegrityException extends IOException {
-    private static final long serialVersionUID = 1L;
-    private final boolean discardPartial;
-
-    private WeightIntegrityException(String message, boolean discardPartial) {
-      super(message);
-      this.discardPartial = discardPartial;
-    }
-  }
 
   public static Path importWeight(Path source) throws IOException {
     if (source == null) {
@@ -1312,31 +825,7 @@ public final class KataGoAutoSetupHelper {
     return target;
   }
 
-  public static Path importHumanSlModel(Path source) throws IOException {
-    if (source == null) {
-      throw new IOException(
-          resource("AutoSetup.importHumanSlModelInvalid", "Unsupported HumanSL model file."));
-    }
-    Path normalizedSource = source.toAbsolutePath().normalize();
-    if (!Files.isRegularFile(normalizedSource) || !isSupportedHumanSlModelFile(normalizedSource)) {
-      throw new IOException(
-          resource("AutoSetup.importHumanSlModelInvalid", "Unsupported HumanSL model file."));
-    }
-    SetupSnapshot snapshot = inspectLocalSetup();
-    Path modelsDir = humanSlModelsDir(snapshot.workingDir);
-    Files.createDirectories(modelsDir);
-    Path target = uniqueWeightTarget(modelsDir, normalizedSource.getFileName().toString());
-    try {
-      if (Files.isSameFile(normalizedSource, target)) {
-        rememberHumanSlModel(target);
-        return target;
-      }
-    } catch (IOException e) {
-    }
-    Files.copy(normalizedSource, target, StandardCopyOption.COPY_ATTRIBUTES);
-    rememberHumanSlModel(target);
-    return target;
-  }
+
 
   public static HumanSlModelStatus inspectHumanSlModel() {
     SetupSnapshot snapshot = inspectLocalSetup();
@@ -1743,101 +1232,7 @@ public final class KataGoAutoSetupHelper {
     return Utils.isBlank(engineName) ? fallback : engineName.trim();
   }
 
-  static List<RemoteWeightInfo> parseOfficialWeights(String html) throws IOException {
-    Matcher strongestMatcher = STRONGEST_PATTERN.matcher(html);
-    String strongestUrl = "";
-    String strongestName = "";
-    if (strongestMatcher.find()) {
-      strongestUrl = resolveUrl(strongestMatcher.group(1));
-      strongestName = collapseWhitespace(strongestMatcher.group(2));
-    }
 
-    Matcher latestMatcher = LATEST_PATTERN.matcher(html);
-    String latestUrl = "";
-    String latestName = "";
-    if (latestMatcher.find()) {
-      latestUrl = resolveUrl(latestMatcher.group(1));
-      latestName = collapseWhitespace(latestMatcher.group(2));
-    }
-
-    Matcher tableMatcher = TABLE_PATTERN.matcher(html);
-    List<RemoteWeightInfo> parsedWeights = new ArrayList<>();
-    LinkedHashSet<String> seen = new LinkedHashSet<>();
-    boolean foundTable = false;
-    while (tableMatcher.find()) {
-      foundTable = true;
-      Matcher rowMatcher = ROW_PATTERN.matcher(tableMatcher.group(1));
-      while (rowMatcher.find()) {
-        List<String> cells = extractCells(rowMatcher.group(2));
-        if (cells.size() < 4) {
-          continue;
-        }
-        String modelName = cleanHtmlText(cells.get(0));
-        String uploadedAt = cleanHtmlText(cells.get(1));
-        String eloRating = cleanHtmlText(cells.get(2));
-        String downloadUrl = resolveUrl(extractHref(cells.get(3)));
-        if (modelName.isEmpty() || downloadUrl.isEmpty()) {
-          continue;
-        }
-        String dedupKey = modelName.toLowerCase(Locale.ROOT);
-        if (!seen.add(dedupKey)) {
-          continue;
-        }
-        boolean recommended =
-            matchesRemoteWeight(modelName, downloadUrl, strongestName, strongestUrl);
-        boolean latest = matchesRemoteWeight(modelName, downloadUrl, latestName, latestUrl);
-        parsedWeights.add(
-            new RemoteWeightInfo(
-                buildTypeLabel(recommended, latest, buildWeightFamilyDisplay(modelName)),
-                modelName,
-                downloadUrl,
-                uploadedAt,
-                eloRating,
-                recommended,
-                latest));
-      }
-    }
-    if (!foundTable) {
-      throw new IOException("Unable to parse KataGo weight table.");
-    }
-    List<RemoteWeightInfo> weights = selectOfficialWeightChoices(parsedWeights);
-    if (weights.isEmpty()) {
-      throw new IOException("Unable to parse KataGo official weights.");
-    }
-    return weights;
-  }
-
-  private static String httpGet(String url) throws IOException {
-    HttpURLConnection conn = null;
-    try {
-      conn = (HttpURLConnection) NetworkProxy.openConnection(URI.create(url).toURL());
-      conn.setInstanceFollowRedirects(true);
-      conn.setRequestMethod("GET");
-      conn.setConnectTimeout(15000);
-      conn.setReadTimeout(30000);
-      conn.setRequestProperty("User-Agent", USER_AGENT);
-      conn.setRequestProperty(
-          "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-      int code = conn.getResponseCode();
-      if (code < 200 || code >= 400) {
-        throw new IOException("HTTP " + code + " from " + url);
-      }
-      try (BufferedReader reader =
-          new BufferedReader(
-              new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-        StringBuilder builder = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-          builder.append(line).append('\n');
-        }
-        return builder.toString();
-      }
-    } finally {
-      if (conn != null) {
-        conn.disconnect();
-      }
-    }
-  }
 
   private static String resource(String key, String fallback) {
     try {
@@ -1849,122 +1244,9 @@ public final class KataGoAutoSetupHelper {
     return fallback;
   }
 
-  private static boolean matchesRemoteWeight(
-      String modelName, String downloadUrl, String expectedName, String expectedUrl) {
-    if (!expectedUrl.isEmpty() && expectedUrl.equalsIgnoreCase(downloadUrl)) {
-      return true;
-    }
-    return !expectedName.isEmpty() && expectedName.equalsIgnoreCase(modelName);
-  }
 
-  private static String buildTypeLabel(boolean recommended, boolean latest, String familyLabel) {
-    String recommendedLabel = resource("AutoSetup.recommendedStrongest", "Strongest");
-    String latestLabel = resource("AutoSetup.recommendedLatest", "Latest");
-    String officialLabel = resource("AutoSetup.officialWeight", "Official");
-    String baseLabel;
-    if (recommended && latest) {
-      baseLabel = recommendedLabel + " / " + latestLabel;
-    } else if (recommended) {
-      baseLabel = recommendedLabel;
-    } else if (latest) {
-      baseLabel = latestLabel;
-    } else {
-      baseLabel = officialLabel;
-    }
-    if (familyLabel.isEmpty()) {
-      return baseLabel;
-    }
-    return baseLabel + " · " + familyLabel;
-  }
 
-  private static List<RemoteWeightInfo> selectOfficialWeightChoices(
-      List<RemoteWeightInfo> parsedWeights) {
-    if (parsedWeights.isEmpty()) {
-      return parsedWeights;
-    }
-    LinkedHashMap<String, List<RemoteWeightInfo>> byFamily = new LinkedHashMap<>();
-    for (RemoteWeightInfo info : parsedWeights) {
-      String family = normalizeWeightFamily(info.modelName);
-      if (family.isEmpty()) {
-        family = info.modelName.toLowerCase(Locale.ROOT);
-      }
-      List<RemoteWeightInfo> familyWeights = byFamily.get(family);
-      if (familyWeights == null) {
-        familyWeights = new ArrayList<>();
-        byFamily.put(family, familyWeights);
-      }
-      familyWeights.add(info);
-    }
 
-    List<String> chosenFamilies = chooseOfficialWeightFamilies(byFamily);
-    List<RemoteWeightInfo> selected = new ArrayList<>();
-    for (String family : chosenFamilies) {
-      List<RemoteWeightInfo> familyWeights = byFamily.get(family);
-      if (familyWeights == null) {
-        continue;
-      }
-      selected.addAll(selectFamilyWeightChoices(familyWeights));
-    }
-    if (selected.isEmpty()) {
-      return new ArrayList<>(
-          parsedWeights.subList(0, Math.min(parsedWeights.size(), MAX_OFFICIAL_WEIGHTS)));
-    }
-    if (selected.size() > MAX_OFFICIAL_WEIGHTS) {
-      return new ArrayList<>(selected.subList(0, MAX_OFFICIAL_WEIGHTS));
-    }
-    return selected;
-  }
-
-  private static List<RemoteWeightInfo> selectFamilyWeightChoices(
-      List<RemoteWeightInfo> familyWeights) {
-    LinkedHashSet<RemoteWeightInfo> selected = new LinkedHashSet<>();
-    for (RemoteWeightInfo info : familyWeights) {
-      if (isDefaultGeneralUseWeight(info)) {
-        selected.add(info);
-      }
-    }
-    for (RemoteWeightInfo info : familyWeights) {
-      if (info.recommended) {
-        selected.add(info);
-      }
-    }
-    for (RemoteWeightInfo info : familyWeights) {
-      if (info.latest) {
-        selected.add(info);
-      }
-    }
-    selected.addAll(familyWeights);
-    List<RemoteWeightInfo> result = new ArrayList<>(MAX_OFFICIAL_WEIGHTS_PER_FAMILY);
-    for (RemoteWeightInfo info : selected) {
-      result.add(info);
-      if (result.size() >= MAX_OFFICIAL_WEIGHTS_PER_FAMILY) {
-        break;
-      }
-    }
-    return result;
-  }
-
-  private static List<String> chooseOfficialWeightFamilies(
-      LinkedHashMap<String, List<RemoteWeightInfo>> byFamily) {
-    List<String> chosen = new ArrayList<>();
-    for (String family : PREFERRED_WEIGHT_FAMILIES) {
-      if (byFamily.containsKey(family)) {
-        chosen.add(family);
-      }
-      if (chosen.size() >= MAX_OFFICIAL_WEIGHT_FAMILIES) {
-        return chosen;
-      }
-    }
-    for (String family : byFamily.keySet()) {
-      if (!chosen.contains(family)) {
-        chosen.add(family);
-      }
-      if (chosen.size() >= MAX_OFFICIAL_WEIGHT_FAMILIES) {
-        break;
-      }
-    }
-    return chosen;
-  }
 
   private static String normalizeWeightFamily(String modelName) {
     if (modelName == null || modelName.trim().isEmpty()) {
@@ -2078,65 +1360,7 @@ public final class KataGoAutoSetupHelper {
     return baseName;
   }
 
-  private static List<String> extractCells(String rowHtml) {
-    List<String> cells = new ArrayList<>();
-    Matcher cellMatcher = CELL_PATTERN.matcher(rowHtml);
-    while (cellMatcher.find()) {
-      cells.add(cellMatcher.group(1));
-    }
-    return cells;
-  }
 
-  private static String extractHref(String htmlFragment) {
-    Matcher hrefMatcher = HREF_PATTERN.matcher(htmlFragment);
-    if (hrefMatcher.find()) {
-      return hrefMatcher.group(1).trim();
-    }
-    return "";
-  }
-
-  private static String cleanHtmlText(String htmlFragment) {
-    String text = htmlFragment.replaceAll("(?i)<br\\s*/?>", " ");
-    text = text.replaceAll("(?s)<[^>]+>", " ");
-    text = decodeHtmlEntities(text);
-    return collapseWhitespace(text);
-  }
-
-  private static String collapseWhitespace(String text) {
-    if (text == null) {
-      return "";
-    }
-    return text.replaceAll("\\s+", " ").trim();
-  }
-
-  private static String decodeHtmlEntities(String text) {
-    String decoded =
-        text.replace("&nbsp;", " ")
-            .replace("&amp;", "&")
-            .replace("&quot;", "\"")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&plusmn;", "±")
-            .replace("&#177;", "±");
-    Matcher hexMatcher = Pattern.compile("&#x([0-9a-fA-F]+);").matcher(decoded);
-    StringBuffer hexBuffer = new StringBuffer();
-    while (hexMatcher.find()) {
-      int codePoint = Integer.parseInt(hexMatcher.group(1), 16);
-      hexMatcher.appendReplacement(
-          hexBuffer, Matcher.quoteReplacement(new String(Character.toChars(codePoint))));
-    }
-    hexMatcher.appendTail(hexBuffer);
-
-    Matcher decMatcher = Pattern.compile("&#(\\d+);").matcher(hexBuffer.toString());
-    StringBuffer decBuffer = new StringBuffer();
-    while (decMatcher.find()) {
-      int codePoint = Integer.parseInt(decMatcher.group(1));
-      decMatcher.appendReplacement(
-          decBuffer, Matcher.quoteReplacement(new String(Character.toChars(codePoint))));
-    }
-    decMatcher.appendTail(decBuffer);
-    return decBuffer.toString();
-  }
 
   private static String readBundledModelSource(Path workingDir, Path appRoot) {
     return readBundledModelSource(null, workingDir, appRoot);
@@ -3062,10 +2286,7 @@ public final class KataGoAutoSetupHelper {
     }
   }
 
-  private static String humanSlModelDownloadUrl() {
-    String value = System.getProperty(HUMAN_SL_MODEL_URL_PROPERTY, "").trim();
-    return value.isEmpty() ? HUMAN_SL_MODEL_DOWNLOAD_URL : value;
-  }
+
 
   private static String humanSlModelSha256() {
     String value = System.getProperty(HUMAN_SL_MODEL_SHA256_PROPERTY, "").trim();
@@ -3566,35 +2787,6 @@ public final class KataGoAutoSetupHelper {
     Path normalizedExpected = expected.toAbsolutePath().normalize();
     return Files.isRegularFile(normalizedActual) && normalizedActual.equals(normalizedExpected);
   }
-
-  private static String fileNameFromUrl(String url) {
-    if (url == null || url.trim().isEmpty()) {
-      return "";
-    }
-    int slashIndex = url.lastIndexOf('/');
-    if (slashIndex < 0 || slashIndex == url.length() - 1) {
-      return "";
-    }
-    String name = url.substring(slashIndex + 1);
-    int queryIndex = name.indexOf('?');
-    if (queryIndex >= 0) {
-      name = name.substring(0, queryIndex);
-    }
-    return name;
-  }
-
-  private static String resolveUrl(String url) {
-    if (url == null || url.trim().isEmpty()) {
-      return "";
-    }
-    String trimmed = url.trim();
-    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-      return trimmed;
-    }
-    try {
-      return URI.create(NETWORKS_URL).resolve(trimmed).toString();
-    } catch (IllegalArgumentException e) {
-      return trimmed;
-    }
-  }
 }
+
+

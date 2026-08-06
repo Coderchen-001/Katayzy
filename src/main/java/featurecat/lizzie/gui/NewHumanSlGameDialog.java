@@ -2,8 +2,6 @@ package featurecat.lizzie.gui;
 
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.analysis.HumanSlAnalysisRunner;
-import featurecat.lizzie.util.KataGoAutoSetupHelper;
-import featurecat.lizzie.util.KataGoAutoSetupHelper.DownloadCancelledException;
 import featurecat.lizzie.util.Utils;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -16,11 +14,8 @@ import java.nio.file.Path;
 import java.util.ResourceBundle;
 import javax.imageio.ImageIO;
 import javax.swing.JDialog;
-import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JProgressBar;
-import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 
 /** Lets the player configure a casual HumanSL human-vs-AI game (rank, handicap, color, time). */
@@ -133,92 +128,14 @@ public final class NewHumanSlGameDialog extends JDialog {
   private void onConfirm() {
     Path modelPath = HumanSlGameController.resolveDefaultHumanModel();
     if (modelPath == null) {
-      promptDownloadMissingModel();
+      JOptionPane.showMessageDialog(
+          this,
+          "未找到 human 模型文件，请确认整合包 human-sl-models 目录下包含模型文件。",
+          resourceBundle.getString("HumanSlGame.dialog.title"),
+          JOptionPane.ERROR_MESSAGE);
       return;
     }
     startConfiguredGame(modelPath);
-  }
-
-  private void promptDownloadMissingModel() {
-    int choice =
-        JOptionPane.showConfirmDialog(
-            this,
-            resourceBundle.getString("HumanSlGame.missingModelDownloadPrompt"),
-            resourceBundle.getString("HumanSlGame.dialog.title"),
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE);
-    if (choice != JOptionPane.YES_OPTION) {
-      return;
-    }
-    cancelled = true;
-    setVisible(false);
-    Window frame = Lizzie.frame;
-    boolean wasPondering = Lizzie.leelaz != null && Lizzie.leelaz.isPondering();
-    if (wasPondering) {
-      // Force-stop the live analysis engine. Do NOT use togglePonder(): while a search is
-      // underway (underPonder==true) it restarts analysis instead of stopping it.
-      Lizzie.leelaz.notPondering();
-      Lizzie.leelaz.nameCmd();
-    }
-    DownloadProgressDialog progressDialog = new DownloadProgressDialog(frame);
-    KataGoAutoSetupHelper.DownloadSession downloadSession =
-        new KataGoAutoSetupHelper.DownloadSession();
-    Thread worker =
-        new Thread(
-            () -> {
-              try {
-                final Path downloadedModel =
-                    KataGoAutoSetupHelper.downloadHumanSlModel(
-                        (statusText, downloadedBytes, totalBytes) ->
-                            SwingUtilities.invokeLater(
-                                () ->
-                                    progressDialog.updateProgress(
-                                        statusText, downloadedBytes, totalBytes)),
-                        downloadSession);
-                SwingUtilities.invokeLater(
-                    () -> {
-                      progressDialog.dispose();
-                      Utils.showMsg(resourceBundle.getString("HumanSlGame.downloadCompletePrompt"));
-                      boolean[] started = {false};
-                      boolean reserved =
-                          Lizzie.frame.runWithForegroundEngineModeReservation(
-                              () -> started[0] = startConfiguredGame(downloadedModel));
-                      if (reserved && !started[0]) {
-                        restorePondering(wasPondering);
-                      }
-                      dispose();
-                    });
-              } catch (DownloadCancelledException e) {
-                SwingUtilities.invokeLater(
-                    () -> {
-                      progressDialog.dispose();
-                      restorePondering(wasPondering);
-                      Utils.showMsg(e.getLocalizedMessage());
-                      dispose();
-                    });
-              } catch (IOException e) {
-                SwingUtilities.invokeLater(
-                    () -> {
-                      progressDialog.dispose();
-                      restorePondering(wasPondering);
-                      Utils.showMsg(e.getLocalizedMessage());
-                      dispose();
-                    });
-              }
-            },
-            "humansl-game-download-model");
-    progressDialog.setDownloadSession(downloadSession);
-    worker.start();
-    progressDialog.setVisible(true);
-    if (cancelled) {
-      restorePondering(wasPondering);
-    }
-  }
-
-  private void restorePondering(boolean wasPondering) {
-    if (wasPondering && Lizzie.leelaz != null && !Lizzie.leelaz.isPondering()) {
-      Lizzie.leelaz.ponder();
-    }
   }
 
   private boolean startConfiguredGame(Path modelPath) {
@@ -280,83 +197,5 @@ public final class NewHumanSlGameDialog extends JDialog {
       profiles.add("rank_" + rank + "d");
     }
     return profiles.toArray(new String[0]);
-  }
-
-  private static final class DownloadProgressDialog extends JDialog {
-    private static final long serialVersionUID = 1L;
-
-    private final JLabel statusLabel = new JFontLabel();
-    private final JProgressBar progressBar = new JProgressBar();
-    private KataGoAutoSetupHelper.DownloadSession downloadSession;
-
-    private DownloadProgressDialog(Window owner) {
-      super(owner);
-      setTitle(Lizzie.resourceBundle.getString("HumanSlGame.downloadProgressTitle"));
-      setModal(true);
-      setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
-      JPanel panel = new JPanel(new BorderLayout(8, 8));
-      panel.setBorder(new EmptyBorder(12, 12, 12, 12));
-      statusLabel.setText(Lizzie.resourceBundle.getString("HumanSlGame.downloadProgressTitle"));
-      progressBar.setStringPainted(true);
-      progressBar.setIndeterminate(true);
-      JPanel buttons = new JPanel();
-      JFontButton backgroundButton =
-          new JFontButton(Lizzie.resourceBundle.getString("HumanSlGame.downloadBackground"));
-      backgroundButton.addActionListener(e -> setVisible(false));
-      JFontButton cancelButton =
-          new JFontButton(Lizzie.resourceBundle.getString("HumanSlGame.downloadCancel"));
-      cancelButton.addActionListener(
-          e -> {
-            if (downloadSession != null) {
-              downloadSession.cancel();
-            }
-            setVisible(false);
-          });
-      buttons.add(backgroundButton);
-      buttons.add(cancelButton);
-      panel.add(statusLabel, BorderLayout.NORTH);
-      panel.add(progressBar, BorderLayout.CENTER);
-      panel.add(buttons, BorderLayout.SOUTH);
-      getContentPane().add(panel);
-      setMinimumSize(new Dimension(420, 145));
-      pack();
-      setLocationRelativeTo(owner);
-    }
-
-    private void setDownloadSession(KataGoAutoSetupHelper.DownloadSession downloadSession) {
-      this.downloadSession = downloadSession;
-    }
-
-    private void updateProgress(String statusText, long downloadedBytes, long totalBytes) {
-      String base =
-          (statusText == null || statusText.trim().isEmpty())
-              ? Lizzie.resourceBundle.getString("HumanSlGame.downloadProgressTitle")
-              : statusText;
-      statusLabel.setText(base);
-      if (totalBytes > 0L) {
-        progressBar.setIndeterminate(false);
-        progressBar.setMaximum(1000);
-        progressBar.setValue((int) Math.min(1000L, downloadedBytes * 1000L / totalBytes));
-        progressBar.setString(
-            (downloadedBytes * 100L / totalBytes)
-                + "%  "
-                + formatBytes(downloadedBytes)
-                + " / "
-                + formatBytes(totalBytes));
-      } else if (downloadedBytes > 0L) {
-        progressBar.setIndeterminate(true);
-        progressBar.setString(formatBytes(downloadedBytes));
-      } else {
-        progressBar.setIndeterminate(true);
-        progressBar.setString("");
-      }
-    }
-
-    private static String formatBytes(long bytes) {
-      if (bytes < 1024L * 1024L) {
-        return String.format(java.util.Locale.US, "%.1f KB", bytes / 1024.0);
-      }
-      return String.format(java.util.Locale.US, "%.1f MB", bytes / 1024.0 / 1024.0);
-    }
   }
 }
