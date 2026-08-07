@@ -11100,6 +11100,12 @@ public class LizzieFrame extends JFrame {
       stopAiPlayingAndPolicy();
     }
     stopQuickAnalysisEngineForGame();
+    // 人机续弈：重新允许人类落子。
+    // 新局（startNewGameReserved）与复位棋盘都会把 allowPlaceStone 置 false，
+    // 续弈路径此前未恢复，导致引擎能下（genmove 不检查它）但人落子被 onClicked
+    // 的 "allowPlaceStone && isLoaded() && !isEmpty" 拦下，误弹"请等待引擎加载完毕"。
+    // onClicked 另有 playerIsBlack==blackToPlay 闸门 + isLoaded() 兜底，无条件置 true 安全。
+    Lizzie.frame.allowPlaceStone = true;
     if (Lizzie.config.limitMyTime)
       countDownForHuman(
           Lizzie.config.getMySaveTime(),
