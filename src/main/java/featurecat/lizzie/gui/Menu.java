@@ -2917,18 +2917,6 @@ public class Menu extends JMenuBar {
     newGame.add(newEngineGame);
     setToolTipJMenu(newEngineGame);
 
-    final JFontMenuItem newHumanSlGame =
-        new JFontMenuItem(resourceBundle.getString("Menu.newHumanSlGame"));
-    newHumanSlGame.addActionListener(
-        new ActionListener() {
-          @Override
-          public void actionPerformed(ActionEvent e) {
-            Lizzie.frame.startHumanSlGameDialog();
-          }
-        });
-    newGame.add(newHumanSlGame);
-    setToolTipJMenu(newHumanSlGame);
-
     final JFontMenuItem continueGenmoveGameAsWhite =
         new JFontMenuItem(
             resourceBundle.getString(
@@ -3046,48 +3034,6 @@ public class Menu extends JMenuBar {
         });
     gameMenu.add(pauseEngineGame);
 
-    final JFontMenuItem changeEngineGameNumbers =
-        new JFontMenuItem(resourceBundle.getString("Menu.changeEngineGameNumbers"));
-    changeEngineGameNumbers.addActionListener(
-        new ActionListener() {
-          @Override
-          public void actionPerformed(ActionEvent e) {
-            SwingUtilities.invokeLater(
-                new Runnable() {
-                  public void run() {
-                    String result =
-                        JOptionPane.showInputDialog(
-                            Lizzie.frame,
-                            resourceBundle.getString("Menu.changeEngineGameNumbersMessage"),
-                            resourceBundle.getString("Menu.changeEngineGameNumbersTitle"),
-                            JOptionPane.INFORMATION_MESSAGE);
-                    if (result != null)
-                      try {
-                        int numbers = Integer.parseInt(result);
-                        EngineManager.engineGameInfo.batchNumber = numbers;
-                      } catch (NumberFormatException ex) {
-                        Utils.showMsg(resourceBundle.getString("Menu.inputIntegerHint"));
-                        return;
-                      }
-                    LizzieFrame.toolbar.txtenginePkBatch.setText(
-                        String.valueOf(EngineManager.engineGameInfo.batchNumber));
-                  }
-                });
-          }
-        });
-    gameMenu.add(changeEngineGameNumbers);
-
-    final JFontMenuItem intervention =
-        new JFontMenuItem(resourceBundle.getString("Menu.intervention"));
-    intervention.addActionListener(
-        new ActionListener() {
-          @Override
-          public void actionPerformed(ActionEvent e) {
-            Manual manul = new Manual();
-            manul.setVisible(true);
-          }
-        });
-    gameMenu.add(intervention);
     gameMenu.addSeparator();
 
     final JFontMenuItem playBestMove =
@@ -5099,16 +5045,6 @@ public class Menu extends JMenuBar {
         new ActionListener() {
           public void actionPerformed(ActionEvent e) {
             LizzieFrame.openMoreEngineDialog();
-          }
-        });
-
-    final JFontMenuItem remoteCompute =
-        new JFontMenuItem(resourceBundle.getString("Menu.remoteCompute"));
-    settings.add(remoteCompute);
-    remoteCompute.addActionListener(
-        new ActionListener() {
-          public void actionPerformed(ActionEvent e) {
-            Lizzie.frame.openRemoteComputeCenter();
           }
         });
 
@@ -7558,19 +7494,9 @@ public class Menu extends JMenuBar {
             }
           });
 
-      JFontMenuItem humanSlGame =
-          new JFontMenuItem(resourceBundle.getString("Menu.newHumanSlGame"));
-      setToolTipJMenu(humanSlGame);
-      humanSlGame.addActionListener(
-          new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-              Lizzie.frame.startHumanSlGameDialog();
-            }
-          });
       newGamePopup.add(genmoveGame);
       newGamePopup.add(analyzeGame);
       newGamePopup.add(engineGame);
-      newGamePopup.add(humanSlGame);
 
       doubleMenuNewGame.addActionListener(
           new ActionListener() {
@@ -8453,18 +8379,9 @@ public class Menu extends JMenuBar {
           }
         });
 
-    JFontMenuItem humanSlGame = new JFontMenuItem(resourceBundle.getString("Menu.newHumanSlGame"));
-    setToolTipJMenu(humanSlGame);
-    humanSlGame.addActionListener(
-        new ActionListener() {
-          public void actionPerformed(ActionEvent e) {
-            Lizzie.frame.startHumanSlGameDialog();
-          }
-        });
     newGamePopup.add(genmoveGame);
     newGamePopup.add(analyzeGame);
     newGamePopup.add(engineGame);
-    newGamePopup.add(humanSlGame);
 
     doubleMenuNewGame.addActionListener(
         new ActionListener() {

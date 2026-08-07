@@ -5,7 +5,6 @@ import featurecat.lizzie.analysis.EngineFollowController;
 import featurecat.lizzie.analysis.EngineManager;
 import featurecat.lizzie.analysis.Leelaz;
 import featurecat.lizzie.analysis.LeelazEngineCommandSink;
-import featurecat.lizzie.analysis.remote.RemoteComputeConfig;
 import featurecat.lizzie.gui.AppleStyleSupport;
 import featurecat.lizzie.gui.EngineData;
 import featurecat.lizzie.gui.FirstUseSettings;
@@ -796,9 +795,7 @@ public class Lizzie {
   }
 
   private static void startConfiguredEngine(int index, boolean loadDefault) {
-    RemoteComputeConfig.StartupSelection selection =
-        RemoteComputeConfig.resolveStartupSelection(index, loadDefault);
-    start(selection.engineIndex, selection.loadDefault);
+    start(index, loadDefault);
   }
 
   static void applyOptionPaneLocalization(ResourceBundle bundle) {

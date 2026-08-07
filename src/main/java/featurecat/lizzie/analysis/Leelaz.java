@@ -2,8 +2,6 @@ package featurecat.lizzie.analysis;
 
 import featurecat.lizzie.Config;
 import featurecat.lizzie.Lizzie;
-import featurecat.lizzie.analysis.remote.EngineTransport;
-import featurecat.lizzie.analysis.remote.RemoteComputeConfig;
 import featurecat.lizzie.analysis.gtpconfig.GtpConfigurationProbe;
 import featurecat.lizzie.gui.EngineData;
 import featurecat.lizzie.gui.EngineFailedMessage;
@@ -74,7 +72,6 @@ public class Leelaz {
     MISSING_CAPABILITY,
     ENGINE_GAME,
     PLAY_MODE,
-    HUMAN_SL_GAME,
     GENMOVE,
     READBOARD_GMA,
     EXISTING_LEASE,
@@ -244,7 +241,6 @@ public class Leelaz {
   private volatile String currentCommandResponseLine = "";
 
   private Process process;
-  private transient EngineTransport remoteTransport;
   private volatile Object engineArbitrationLock = new Object();
   private volatile ExclusiveGtpSession exclusiveGtpSession;
   private boolean exclusiveGtpLifecycleTransition;
@@ -504,11 +500,6 @@ public class Leelaz {
     if (this.engineCommand.toLowerCase().contains("gogui")) {
       this.requireResponseBeforeSend = true;
     }
-    this.useRemoteCompute = RemoteComputeConfig.isRemoteComputeEngineCommand(this.engineCommand);
-    if (this.useRemoteCompute) {
-      this.isSSH = false;
-      this.isKatago = true;
-    }
     if (this.engineCommand.toLowerCase().contains("ssh")
         || engineCommand.toLowerCase().contains("plink")) {
       this.isSSH = true;
@@ -531,9 +522,7 @@ public class Leelaz {
     Pattern p = Pattern.compile(regEx);
     Matcher m = p.matcher(currentEnginename);
     currentEnginename = m.replaceAll(aa).trim();
-    bestMovesEnginename =
-        RemoteComputeConfig.compactDisplayNameForCommand(data.commands, currentEnginename)
-            .replaceAll(" ", "");
+    bestMovesEnginename = currentEnginename.replaceAll(" ", "");
     return currentEnginename;
   }
 
@@ -547,13 +536,6 @@ public class Leelaz {
   }
 
   private static String deriveDisplayName(String rawName, String command) {
-    if (RemoteComputeConfig.isZhiziEngineCommand(command)) {
-      return RemoteComputeConfig.displayNameForZhiziArgs(RemoteComputeConfig.load().zhiziArgs);
-    }
-    if (RemoteComputeConfig.isCustomWebSocketEngineCommand(command)) {
-      return RemoteComputeConfig.displayNameForCustomWebSocketUrl(
-          RemoteComputeConfig.load().customRemoteCode);
-    }
     String name = rawName == null ? "" : rawName.trim();
     boolean placeholder =
         name.isEmpty()
@@ -651,34 +633,7 @@ public class Leelaz {
     isDownWithError = false;
     openClFp32CompatibilityActive = false;
     openClCompatibilityRecoveryAttempted.set(false);
-    this.useRemoteCompute = RemoteComputeConfig.isRemoteComputeEngineCommand(this.engineCommand);
-    if (this.useRemoteCompute) {
-      process = null;
-      this.javaSSHClosed = false;
-      this.isSSH = false;
-      try {
-        this.remoteTransport = RemoteComputeConfig.createTransportForCommand(this.engineCommand);
-        this.remoteTransport.setUnresponsiveListener(this::recoverUnresponsiveRemoteAnalysis);
-        this.remoteTransport.start();
-        initializeStreams(
-            this.remoteTransport.stdout(),
-            this.remoteTransport.stdin(),
-            this.remoteTransport.stderr());
-      } catch (IOException e) {
-        isDownWithError = true;
-        rememberRecentLine(recentStderrLines, e.getLocalizedMessage());
-        try {
-          tryToDignostic(
-              Lizzie.resourceBundle.getString("Leelaz.engineFailed")
-                  + ": "
-                  + (e.getLocalizedMessage() == null ? "远程算力连接失败" : e.getLocalizedMessage()),
-              true);
-        } catch (JSONException diagnosticError) {
-          diagnosticError.printStackTrace();
-        }
-        throw e;
-      }
-    } else if (this.useJavaSSH) {
+    if (this.useJavaSSH) {
       process = null;
       this.javaSSH = new SSHController(this, this.ip, this.port);
       boolean loginStatus = false;
@@ -903,9 +858,6 @@ public class Leelaz {
       if (engineCommand.trim().isEmpty()) {
         return;
       }
-      if (useRemoteCompute && isStarted()) {
-        normalQuit();
-      }
       isLoaded = false;
       canCheckAlive = false;
       startEngine(index);
@@ -1068,6 +1020,16 @@ public class Leelaz {
     return engineStateUnrestored;
   }
 
+  /** 清除引擎仲裁残留（异常中断/远程会话残留的 engineStateUnrestored 与
+   *  readBoardGmaReservation）。仅供用户主动"重置 GUI（清空棋盘）"时调用，
+   *  用于消除"引擎被其他任务占用"的误报与模式残留。 */
+  public void clearArbitrationResiduals() {
+    synchronized (this) {
+      engineStateUnrestored = false;
+      readBoardGmaReservation = null;
+    }
+  }
+
   public boolean isEligibleLocalKataGoForReadBoardTracking() {
     return this == Lizzie.leelaz
         && started
@@ -1123,7 +1085,6 @@ public class Leelaz {
     if (this.useJavaSSH) {
       javaSSH.close();
     } else {
-      if (this.useRemoteCompute && remoteTransport != null) remoteTransport.close();
       shutdownExecutor(executor);
       shutdownExecutor(executorErr);
       shutdown();
@@ -1168,10 +1129,6 @@ public class Leelaz {
     }
     if (this.useJavaSSH) {
       javaSSH.close();
-    } else if (this.useRemoteCompute) {
-      if (remoteTransport != null) remoteTransport.close();
-      if (executor != null) executor.shutdownNow();
-      if (executorErr != null) executorErr.shutdownNow();
     } else {
       try {
         process.destroyForcibly();
@@ -1292,7 +1249,6 @@ public class Leelaz {
                 nextInputStream,
                 nextErrorStream,
                 process,
-                useRemoteCompute ? remoteTransport : null,
                 useJavaSSH ? javaSSH : null,
                 processIncarnationIds.incrementAndGet());
           synchronized (commandQueue()) {
@@ -1332,7 +1288,6 @@ public class Leelaz {
                   nextInputStream,
                   nextErrorStream,
                   process,
-                  useRemoteCompute ? remoteTransport : null,
                   useJavaSSH ? javaSSH : null,
                   processIncarnationIds.incrementAndGet());
           synchronized (commandQueue()) {
@@ -1384,7 +1339,6 @@ public class Leelaz {
                 inputStream,
                 errorStream,
                 process,
-                useRemoteCompute ? remoteTransport : null,
                 useJavaSSH ? javaSSH : null,
                 processIncarnationIds.incrementAndGet());
       }
@@ -1564,7 +1518,6 @@ public class Leelaz {
     private final BufferedReader stdout;
     private final BufferedReader stderr;
     private final Process process;
-    private final EngineTransport remoteTransport;
     private final SSHController javaSSH;
     private final long incarnation;
     private RestartBootstrapReceipt restartBootstrapReceipt;
@@ -1577,13 +1530,11 @@ public class Leelaz {
         BufferedReader stdout,
         BufferedReader stderr,
         Process process,
-        EngineTransport remoteTransport,
         SSHController javaSSH,
         long incarnation) {
       this.stdout = stdout;
       this.stderr = stderr;
       this.process = process;
-      this.remoteTransport = remoteTransport;
       this.javaSSH = javaSSH;
       this.incarnation = incarnation;
     }
@@ -2303,9 +2254,6 @@ public class Leelaz {
             this.bestMoves = parseInfoSai(line.substring(5));
           } else {
             this.bestMoves = parseInfo(line.substring(5));
-          }
-          if (useRemoteCompute && remoteTransport != null) {
-            remoteTransport.markAnalysisProgressAccepted(MoveData.getPlayouts(this.bestMoves));
           }
           if (this == Lizzie.leelaz) {
             YikeSyncDebugLog.log("Leelaz parseLine bestMoves size=" + this.bestMoves.size());
@@ -4052,8 +4000,6 @@ public class Leelaz {
     leela0110StopPonder();
     if (binding.javaSSH != null) {
       binding.javaSSH.close();
-    } else if (binding.remoteTransport != null) {
-      binding.remoteTransport.close();
     } else if (binding.process != null) {
       binding.process.destroy();
     }
@@ -4065,7 +4011,6 @@ public class Leelaz {
 
   private boolean tryRecoverBundledOpenClNativeExit(Process expectedProcess) {
     if (expectedProcess == null
-        || useRemoteCompute
         || useJavaSSH
         || openClCompatibilityRecoveryAttempted.get()) {
       return false;
@@ -5661,7 +5606,7 @@ public class Leelaz {
   }
 
   private ExclusiveGtpLeaseAvailability trackingStaticAvailability() {
-    if (useRemoteCompute || useJavaSSH || isSSH) {
+    if (useJavaSSH || isSSH) {
       return ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY;
     }
     if (Lizzie.config != null && Lizzie.config.isDoubleEngineMode()) {
@@ -5752,9 +5697,6 @@ public class Leelaz {
     if (Lizzie.frame != null) {
       if (Lizzie.frame.isPlayingAgainstLeelaz || Lizzie.frame.isAnaPlayingAgainstLeelaz) {
         return ExclusiveGtpLeaseAvailability.PLAY_MODE;
-      }
-      if (Lizzie.frame.humanSlGame != null && !Lizzie.frame.humanSlGame.isFinished()) {
-        return ExclusiveGtpLeaseAvailability.HUMAN_SL_GAME;
       }
       if (Lizzie.frame.isContributing) {
         return ExclusiveGtpLeaseAvailability.APPLICATION_EXCLUSIVE_MODE;
@@ -5982,6 +5924,13 @@ public class Leelaz {
     }
   }
 
+  /** 是否有独占 GTP 生命周期保留（beginExclusiveGtpLifecycleReservation）尚未释放。 */
+  public boolean hasExclusiveGtpLifecycleReservation() {
+    synchronized (engineArbitrationLock()) {
+      return exclusiveGtpLifecycleTransition;
+    }
+  }
+
   /** Returns whether foreground quick analysis owns, or is restoring from, the exclusive lease. */
   public boolean hasForegroundAnalysisLeaseWorkInProgress() {
     synchronized (engineArbitrationLock()) {
@@ -6158,6 +6107,8 @@ public class Leelaz {
   }
 
   void showExclusiveGtpConflictMessage() {
+    // 命令被拒的次生提示改为静默（真实冲突已由主弹窗处理，
+    // 避免人机对局时后台分析线程抢命令导致"双弹窗叠加"）
     if (Lizzie.frame == null || !Lizzie.frame.isDisplayable() || Lizzie.resourceBundle == null) {
       return;
     }
@@ -6165,7 +6116,7 @@ public class Leelaz {
         engineStateUnrestored
             ? "AnalysisSettings.reuseStatus.engine_state_unrestored"
             : "AnalysisSettings.reuseStatus.existing_lease";
-    SwingUtilities.invokeLater(() -> Utils.showMsg(Lizzie.resourceBundle.getString(key)));
+    YikeSyncDebugLog.log("GTP command rejected (silent): " + key);
   }
 
   private boolean hasConflictingExclusiveGtpWork() {
@@ -6920,7 +6871,6 @@ public class Leelaz {
             || (!Lizzie.frame.isPlayingAgainstLeelaz
                 && !Lizzie.frame.isAnaPlayingAgainstLeelaz
                 && !Lizzie.frame.isContributing
-                && (Lizzie.frame.humanSlGame == null || Lizzie.frame.humanSlGame.isFinished())
                 && (Lizzie.frame.readBoard == null
                     || !Lizzie.frame.readBoard.isReadBoardGmaEngineBusy())));
   }
@@ -9069,8 +9019,7 @@ public class Leelaz {
   }
 
   public boolean supportsReadBoardGmaPondering() {
-    return supportsReadBoardGmaFixedLimits()
-        && !RemoteComputeConfig.isCustomWebSocketEngineCommand(engineCommand);
+    return supportsReadBoardGmaFixedLimits();
   }
 
   public boolean shouldShowReadBoardGmaUnsupportedPrompt() {
@@ -9082,19 +9031,7 @@ public class Leelaz {
   public synchronized boolean genmoveAnalyzeForReadBoard(
       String color, int maxTimeSeconds, int maxVisits, boolean ponder) {
     if (isThinking) return false;
-    if (ponder && RemoteComputeConfig.isCustomWebSocketEngineCommand(engineCommand)) return false;
     if (!beginReadBoardGmaSession()) return false;
-    if (RemoteComputeConfig.isCustomWebSocketEngineCommand(engineCommand)) {
-      synchronized (readBoardGmaLock()) {
-        if (readBoardGmaPreparation != null) {
-          return false;
-        }
-        readBoardGmaPreparation =
-            new ReadBoardGmaPreparation(color, maxTimeSeconds, maxVisits);
-      }
-      readBoardGmaPreparation.start();
-      return true;
-    }
     setReadBoardGmaPondering(ponder);
     prepareReadBoardGmaMaxTime(maxTimeSeconds);
     prepareReadBoardGmaMaxVisits(maxVisits);
@@ -9164,26 +9101,15 @@ public class Leelaz {
     if (target == null
         || activation == null
         || isThinking
-        || (ponder && RemoteComputeConfig.isCustomWebSocketEngineCommand(engineCommand))
         || !beginReadBoardGmaSession(target)) {
       return;
     }
     boolean activated = false;
     try {
-      if (RemoteComputeConfig.isCustomWebSocketEngineCommand(engineCommand)) {
-        synchronized (readBoardGmaLock()) {
-          if (readBoardGmaPreparation != null) {
-            return;
-          }
-          readBoardGmaPreparation = new ReadBoardGmaPreparation(color, maxTimeSeconds, maxVisits);
-        }
-        readBoardGmaPreparation.start();
-      } else {
-        setReadBoardGmaPondering(ponder);
-        prepareReadBoardGmaMaxTime(maxTimeSeconds);
-        prepareReadBoardGmaMaxVisits(maxVisits);
-        sendReadBoardGmaCommand(color);
-      }
+      setReadBoardGmaPondering(ponder);
+      prepareReadBoardGmaMaxTime(maxTimeSeconds);
+      prepareReadBoardGmaMaxVisits(maxVisits);
+      sendReadBoardGmaCommand(color);
       activated = activation.completeRetainedEngineMode();
     } finally {
       if (!activated) {
@@ -9205,9 +9131,6 @@ public class Leelaz {
   }
 
   public void setReadBoardGmaPondering(boolean ponder) {
-    if (RemoteComputeConfig.isCustomWebSocketEngineCommand(engineCommand)) {
-      return;
-    }
     prepareReadBoardGmaRuntimeParam(readBoardGmaPondering, ponder ? "true" : "false");
   }
 
@@ -10071,11 +9994,10 @@ public class Leelaz {
       LizzieFrame.avoidcoords = "";
       Lizzie.frame.clearSelectImage();
       if (this.isKatago) {
+        // 标准 kata-analyze 命令：kata-analyze <player> <moves> [allow/avoid...]。
+        // 注意不要在末尾追加 maxVisits——那不是 kata-analyze 的合法参数（第三参数是 allow/avoid）。
         sendCommand(
-            "kata-analyze "
-                + maybeAddPlayer(addPlayer, blackToPlay)
-                + getInterval()
-                + addKataTag());
+            "kata-analyze " + maybeAddPlayer(addPlayer, blackToPlay) + getInterval() + addKataTag());
       } else {
         if (isSayuri)
           sendCommand("analyze " + maybeAddPlayer(addPlayer, blackToPlay) + getInterval());
@@ -10205,8 +10127,6 @@ public class Leelaz {
     leela0110StopPonder();
     if (this.useJavaSSH) {
       javaSSH.close();
-    } else if (this.useRemoteCompute) {
-      if (remoteTransport != null) remoteTransport.close();
     } else {
       if (process != null) process.destroy();
     }
@@ -10441,7 +10361,7 @@ public class Leelaz {
   }
 
   long engineStartupSynchronizationTimeoutMillis() {
-    if (useRemoteCompute || useJavaSSH) {
+    if (useJavaSSH) {
       return 60000L;
     }
     if (Config.isBundledKataGoCommand(engineCommand)) {
@@ -10913,21 +10833,7 @@ public class Leelaz {
   }
 
   public boolean isProcessDead() {
-    if (useRemoteCompute) {
-      return remoteTransport == null || !remoteTransport.isOpen();
-    }
     return process != null && !process.isAlive();
-  }
-
-  private void recoverUnresponsiveRemoteAnalysis() {
-    if (!useRemoteCompute
-        || isNormalEnd
-        || !started
-        || !isPondering
-        || Lizzie.engineManager == null) {
-      return;
-    }
-    Lizzie.engineManager.restartUnresponsiveRemoteEngine(this, currentEngineN);
   }
 
   public void maybeAjustPDA(BoardHistoryNode node) {

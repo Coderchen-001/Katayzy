@@ -27,7 +27,6 @@ import featurecat.lizzie.analysis.ReadBoardUpdateRequest;
 import featurecat.lizzie.analysis.TrackingAnalysisController;
 import featurecat.lizzie.analysis.WholeGameAnalysisPlan;
 import featurecat.lizzie.analysis.WholeGameAnalysisSession;
-import featurecat.lizzie.analysis.remote.RemoteComputeConfig;
 import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardData;
 import featurecat.lizzie.rules.BoardHistoryList;
@@ -357,7 +356,6 @@ public class LizzieFrame extends JFrame {
   private long showControlTime;
   public boolean isPlayingAgainstLeelaz = false;
   public boolean isAnaPlayingAgainstLeelaz = false;
-  public HumanSlGameController humanSlGame = null;
   public boolean playerIsBlack = true;
   public static boolean canGoAfterload = true;
   public int winRateGridLines = 3;
@@ -2360,6 +2358,11 @@ public class LizzieFrame extends JFrame {
   }
 
   public void requestProblemListRefresh() {
+    if (Lizzie.frame != null
+        && (Lizzie.frame.isPlayingAgainstLeelaz || Lizzie.frame.isAnaPlayingAgainstLeelaz)) {
+      // 人机对局/分析对局中不刷新问题手侧栏
+      return;
+    }
     if (!shouldRefreshProblemListSnapshot() || problemSidebarRefreshPending) {
       return;
     }
@@ -3930,6 +3933,7 @@ public class LizzieFrame extends JFrame {
 
   protected void startNewGameReserved() {
     Lizzie.frame.stopAiPlayingAndPolicy();
+    stopQuickAnalysisEngineForGame();
     boolean isPondering = false;
     if (Lizzie.leelaz.isPondering()) {
       Lizzie.leelaz.togglePonder();
@@ -3966,7 +3970,8 @@ public class LizzieFrame extends JFrame {
     Runnable syncBoard =
         new Runnable() {
           public void run() {
-            while (!Lizzie.leelaz.isLoaded() || EngineManager.isEmpty) {
+            long waitDeadline = System.currentTimeMillis() + 15000;
+            while (!Lizzie.leelaz.isLoaded() && System.currentTimeMillis() < waitDeadline) {
               try {
                 Thread.sleep(100);
               } catch (InterruptedException e) {
@@ -4035,7 +4040,19 @@ public class LizzieFrame extends JFrame {
   }
 
   protected void showForegroundEngineLeaseConflict() {
-    Utils.showMsg(Lizzie.resourceBundle.getString("AnalysisSettings.reuseStatus.existing_lease"));
+    showExistingLeaseConflictOnce(Lizzie.resourceBundle.getString("AnalysisSettings.reuseStatus.existing_lease"));
+  }
+
+  /** 同一"引擎被独占占用"消息 1.5 秒内只弹一次，避免双弹窗叠加。 */
+  private static long lastExistingLeaseConflictMsgTime = 0;
+
+  private static void showExistingLeaseConflictOnce(String message) {
+    long now = System.currentTimeMillis();
+    if (now - lastExistingLeaseConflictMsgTime < 1500) {
+      return;
+    }
+    lastExistingLeaseConflictMsgTime = now;
+    Utils.showMsg(message);
   }
 
   public static void editGameInfo() {
@@ -4730,7 +4747,6 @@ public class LizzieFrame extends JFrame {
     if (showFeedback) {
       beginKifuLoad(initialMessage);
     }
-    endHumanSlGameIfActive();
     boolean oriReadKomi = Lizzie.config.readKomi;
     try {
       if (showFeedback) {
@@ -4874,7 +4890,6 @@ public class LizzieFrame extends JFrame {
       Utils.showMsg(Lizzie.resourceBundle.getString("LizzieFrame.openFileFailed.inGame"));
       return;
     }
-    endHumanSlGameIfActive();
     boolean oriSound = Lizzie.config.playSound;
     boolean originalCanGoAfterload = canGoAfterload;
     canGoAfterload = false;
@@ -6634,8 +6649,7 @@ public class LizzieFrame extends JFrame {
     if (engine == null) {
       return "";
     }
-    return RemoteComputeConfig.compactDisplayNameForCommand(
-        engine.getEngineCommand(), engine.oriEnginename);
+    return engine.oriEnginename;
   }
 
   private int drawPonderingStateForExtraMode2(Graphics2D g, String text, int x, int y, int size) {
@@ -7777,20 +7791,6 @@ public class LizzieFrame extends JFrame {
   public void onClicked(int x, int y) {
     if (isTrialActive()) {
       showTrialBlockedHint();
-      return;
-    }
-    if (humanSlGame != null && !humanSlGame.isFinished()) {
-      Optional<int[]> humanSlCoords;
-      if (Lizzie.config.isThinkingMode()) {
-        humanSlCoords = boardRenderer2.convertScreenToCoordinates(x, y);
-        if (!humanSlCoords.isPresent())
-          humanSlCoords = boardRenderer.convertScreenToCoordinates(x, y);
-      } else {
-        humanSlCoords = boardRenderer.convertScreenToCoordinates(x, y);
-      }
-      if (humanSlCoords.isPresent()) {
-        humanSlGame.onBoardClicked(humanSlCoords.get()[0], humanSlCoords.get()[1]);
-      }
       return;
     }
     // Check for board click
@@ -10998,37 +10998,6 @@ public class LizzieFrame extends JFrame {
     thread.start();
   }
 
-  public void endHumanSlGameIfActive() {
-    if (humanSlGame != null && !humanSlGame.isFinished()) {
-      humanSlGame.abort();
-    }
-  }
-
-  public void startHumanSlGameDialog() {
-    runWithForegroundEngineModeReservation(this::startHumanSlGameDialogReserved);
-  }
-
-  private void startHumanSlGameDialogReserved() {
-    if (Lizzie.frame.isContributing) {
-      Utils.showMsg(
-          Lizzie.resourceBundle.getString("Contribute.tips.contributingAndStartAnotherLizzieYzy"));
-      return;
-    }
-    if (humanSlGame != null && !humanSlGame.isFinished()) {
-      humanSlGame.showControlPanel();
-      return;
-    }
-    if (EngineManager.isEngineGame
-        || Lizzie.frame.isPlayingAgainstLeelaz
-        || Lizzie.frame.isAnaPlayingAgainstLeelaz) {
-      Utils.showMsg(Lizzie.resourceBundle.getString("LizzieFrame.engineGameStopFirstHint"));
-      return;
-    }
-    NewHumanSlGameDialog dialog = new NewHumanSlGameDialog(this);
-    dialog.setVisible(true);
-    dialog.dispose();
-  }
-
   public void startEngineGameDialog() {
     runWithForegroundEngineModeReservation(this::startEngineGameDialogReserved);
   }
@@ -11070,7 +11039,19 @@ public class LizzieFrame extends JFrame {
       return;
     }
     if (Lizzie.leelaz.noAnalyze) {
-      startNewGameReserved();
+      // noAnalyze 引擎走新对局对话框流程，但先持有引擎模式保留（fallback 语义），
+      // 使对话框期间 hasExclusiveGtpWorkInProgress() 成立（防其他独占任务抢占），
+      // 对话框结束（含取消）后释放并恢复。
+      Leelaz.EngineModeReservation reservation = Lizzie.leelaz.beginEngineModeReservation();
+      if (reservation == null) {
+        showForegroundEngineModeReservationConflict();
+        return;
+      }
+      try {
+        startNewGameReserved();
+      } finally {
+        reservation.close();
+      }
       return;
     }
     boolean isPondering = false;
@@ -11118,6 +11099,7 @@ public class LizzieFrame extends JFrame {
     if (isPlayingAgainstLeelaz || isAnaPlayingAgainstLeelaz) {
       stopAiPlayingAndPolicy();
     }
+    stopQuickAnalysisEngineForGame();
     if (Lizzie.config.limitMyTime)
       countDownForHuman(
           Lizzie.config.getMySaveTime(),
@@ -11781,6 +11763,12 @@ public class LizzieFrame extends JFrame {
         Lizzie.config.isAutoAna = false;
         LizzieFrame.toolbar.chkAutoAnalyse.setSelected(false);
         Lizzie.leelaz.notPondering();
+      }
+    }
+    if (isGaming && Lizzie.config.autoQuickAnalyzeOnLoad && Lizzie.leelaz != null) {
+      // 对局结束：恢复自动快速分析（伴生引擎保留时直接复用，无需重启进程）
+      if (analysisEngine == null || !analysisEngine.isAnalysisInProgress()) {
+        flashAnalyzeGame(true, false, true);
       }
     }
     LizzieFrame.menu.toggleDoubleMenuGameStatus();
@@ -13860,7 +13848,6 @@ public class LizzieFrame extends JFrame {
         || EngineManager.isEngineGame()
         || isPlayingAgainstLeelaz
         || isAnaPlayingAgainstLeelaz
-        || humanSlGame != null
         || isContributing
         || isTrying;
   }
@@ -13892,6 +13879,22 @@ public class LizzieFrame extends JFrame {
   private void startRetainedEngineMode(RetainedEngineModeTarget target) {
     Leelaz currentForegroundEngine = target.engine;
     if (currentForegroundEngine == null) {
+      target.runWithoutTracking();
+      return;
+    }
+    // 引擎有独占生命周期保留（beginExclusiveGtpLifecycleReservation）未释放：即使引擎尚未启动，
+    // 也视为"已被其他独占任务占用"，直接报冲突，避免继续启动新对局流程污染状态。
+    // （tracking stream 场景不在此列——那由下方的 claimTrackingHandoff 仲裁为待激活/繁忙。）
+    if (currentForegroundEngine.hasExclusiveGtpLifecycleReservation()) {
+      target.reportConflict();
+      return;
+    }
+    // 空引擎列表 / 主引擎未启动或未加载：没有任何可仲裁的实际工作，
+    // 直接走正常流程（弹新对局对话框；引擎列表空时由 NewGameDialog 提示"请选择引擎"），
+    // 避免在空壳引擎上误报"引擎已被其他独占任务使用"。
+    if (EngineManager.isEmpty
+        || !currentForegroundEngine.isStarted()
+        || !currentForegroundEngine.isLoaded()) {
       target.runWithoutTracking();
       return;
     }
@@ -14091,7 +14094,7 @@ public class LizzieFrame extends JFrame {
   }
 
   protected void showForegroundEngineModeReservationConflict() {
-    Utils.showMsg(Lizzie.resourceBundle.getString("AnalysisSettings.reuseStatus.existing_lease"));
+    showExistingLeaseConflictOnce(Lizzie.resourceBundle.getString("AnalysisSettings.reuseStatus.existing_lease"));
   }
 
   protected void showRetainedEngineModeActivationFailure(Leelaz.TrackingHandoffFailure failure) {
@@ -14444,6 +14447,15 @@ public class LizzieFrame extends JFrame {
     }
     analysisEngine.normalQuit();
     analysisEngine = null;
+  }
+
+  /** 人机对局/续弈开始时暂停伴生快速分析（保留引擎进程，对局结束后可快速恢复）。
+   *  同时避免伴生分析继续占用主引擎共享租约，导致对局误报"引擎被独占占用"。 */
+  private void stopQuickAnalysisEngineForGame() {
+    if (analysisEngine == null || !analysisEngine.isAnalysisInProgress()) {
+      return;
+    }
+    analysisEngine.clearRequestCallbacks();
   }
 
   private boolean needsNewFlashAnalysisEngine() {
@@ -18395,22 +18407,6 @@ public class LizzieFrame extends JFrame {
     foxKifuDownload.presentWindow();
   }
 
-  public void openRemoteComputeCenter() {
-    RemoteComputeDialog dialog;
-    try {
-      dialog = new RemoteComputeDialog(this);
-    } catch (IOException e) {
-      JOptionPane.showMessageDialog(
-          this,
-          e.getMessage(),
-          text("NetworkProxy.settingsTitle", "Network proxy settings"),
-          JOptionPane.WARNING_MESSAGE);
-      return;
-    }
-    dialog.setVisible(true);
-    dialog.toFront();
-  }
-
   private void resumeAnalysisAfterLoad() {
     ensureAnalysisResumedAfterLoad();
   }
@@ -18679,11 +18675,6 @@ public class LizzieFrame extends JFrame {
         && !isAnaPlayingAgainstLeelaz;
   }
 
-  private boolean isCurrentPrimaryEngineRemote() {
-    return Lizzie.leelaz != null
-        && RemoteComputeConfig.isRemoteComputeEngineCommand(Lizzie.leelaz.engineCommand());
-  }
-
   private boolean isCurrentPrimaryEngineBundledOpenCl() {
     if (Lizzie.leelaz == null) {
       return false;
@@ -18701,7 +18692,7 @@ public class LizzieFrame extends JFrame {
   private QuickAnalysisWarmupAction currentQuickAnalysisWarmupAction(boolean requiresAutoAnalyze) {
     boolean dependsOnPrimary =
         quickAnalysisDependsOnPrimary(
-            isCurrentPrimaryEngineRemote(),
+            false,
             isCurrentPrimaryEngineBundledOpenCl(),
             Lizzie.config != null && Lizzie.config.analysisReuseCurrentEngine);
     boolean primaryLoaded =
@@ -19238,7 +19229,6 @@ public class LizzieFrame extends JFrame {
   }
 
   public void newEmptyBoard() {
-    if (EngineManager.isEngineGame()) return;
     if (Lizzie.config.showNewBoardHint
         && (Lizzie.board.getHistory().getCurrentHistoryNode().previous().isPresent()
             || Lizzie.board.getHistory().getCurrentHistoryNode().next().isPresent())) {
@@ -19281,8 +19271,39 @@ public class LizzieFrame extends JFrame {
         // System.out.println("取消");
         return;
     }
-    Lizzie.board.clear(false);
+    resetGameStateToFreshGui();
     Lizzie.frame.refresh();
+  }
+
+  /** 重置 GUI 到接近刚启动的状态（不重启/不关闭任何引擎进程）：
+   *  退出人机对局 / 分析对局 / 引擎对局、清除引擎仲裁残留
+   *  （engineStateUnrestored / readBoardGmaReservation，消除"引擎被占用"误报与模式残留）、
+   *  清空棋盘并恢复默认棋局信息、复位显示状态。
+   *  由"清空棋盘"（newEmptyBoard）调用，作为一键重置 GUI 的入口。 */
+  public void resetGameStateToFreshGui() {
+    // 1. 退出引擎对局（走正常结束流程，只清标志/计时/SGF，不杀引擎进程）
+    if (EngineManager.isEngineGame()) {
+      Lizzie.engineManager.stopEngineGame(EngineManager.engineGameInfo.blackEngineIndex, false);
+    }
+    // 2. 退出人机对局 / 分析对局（无引擎时仅清标志，避免 NPE）
+    if (Lizzie.leelaz != null) {
+      stopAiPlayingAndPolicy();
+      Lizzie.leelaz.clearArbitrationResiduals();
+    } else {
+      isPlayingAgainstLeelaz = false;
+      isAnaPlayingAgainstLeelaz = false;
+    }
+    // 3. 清空棋盘并恢复默认棋局信息
+    Lizzie.board.clear(false);
+    GameInfo fresh = new GameInfo();
+    Lizzie.board.getHistory().setGameInfo(fresh);
+    if (Lizzie.leelaz != null) Lizzie.leelaz.komi(fresh.getKomi());
+    playerIsBlack = true;
+    allowPlaceStone = false;
+    // 4. 复位显示状态
+    mouseOverCoordinate = outOfBoundCoordinate;
+    curFile = null;
+    updateTitle();
   }
 
   public void openController() {

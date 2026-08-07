@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import featurecat.lizzie.AppLocale;
 import featurecat.lizzie.Lizzie;
-import featurecat.lizzie.analysis.remote.RemoteComputeConfig;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -74,18 +73,6 @@ class LeelazDisplayNameTest {
     assertEquals("zhizi 28B muonfd2", Leelaz.friendlyEngineName("KataGo TensorRT", command));
   }
 
-  @Test
-  void remoteComputeNameUsesSavedArgsInsteadOfStaleEngineName() {
-    java.util.ResourceBundle previous = Lizzie.resourceBundle;
-    try {
-      Lizzie.resourceBundle = AppLocale.SIMPLIFIED_CHINESE.loadBundle();
-      assertEquals(
-          "智子云算力 VIP 包月 · 28B NBT · TensorRT",
-          Leelaz.friendlyEngineName("智子云算力 28B TensorRT", RemoteComputeConfig.COMMAND_ZHIZI));
-    } finally {
-      Lizzie.resourceBundle = previous;
-    }
-  }
 
   @Test
   void weightDisplayHandlesMultipleSpacesAfterModelFlag() {

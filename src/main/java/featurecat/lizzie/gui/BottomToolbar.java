@@ -95,7 +95,6 @@ public class BottomToolbar extends JPanel {
   JButton autoPlay;
   JButton deleteMove;
   JButton share;
-  JButton remoteComputeButton;
   JButton moreActionsButton;
   JPopupMenu moreActionsPopup;
 
@@ -248,7 +247,6 @@ public class BottomToolbar extends JPanel {
   public JButton btnStartPk;
   public JButton btnEnginePkConfig;
   public JButton btnEnginePkStop;
-  public JButton btnEngineMannul;
 
   JLabel lblenginePk;
   // JLabel lblgenmove;
@@ -598,8 +596,6 @@ public class BottomToolbar extends JPanel {
     badMoves =
         new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.badMoves")); // ("超级鹰眼");
     share = new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.share")); // ("分享");
-    remoteComputeButton = new JFontButton(Lizzie.resourceBundle.getString("Menu.remoteCompute"));
-    AppleStyleSupport.markPrimary(remoteComputeButton);
     liveButton =
         new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.liveButton")); // ("直播");
     clearButton =
@@ -703,7 +699,6 @@ public class BottomToolbar extends JPanel {
     detail.setBounds(0, 0, 20, 26);
     if (showDetail) leftMove.setBounds(Config.isScaled ? 20 : 19, 0, 20, 26);
     else leftMove.setBounds(0, 0, 20, 26);
-    buttonPane.add(remoteComputeButton);
     buttonPane.add(share);
     buttonPane.add(liveButton);
     buttonPane.add(deleteMove);
@@ -764,7 +759,6 @@ public class BottomToolbar extends JPanel {
     coords.setFocusable(false);
     liveButton.setFocusable(false);
     share.setFocusable(false);
-    remoteComputeButton.setFocusable(false);
     rightMove.setFocusable(false);
     leftMove.setFocusable(false);
     badMoves.setFocusable(false);
@@ -776,7 +770,6 @@ public class BottomToolbar extends JPanel {
     deleteMove.setMargin(new Insets(0, 0, 0, 0));
     autoPlay.setMargin(new Insets(0, 0, 0, 0));
     badMoves.setMargin(new Insets(0, 0, 0, 0));
-    remoteComputeButton.setMargin(new Insets(0, 0, 0, 0));
     firstButton.setMargin(new Insets(0, 0, 0, 0));
     lastButton.setMargin(new Insets(0, 0, 0, 0));
     clearButton.setMargin(new Insets(0, 0, 0, 0));
@@ -817,7 +810,6 @@ public class BottomToolbar extends JPanel {
     //      extraLength += (Config.frameFontSize - 12) * 5;
     //    }
     setButtonSize(autoPlay, false);
-    setButtonSize(remoteComputeButton, false);
     setButtonSize(deleteMove, true);
     setButtonSize(badMoves, false);
     setButtonSize(share, true);
@@ -907,13 +899,6 @@ public class BottomToolbar extends JPanel {
         new ActionListener() {
           public void actionPerformed(ActionEvent e) {
             Lizzie.frame.refreshCurrentMove();
-          }
-        });
-
-    remoteComputeButton.addActionListener(
-        new ActionListener() {
-          public void actionPerformed(ActionEvent e) {
-            Lizzie.frame.openRemoteComputeCenter();
           }
         });
 
@@ -2275,21 +2260,6 @@ public class BottomToolbar extends JPanel {
           }
         });
 
-    btnEngineMannul = new JButton(text("BottomToolbar.detail.intervene", "干预"));
-
-    btnEngineMannul.setBounds(563, 1, 35, 20);
-    btnEngineMannul.setMargin(new Insets(0, 0, 0, 0));
-    btnEngineMannul.addActionListener(
-        new ActionListener() {
-          public void actionPerformed(ActionEvent e) {
-            // 打开干预面板
-            Manual manul = new Manual();
-            manul.setVisible(true);
-            setTxtUnfocuse();
-          }
-        });
-
-    enginePkPanel.add(btnEngineMannul);
     // chkenginePkAutosave = new JCheckBox();
     // lblenginePkAutosave = new JLabel("自动保存");
     // enginePkPanel.add(chkenginePkAutosave);
@@ -2326,7 +2296,6 @@ public class BottomToolbar extends JPanel {
     chkAutoPlayPlayouts.setFocusable(false);
     chkAutoPlayFirstPlayouts.setFocusable(false);
     btnStartPk.setFocusable(false);
-    btnEngineMannul.setFocusable(false);
     chkenginePk.setFocusable(false);
     chkenginePkTime.setFocusable(false);
     chkenginePkPlayouts.setFocusable(false);
@@ -2943,7 +2912,6 @@ public class BottomToolbar extends JPanel {
       this.txtenginePkPlayputs.setEnabled(false);
       this.txtenginePkPlayputsWhite.setEnabled(false);
       //   this.btnEnginePkStop.setEnabled(false);
-      //   this.btnEngineMannul.setEnabled(false);
     } else {
       this.chkenginePkFirstPlayputs.setEnabled(true);
       this.chkenginePkPlayouts.setEnabled(true);
@@ -4450,7 +4418,6 @@ public class BottomToolbar extends JPanel {
   }
 
   private void setButtonVisiable() {
-    remoteComputeButton.setVisible(true);
     if (Lizzie.config.liveButton) liveButton.setVisible(true);
     else liveButton.setVisible(false);
     if (Lizzie.config.share) share.setVisible(true);
@@ -4614,9 +4581,6 @@ public class BottomToolbar extends JPanel {
 
   private int calcButtonLength() {
     int length = 0;
-    if (remoteComputeButton.isVisible()) {
-      length = length + remoteComputeButton.getWidth() - (Config.isScaled ? 0 : 1);
-    }
     if (liveButton.isVisible()) {
       length = length + liveButton.getWidth() - (Config.isScaled ? 0 : 1);
     }
@@ -4838,19 +4802,11 @@ public class BottomToolbar extends JPanel {
       w = w - (liveButton.getWidth() - (Config.isScaled ? 0 : 1));
       liveButton.setLocation(w, 0);
     }
-    if (remoteComputeButton.isVisible()) {
-      w = w - (remoteComputeButton.getWidth() - (Config.isScaled ? 0 : 1));
-      remoteComputeButton.setLocation(w, 0);
-    }
 
     return w;
   }
 
   public int setLocationLeft(int w) {
-    if (remoteComputeButton.isVisible()) {
-      remoteComputeButton.setLocation(w, 0);
-      w = w + remoteComputeButton.getWidth() - (Config.isScaled ? 0 : 1);
-    }
     if (liveButton.isVisible()) {
       liveButton.setLocation(w, 0);
       w = w + liveButton.getWidth() - (Config.isScaled ? 0 : 1);
@@ -5003,7 +4959,6 @@ public class BottomToolbar extends JPanel {
         visibleButtons(
             openfile,
             savefile,
-            remoteComputeButton,
             kataEstimate,
             heatMap,
             analyzeList,
@@ -5034,7 +4989,6 @@ public class BottomToolbar extends JPanel {
       boolean reserveOverflow = pass == 1;
       overflowButtons.clear();
       hideButtons(
-          remoteComputeButton,
           share,
           liveButton,
           deleteMove,

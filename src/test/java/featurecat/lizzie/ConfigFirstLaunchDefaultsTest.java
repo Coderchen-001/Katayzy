@@ -11,23 +11,20 @@ import org.junit.jupiter.api.Test;
 class ConfigFirstLaunchDefaultsTest {
   @Test
   void freshProfileStartsInTheSupportedSystemLanguageWithoutAutomaticBenchmark() {
-    JSONObject ui =
-        new JSONObject().put("use-language", 4).put("enable-startup-benchmark", true);
+    JSONObject ui = new JSONObject().put("use-language", 4);
 
     Config.applyFirstLaunchDefaults(ui, true, Locale.JAPAN);
 
     assertEquals(AppLocale.JAPANESE.configValue(), ui.getInt("use-language"));
-    assertFalse(ui.getBoolean("enable-startup-benchmark"));
   }
 
   @Test
   void freshProfileFallsBackToSimplifiedChineseForUnsupportedSystemLanguage() {
-    JSONObject ui = new JSONObject().put("enable-startup-benchmark", true);
+    JSONObject ui = new JSONObject();
 
     Config.applyFirstLaunchDefaults(ui, true, Locale.FRANCE);
 
     assertEquals(AppLocale.SIMPLIFIED_CHINESE.configValue(), ui.getInt("use-language"));
-    assertFalse(ui.getBoolean("enable-startup-benchmark"));
   }
 
   @Test

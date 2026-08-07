@@ -15,7 +15,6 @@ import featurecat.lizzie.gui.EngineData;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -618,175 +617,6 @@ public class KataGoAutoSetupHelperTest {
   }
 
   @Test
-  void inspectHumanSlModelUsesRememberedPathBeforeDirectoryScan() throws Exception {
-    Path tempRoot = Files.createTempDirectory("katago-humansl-status");
-    Path first = touchModel(tempRoot.resolve("human-sl-models").resolve("first-human.bin.gz"));
-    Path remembered = touchModel(tempRoot.resolve("external").resolve("remembered-human.bin.gz"));
-
-    withUserDirAndConfig(
-        tempRoot,
-        () -> {
-          Lizzie.config.uiConfig.put("katago-human-sl-model-path", remembered.toString());
-
-          KataGoAutoSetupHelper.HumanSlModelStatus status =
-              KataGoAutoSetupHelper.inspectHumanSlModel();
-
-          assertTrue(status.isInstalled());
-          assertEquals(remembered, status.modelPath);
-          assertEquals(remembered, status.candidates.get(0));
-          assertTrue(status.candidates.contains(first));
-        });
-  }
-
-  @Test
-  void inspectHumanSlModelPrefersBundledDefaultFile() throws Exception {
-    Path tempRoot = Files.createTempDirectory("katago-humansl-bundled");
-    Path olderCustom =
-        touchModel(tempRoot.resolve("human-sl-models").resolve("custom-human.bin.gz"));
-    byte[] officialBytes = repeatedBytes(4096, (byte) 3);
-    Path bundled =
-        writeModel(
-            tempRoot
-                .resolve("human-sl-models")
-                .resolve(KataGoAutoSetupHelper.HUMAN_SL_MODEL_FILE_NAME),
-            officialBytes);
-
-    withUserDirAndConfig(
-        tempRoot,
-        () ->
-            withHumanSlDownloadProperties(
-                "http://127.0.0.1/model.bin.gz",
-                sha256(officialBytes),
-                officialBytes.length,
-                () -> {
-                  KataGoAutoSetupHelper.HumanSlModelStatus status =
-                      KataGoAutoSetupHelper.inspectHumanSlModel();
-
-                  assertTrue(status.isInstalled());
-                  assertEquals(bundled, status.modelPath);
-                  assertEquals(bundled, status.candidates.get(0));
-                  assertTrue(status.candidates.contains(olderCustom));
-                }));
-  }
-
-  @Test
-  void inspectHumanSlModelFindsBundledFileFromAppRootWithoutEngine() throws Exception {
-    Path appRoot = Files.createTempDirectory("katago-humansl-app-root");
-    Path workDir = Files.createDirectories(appRoot.resolve("user-data"));
-    Path processDir = Files.createDirectories(workDir.resolve("cwd"));
-    byte[] officialBytes = repeatedBytes(4096, (byte) 5);
-    Path bundled =
-        writeModel(
-            appRoot
-                .resolve("human-sl-models")
-                .resolve(KataGoAutoSetupHelper.HUMAN_SL_MODEL_FILE_NAME),
-            officialBytes);
-
-    withProcessDirAndConfig(
-        processDir,
-        workDir,
-        () ->
-            withHumanSlDownloadProperties(
-                "http://127.0.0.1/model.bin.gz",
-                sha256(officialBytes),
-                officialBytes.length,
-                () -> {
-                  KataGoAutoSetupHelper.HumanSlModelStatus status =
-                      KataGoAutoSetupHelper.inspectHumanSlModel();
-
-                  assertTrue(status.isInstalled());
-                  assertEquals(bundled, status.modelPath);
-                  assertEquals(bundled, status.candidates.get(0));
-                }));
-  }
-
-  @Test
-  void inspectLocalSetupKeepsAppRootWhenWorkingDirHasHumanSlModels() throws Exception {
-    Path tempRoot = Files.createTempDirectory("katago-humansl-app-root-priority");
-    Path appRoot = Files.createDirectories(tempRoot.resolve("app"));
-    Path workDir = Files.createDirectories(appRoot.resolve("user-data"));
-    Path processDir = Files.createDirectories(workDir.resolve("cwd"));
-    Files.createDirectories(workDir.resolve("human-sl-models"));
-    Path engine =
-        touch(
-            appRoot
-                .resolve("engines")
-                .resolve("katago")
-                .resolve(detectTestPlatformDir())
-                .resolve(testKataGoBinaryName()));
-    Path configDir =
-        Files.createDirectories(appRoot.resolve("engines").resolve("katago").resolve("configs"));
-    Path gtpConfig = touch(configDir.resolve("gtp.cfg"));
-    Path analysisConfig = touch(configDir.resolve("analysis.cfg"));
-    Path estimateConfig = touch(configDir.resolve("estimate.cfg"));
-    touch(appRoot.resolve("weights").resolve("default.bin.gz"));
-    Path customWeight = touch(workDir.resolve("weights").resolve("custom.bin.gz"));
-    Path importedModel =
-        touchModel(workDir.resolve("human-sl-models").resolve("custom-human.bin.gz"));
-
-    withProcessDirAndConfig(
-        processDir,
-        workDir,
-        () -> {
-          Lizzie.config.uiConfig.put("katago-preferred-weight-path", customWeight.toString());
-          Lizzie.config.uiConfig.put("katago-human-sl-model-path", importedModel.toString());
-          KataGoAutoSetupHelper.SetupSnapshot snapshot = KataGoAutoSetupHelper.inspectLocalSetup();
-          KataGoAutoSetupHelper.HumanSlModelStatus humanSlStatus =
-              KataGoAutoSetupHelper.inspectHumanSlModel();
-
-          assertEquals(workDir.toAbsolutePath().normalize(), snapshot.workingDir);
-          assertEquals(appRoot.toAbsolutePath().normalize(), snapshot.appRoot);
-          assertEquals(engine, snapshot.enginePath);
-          assertEquals(gtpConfig, snapshot.gtpConfigPath);
-          assertEquals(analysisConfig, snapshot.analysisConfigPath);
-          assertEquals(estimateConfig, snapshot.estimateConfigPath);
-          assertEquals(customWeight, snapshot.activeWeightPath);
-          assertTrue(importedModel.startsWith(workDir.resolve("human-sl-models")));
-          assertEquals(
-              importedModel.toString(),
-              Lizzie.config.uiConfig.optString("katago-human-sl-model-path"));
-          assertTrue(humanSlStatus.isInstalled());
-          assertEquals(importedModel, humanSlStatus.modelPath);
-        });
-  }
-
-  @Test
-  void humanSlCandidatesPreferWorkingDirAncestorOverSeparateEngineRoot() throws Exception {
-    Path tempRoot = Files.createTempDirectory("katago-humansl-candidate-roots");
-    Path portableRoot = Files.createDirectories(tempRoot.resolve("portable"));
-    Path workDir = Files.createDirectories(portableRoot.resolve("user-data"));
-    Path selectedAppRoot = Files.createDirectories(tempRoot.resolve("engine-app"));
-    Path portableModel =
-        touchModel(
-            portableRoot
-                .resolve("human-sl-models")
-                .resolve(KataGoAutoSetupHelper.HUMAN_SL_MODEL_FILE_NAME));
-    Path selectedRootModel =
-        touchModel(
-            selectedAppRoot
-                .resolve("human-sl-models")
-                .resolve(KataGoAutoSetupHelper.HUMAN_SL_MODEL_FILE_NAME));
-
-    List<Path> candidates =
-        KataGoAutoSetupHelper.collectHumanSlModelCandidates(workDir, selectedAppRoot);
-
-    assertEquals(portableModel, candidates.get(0));
-    assertTrue(candidates.contains(selectedRootModel));
-  }
-
-  @Test
-  void inspectHumanSlModelRejectsTruncatedOfficialModel() throws Exception {
-    Path tempRoot = Files.createTempDirectory("katago-humansl-truncated");
-    Files.createDirectories(tempRoot.resolve("human-sl-models"));
-    Files.write(
-        tempRoot.resolve("human-sl-models").resolve(KataGoAutoSetupHelper.HUMAN_SL_MODEL_FILE_NAME),
-        new byte[] {1, 2, 3, 4});
-
-    withUserDirAndConfig(
-        tempRoot, () -> assertFalse(KataGoAutoSetupHelper.inspectHumanSlModel().isInstalled()));
-  }
-
-  @Test
   void inspectLocalSetupUsesConfiguredWorkDirectoryInsteadOfProcessDirectory() throws Exception {
     Path tempRoot = Files.createTempDirectory("katago-configured-workdir");
     Path workDir = Files.createDirectories(tempRoot.resolve("portable").resolve("user-data"));
@@ -1078,22 +908,6 @@ public class KataGoAutoSetupHelperTest {
     return Files.write(path, new byte[0]).toAbsolutePath().normalize();
   }
 
-  private static Path touchModel(Path path) throws Exception {
-    Files.createDirectories(path.getParent());
-    return Files.write(path, new byte[2 * 1024 * 1024]).toAbsolutePath().normalize();
-  }
-
-  private static Path writeModel(Path path, byte[] bytes) throws Exception {
-    Files.createDirectories(path.getParent());
-    return Files.write(path, bytes).toAbsolutePath().normalize();
-  }
-
-  private static byte[] repeatedBytes(int size, byte value) {
-    byte[] bytes = new byte[size];
-    java.util.Arrays.fill(bytes, value);
-    return bytes;
-  }
-
   private static String quote(Path path) {
     return "\"" + path.toAbsolutePath().normalize().toString() + "\"";
   }
@@ -1149,41 +963,6 @@ public class KataGoAutoSetupHelperTest {
 
   private interface ThrowingRunnable {
     void run() throws Exception;
-  }
-
-  private static void withHumanSlDownloadProperties(
-      String url, String sha256, long size, ThrowingRunnable action) throws Exception {
-    String previousUrl = System.getProperty("lizzie.humansl.model.url");
-    String previousSha = System.getProperty("lizzie.humansl.model.sha256");
-    String previousSize = System.getProperty("lizzie.humansl.model.size");
-    try {
-      System.setProperty("lizzie.humansl.model.url", url);
-      System.setProperty("lizzie.humansl.model.sha256", sha256);
-      System.setProperty("lizzie.humansl.model.size", Long.toString(size));
-      action.run();
-    } finally {
-      restoreProperty("lizzie.humansl.model.url", previousUrl);
-      restoreProperty("lizzie.humansl.model.sha256", previousSha);
-      restoreProperty("lizzie.humansl.model.size", previousSize);
-    }
-  }
-
-  private static void restoreProperty(String key, String previousValue) {
-    if (previousValue == null) {
-      System.clearProperty(key);
-      return;
-    }
-    System.setProperty(key, previousValue);
-  }
-
-  private static String sha256(byte[] bytes) throws Exception {
-    MessageDigest digest = MessageDigest.getInstance("SHA-256");
-    byte[] hash = digest.digest(bytes);
-    StringBuilder builder = new StringBuilder();
-    for (byte value : hash) {
-      builder.append(String.format(Locale.ROOT, "%02x", value & 0xff));
-    }
-    return builder.toString();
   }
 
 }

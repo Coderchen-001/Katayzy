@@ -2132,30 +2132,6 @@ class LeelazTrackingStreamLeaseTest {
   }
 
   @Test
-  void trackingAdmissionRejectsRemoteAndIncompleteCommandDiscovery() throws Exception {
-    Leelaz remote = reusableLocalKatago();
-    remote.useRemoteCompute = true;
-    try (TestState state = TestState.open(remote)) {
-      Leelaz.TrackingStreamLeaseAcquisition acquisition =
-          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
-      assertEquals(
-          Leelaz.ExclusiveGtpLeaseAvailability.ENGINE_NOT_READY, acquisition.availability());
-      assertEquals(null, acquisition.lease());
-      assertEquals("", state.output.toString(StandardCharsets.UTF_8));
-    }
-
-    Leelaz missingAnalyze = reusableLocalKatago();
-    missingAnalyze.commandLists.remove("kata-analyze");
-    try (TestState state = TestState.open(missingAnalyze)) {
-      Leelaz.TrackingStreamLeaseAcquisition acquisition =
-          state.engine.acquireTrackingStreamLease(line -> {}, lease -> {}, lease -> {});
-      assertEquals(
-          Leelaz.ExclusiveGtpLeaseAvailability.MISSING_CAPABILITY, acquisition.availability());
-      assertEquals(null, acquisition.lease());
-    }
-  }
-
-  @Test
   void initialStopSendFailureReturnsStableAcquisitionFailure() throws Exception {
     try (TestState state = TestState.open(reusableLocalKatago())) {
       AtomicInteger closed = new AtomicInteger();

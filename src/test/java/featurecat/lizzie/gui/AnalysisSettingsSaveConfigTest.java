@@ -9,15 +9,10 @@ import featurecat.lizzie.Config;
 import featurecat.lizzie.ConfigTestHelper;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.analysis.AnalysisEngine;
-import featurecat.lizzie.analysis.Leelaz;
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.JRadioButton;
 import javax.swing.JTextField;
 import javax.swing.JOptionPane;
@@ -43,52 +38,6 @@ class AnalysisSettingsSaveConfigTest {
     assertTrue(
         AnalysisSettings.commandCustomizedAfterSave(
             true, false, false, "custom-command", "custom-command"));
-  }
-
-  @Test
-  void foregroundLeasePreventsDeferredHumanSlStartReservation() throws Exception {
-    LizzieFrame previousFrame = Lizzie.frame;
-    Leelaz previousEngine = Lizzie.leelaz;
-    TrackingFlashAnalysisFrame frame = allocate(TrackingFlashAnalysisFrame.class);
-    Leelaz foreground = new Leelaz("");
-    foreground.isLoaded = true;
-    foreground.started = true;
-    foreground.isKatago = true;
-    foreground.commandLists.addAll(
-        List.of(
-            "stop",
-            "boardsize",
-            "komi",
-            "kata-get-rules",
-            "kata-set-rules",
-            "clear_board",
-            "play",
-            "set_position",
-            "kata-analyze"));
-    setField(Leelaz.class, foreground, "endGetCommandList", true);
-    setField(
-        Leelaz.class,
-        foreground,
-        "outputStream",
-        new BufferedOutputStream(new ByteArrayOutputStream()));
-    AtomicInteger starts = new AtomicInteger();
-    try {
-      Lizzie.frame = frame;
-      Lizzie.leelaz = foreground;
-      assertEquals(
-          Leelaz.ExclusiveGtpLeaseAvailability.AVAILABLE,
-          foreground.beginExclusiveGtpSession(line -> {}, () -> {}, () -> {}));
-
-      assertFalse(frame.runWithForegroundEngineModeReservation(starts::incrementAndGet));
-
-      assertEquals(0, starts.get());
-      assertEquals(1, frame.reservationConflictCount);
-      assertTrue(foreground.hasExclusiveGtpLease());
-    } finally {
-      foreground.endExclusiveGtpSession();
-      Lizzie.frame = previousFrame;
-      Lizzie.leelaz = previousEngine;
-    }
   }
 
   @Test

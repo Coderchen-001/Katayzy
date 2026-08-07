@@ -58,14 +58,6 @@ public final class KataGoAutoSetupHelper {
   private static final String BUNDLED_2026_06_28B_MODEL =
       "kata1-b28c512nbt-s13255194368-d5935380940";
   private static final String BUNDLED_2026_06_28B_DISPLAY_NAME = "28B 2026-06";
-  public static final String HUMAN_SL_MODEL_FILE_NAME = "b18c384nbt-humanv0.bin.gz";
-  public static final long HUMAN_SL_MODEL_SIZE_BYTES = 99066230L;
-  public static final String HUMAN_SL_MODEL_SHA256 =
-      "637746e44f0efe00ad1245a50aa9bbf0716efe364c43965ead97bd6835d84ab5";
-  private static final String HUMAN_SL_MODEL_SHA256_PROPERTY = "lizzie.humansl.model.sha256";
-  private static final String HUMAN_SL_MODEL_SIZE_PROPERTY = "lizzie.humansl.model.size";
-  private static final String HUMAN_SL_MODEL_CONFIG_KEY = "katago-human-sl-model-path";
-  private static final String HUMAN_SL_MODEL_DIR_NAME = "human-sl-models";
 
   private KataGoAutoSetupHelper() {}
 
@@ -379,20 +371,6 @@ public final class KataGoAutoSetupHelper {
       this.engineIndex = engineIndex;
       this.engineName = engineName;
       this.createdEngine = createdEngine;
-    }
-  }
-
-  public static final class HumanSlModelStatus {
-    public final Path modelPath;
-    public final List<Path> candidates;
-
-    private HumanSlModelStatus(Path modelPath, List<Path> candidates) {
-      this.modelPath = modelPath == null ? null : modelPath.toAbsolutePath().normalize();
-      this.candidates = Collections.unmodifiableList(new ArrayList<>(candidates));
-    }
-
-    public boolean isInstalled() {
-      return isValidHumanSlModelFile(modelPath);
     }
   }
 
@@ -825,35 +803,6 @@ public final class KataGoAutoSetupHelper {
     return target;
   }
 
-
-
-  public static HumanSlModelStatus inspectHumanSlModel() {
-    SetupSnapshot snapshot = inspectLocalSetup();
-    List<Path> candidates = collectHumanSlModelCandidates(snapshot.workingDir, snapshot.appRoot);
-    Path configured = humanSlModelFromConfig(snapshot.workingDir);
-    if (configured != null) {
-      candidates = prependUnique(configured, candidates);
-      return new HumanSlModelStatus(configured, candidates);
-    }
-    for (Path candidate : candidates) {
-      if (candidate != null
-          && candidate.getFileName() != null
-          && HUMAN_SL_MODEL_FILE_NAME.equalsIgnoreCase(candidate.getFileName().toString())
-          && Files.isRegularFile(candidate)) {
-        return new HumanSlModelStatus(candidate, candidates);
-      }
-    }
-    return new HumanSlModelStatus(candidates.isEmpty() ? null : candidates.get(0), candidates);
-  }
-
-  public static void rememberHumanSlModel(Path modelPath) {
-    if (modelPath == null || Lizzie.config == null || Lizzie.config.uiConfig == null) {
-      return;
-    }
-    Lizzie.config.uiConfig.put(
-        HUMAN_SL_MODEL_CONFIG_KEY, modelPath.toAbsolutePath().normalize().toString());
-  }
-
   public static String resolveActiveWeightModelName(SetupSnapshot snapshot) {
     if (snapshot == null || snapshot.activeWeightPath == null) {
       return "";
@@ -1133,10 +1082,6 @@ public final class KataGoAutoSetupHelper {
     }
     Lizzie.config.uiConfig.put(
         "katago-preferred-weight-path", weightPath.toAbsolutePath().normalize().toString());
-  }
-
-  private static Path humanSlModelsDir(Path workingDir) {
-    return workingDir.resolve(HUMAN_SL_MODEL_DIR_NAME).toAbsolutePath().normalize();
   }
 
   private static int findAutoSetupEngineIndex(ArrayList<EngineData> engines) {
@@ -1690,8 +1635,7 @@ public final class KataGoAutoSetupHelper {
       return true;
     }
     String normalized = command.trim().toLowerCase(Locale.ROOT);
-    if (normalized.startsWith("remote-compute://")
-        || normalized.startsWith("ws://")
+    if (normalized.startsWith("ws://")
         || normalized.startsWith("wss://")
         || normalized.startsWith("http://")
         || normalized.startsWith("https://")
@@ -1982,21 +1926,16 @@ public final class KataGoAutoSetupHelper {
     } catch (URISyntaxException e) {
     }
 
-    Path humanSlOnlyRoot = null;
     for (Path seedPath : seedPaths) {
       Path current = seedPath;
       for (int depth = 0; current != null && depth < 8; depth++) {
         if (looksLikeAppRoot(current)) {
           return Optional.of(current.toAbsolutePath().normalize());
         }
-        if (humanSlOnlyRoot == null
-            && Files.isDirectory(current.resolve(HUMAN_SL_MODEL_DIR_NAME))) {
-          humanSlOnlyRoot = current.toAbsolutePath().normalize();
-        }
         current = current.getParent();
       }
     }
-    return Optional.ofNullable(humanSlOnlyRoot);
+    return Optional.empty();
   }
 
   private static boolean looksLikeAppRoot(Path directory) {
@@ -2190,118 +2129,12 @@ public final class KataGoAutoSetupHelper {
     }
   }
 
-  static List<Path> collectHumanSlModelCandidates(Path workingDir, Path appRoot) {
-    LinkedHashSet<Path> candidates = new LinkedHashSet<>();
-    LinkedHashSet<Path> modelDirectories = new LinkedHashSet<>();
-    Path current = workingDir;
-    for (int depth = 0; current != null && depth < 8; depth++) {
-      modelDirectories.add(humanSlModelsDir(current));
-      current = current.getParent();
-    }
-    if (appRoot != null) {
-      modelDirectories.add(humanSlModelsDir(appRoot));
-    }
-    for (Path modelsDir : modelDirectories) {
-      collectHumanSlModelCandidates(candidates, modelsDir);
-    }
-    return new ArrayList<>(candidates);
-  }
-
-  private static void collectHumanSlModelCandidates(LinkedHashSet<Path> out, Path modelsDir) {
-    if (!Files.isDirectory(modelsDir)) {
-      return;
-    }
-    try (Stream<Path> paths = Files.walk(modelsDir, 3)) {
-      paths
-          .filter(Files::isRegularFile)
-          .filter(KataGoAutoSetupHelper::isSupportedHumanSlModelFile)
-          .sorted(
-              Comparator.comparing(
-                      (Path path) ->
-                          HUMAN_SL_MODEL_FILE_NAME.equalsIgnoreCase(path.getFileName().toString()))
-                  .reversed()
-                  .thenComparing(
-                      (Path path) -> {
-                        try {
-                          return Files.getLastModifiedTime(path).toMillis();
-                        } catch (IOException e) {
-                          return 0L;
-                        }
-                      },
-                      Comparator.reverseOrder()))
-          .forEach(path -> out.add(path.toAbsolutePath().normalize()));
-    } catch (IOException e) {
-    }
-  }
-
   private static boolean isSupportedWeightFile(Path path) {
     if (path == null || path.getFileName() == null) {
       return false;
     }
     String fileName = path.getFileName().toString().toLowerCase(Locale.ROOT);
     return fileName.endsWith(".bin.gz") || fileName.endsWith(".txt.gz");
-  }
-
-  private static boolean isSupportedHumanSlModelFile(Path path) {
-    if (path == null || path.getFileName() == null) {
-      return false;
-    }
-    String fileName = path.getFileName().toString().toLowerCase(Locale.ROOT);
-    return fileName.endsWith(".bin.gz") || fileName.endsWith(".txt.gz");
-  }
-
-  private static boolean isValidHumanSlModelFile(Path path) {
-    if (path == null || !Files.isRegularFile(path) || !isSupportedHumanSlModelFile(path)) {
-      return false;
-    }
-    try {
-      if (isOfficialHumanSlModelPath(path)) {
-        verifyOfficialHumanSlModel(path);
-        return true;
-      }
-      return Files.size(path) > 1024L * 1024L;
-    } catch (IOException e) {
-      return false;
-    }
-  }
-
-  private static boolean isOfficialHumanSlModelPath(Path path) {
-    return path != null
-        && path.getFileName() != null
-        && HUMAN_SL_MODEL_FILE_NAME.equalsIgnoreCase(path.getFileName().toString());
-  }
-
-  private static void verifyOfficialHumanSlModel(Path path) throws IOException {
-    long expectedSize = humanSlModelSizeBytes();
-    if (expectedSize > 0L && Files.size(path) != expectedSize) {
-      throw new IOException(
-          resource("AutoSetup.humanSlModelIncomplete", "HumanSL model download is incomplete."));
-    }
-    String expectedSha = humanSlModelSha256();
-    if (!expectedSha.isEmpty() && !expectedSha.equalsIgnoreCase(sha256(path))) {
-      throw new IOException(
-          resource(
-              "AutoSetup.humanSlModelChecksumFailed",
-              "HumanSL model checksum failed. Please download again."));
-    }
-  }
-
-
-
-  private static String humanSlModelSha256() {
-    String value = System.getProperty(HUMAN_SL_MODEL_SHA256_PROPERTY, "").trim();
-    return value.isEmpty() ? HUMAN_SL_MODEL_SHA256 : value;
-  }
-
-  private static long humanSlModelSizeBytes() {
-    String value = System.getProperty(HUMAN_SL_MODEL_SIZE_PROPERTY, "").trim();
-    if (!value.isEmpty()) {
-      try {
-        return Long.parseLong(value);
-      } catch (NumberFormatException ignored) {
-      }
-    }
-    return HUMAN_SL_MODEL_SIZE_BYTES;
   }
 
   private static String sha256(Path path) throws IOException {
@@ -2483,25 +2316,6 @@ public final class KataGoAutoSetupHelper {
     return null;
   }
 
-  private static Path humanSlModelFromConfig(Path workingDir) {
-    if (Lizzie.config == null || Lizzie.config.uiConfig == null) {
-      return null;
-    }
-    String modelText = Lizzie.config.uiConfig.optString(HUMAN_SL_MODEL_CONFIG_KEY, "").trim();
-    if (modelText.isEmpty()) {
-      return null;
-    }
-    Path modelPath = Paths.get(modelText);
-    if (!modelPath.isAbsolute()) {
-      modelPath = workingDir.resolve(modelPath);
-    }
-    modelPath = modelPath.toAbsolutePath().normalize();
-    if (Files.isRegularFile(modelPath) && isSupportedHumanSlModelFile(modelPath)) {
-      return modelPath;
-    }
-    return null;
-  }
-
   private static List<Path> prependUnique(Path first, List<Path> candidates) {
     LinkedHashSet<Path> unique = new LinkedHashSet<>();
     if (first != null) {
@@ -2617,9 +2431,6 @@ public final class KataGoAutoSetupHelper {
       return false;
     }
     String command = startupEngine.commands == null ? "" : startupEngine.commands.trim();
-    if (command.startsWith("remote-compute://")) {
-      return false;
-    }
     if (isTensorRtManagedCommand(startupEngine.name, command)) {
       return false;
     }
@@ -2638,9 +2449,6 @@ public final class KataGoAutoSetupHelper {
   }
 
   private static boolean isLegacyStartupCommandBroken(String name, String command) {
-    if (command != null && command.trim().startsWith("remote-compute://")) {
-      return false;
-    }
     List<String> commandParts = Utils.splitCommand(command);
     if (commandParts == null || commandParts.isEmpty()) {
       return true;

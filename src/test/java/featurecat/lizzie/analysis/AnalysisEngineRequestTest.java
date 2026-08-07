@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import featurecat.lizzie.Config;
 import featurecat.lizzie.Lizzie;
-import featurecat.lizzie.gui.HumanSlGameController;
 import featurecat.lizzie.gui.GtpConsolePane;
 import featurecat.lizzie.gui.LizzieFrame;
 import featurecat.lizzie.gui.WaitForAnalysis;
@@ -838,26 +837,6 @@ class AnalysisEngineRequestTest {
 
       assertTrue(output.toString(StandardCharsets.UTF_8).contains("830000000 kata-get-rules\n"));
       closeExclusiveSessionForTest(foreground);
-    }
-  }
-
-  @Test
-  void reuseModeRejectsHumanSlAndContributionModes() throws Exception {
-    try (TestEnvironment env = TestEnvironment.open()) {
-      Lizzie.config.analysisReuseCurrentEngine = true;
-      Leelaz foreground = reusableForegroundEngine(true);
-      Lizzie.leelaz = foreground;
-      Lizzie.frame.humanSlGame = allocate(HumanSlGameController.class);
-
-      assertEquals(
-          Leelaz.ExclusiveGtpLeaseAvailability.HUMAN_SL_GAME,
-          new AnalysisEngine(false).getForegroundLeaseAvailability());
-
-      Lizzie.frame.humanSlGame = null;
-      Lizzie.frame.isContributing = true;
-      assertEquals(
-          Leelaz.ExclusiveGtpLeaseAvailability.APPLICATION_EXCLUSIVE_MODE,
-          new AnalysisEngine(false).getForegroundLeaseAvailability());
     }
   }
 
@@ -1716,7 +1695,7 @@ class AnalysisEngineRequestTest {
   }
 
   @Test
-  void startRequestMissingMainlineSkipsLowVisitExistingAnalysis() throws Exception {
+  void startRequestMissingMainlineRefreshesLowVisitExistingAnalysis() throws Exception {
     try (TestEnvironment env = TestEnvironment.open()) {
       BoardHistoryList history = new BoardHistoryList(BoardData.empty(BOARD_SIZE, BOARD_SIZE));
       BoardData lowVisits =
@@ -1729,8 +1708,12 @@ class AnalysisEngineRequestTest {
 
       int requested = engine.startRequestMissingMainline(false);
 
-      assertEquals(0, requested);
-      assertEquals(0, engine.requestCount());
+      assertEquals(1, requested);
+      assertEquals(1, engine.requestCount());
+      assertEquals(
+          List.of(1),
+          engine.singleRequest().getJSONArray("analyzeTurns").toList(),
+          "low-visit existing analysis is considered missing and gets refreshed to target visits.");
     }
   }
 

@@ -16,7 +16,6 @@ import featurecat.lizzie.analysis.MoveRankDefinition;
 import featurecat.lizzie.analysis.PlayerStrengthEstimator;
 import featurecat.lizzie.analysis.ReadBoard;
 import featurecat.lizzie.analysis.WholeGameAnalysisSession;
-import featurecat.lizzie.analysis.remote.RemoteComputeConfig;
 import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardData;
 import featurecat.lizzie.rules.BoardHistoryList;
@@ -244,38 +243,6 @@ class LizzieFrameRegressionTest {
       }
       Lizzie.frame = previousFrame;
       Lizzie.leelaz = previousEngine;
-    }
-  }
-
-  @Test
-  void websocketAdvancedClockStopsContinueGameBeforeCommandsOrGameStateChanges(
-      @TempDir Path tempDir) throws Exception {
-    Config previousConfig = Lizzie.config;
-    LizzieFrame previousFrame = Lizzie.frame;
-    Leelaz previousEngine = Lizzie.leelaz;
-    boolean previousEmpty = EngineManager.isEmpty;
-    WebSocketClockGateFrame frame = allocate(WebSocketClockGateFrame.class);
-    ClockGateLeelaz engine = new ClockGateLeelaz();
-    try {
-      Lizzie.config = ConfigTestHelper.createForTests(tempDir);
-      Lizzie.config.uiConfig = new JSONObject();
-      Lizzie.config.advanceTimeSettings = true;
-      Lizzie.config.kataTimeSettings = false;
-      Lizzie.config.genmoveGameNoTime = false;
-      Lizzie.frame = frame;
-      Lizzie.leelaz = engine;
-      EngineManager.isEmpty = false;
-
-      frame.continueAiPlaying(true, true, true, false);
-
-      assertEquals(1, frame.warningCount);
-      assertEquals(0, engine.commandCount);
-      assertFalse(frame.isPlayingAgainstLeelaz);
-    } finally {
-      Lizzie.config = previousConfig;
-      Lizzie.frame = previousFrame;
-      Lizzie.leelaz = previousEngine;
-      EngineManager.isEmpty = previousEmpty;
     }
   }
 
@@ -861,43 +828,6 @@ class LizzieFrameRegressionTest {
       assertFalse(
           invokeShouldAutoQuickAnalyze(frame),
           "auto quick analyze should not restart when all mainline moves already have analysis.");
-    } finally {
-      env.close();
-    }
-  }
-
-  @Test
-  void remoteKifuLoadWaitsForPrimaryEngineBeforeStartingSilentQuickAnalyze() throws Exception {
-    TestEnvironment env = TestEnvironment.open();
-    try {
-      Lizzie.config = configWithAutoQuickAnalyze();
-      Lizzie.board = boardWith(historyWithUnanalyzedMove());
-      StartingRemoteLeelaz leelaz = new StartingRemoteLeelaz();
-      Lizzie.leelaz = leelaz;
-      EngineManager.isEmpty = false;
-      EngineManager.isEngineGame = false;
-      EngineManager.isPreEngineGame = false;
-      AnalysisResumeTrackingFrame frame = allocate(AnalysisResumeTrackingFrame.class);
-      Lizzie.frame = frame;
-
-      assertTrue(
-          frame.ensureAnalysisResumedAfterLoad(),
-          "loaded records should remain scheduled while the remote primary engine connects.");
-      assertEquals(0, frame.flashAnalyzeGameCount);
-
-      invokeRetryLoadedGameQuickAnalysisIfMissing(frame);
-      assertEquals(
-          0,
-          frame.flashAnalyzeGameCount,
-          "quick analysis must not open a competing remote worker before the primary is ready.");
-
-      leelaz.loaded = true;
-      invokeRetryLoadedGameQuickAnalysisIfMissing(frame);
-      assertEquals(1, frame.flashAnalyzeGameCount);
-      assertTrue(frame.lastIsAllGame);
-      assertFalse(frame.lastIsAllBranches);
-      assertTrue(frame.lastSilentAnalyze);
-      invokeStopLoadedGameQuickAnalysisRetry(frame);
     } finally {
       env.close();
     }
@@ -2366,19 +2296,6 @@ class LizzieFrameRegressionTest {
     }
   }
 
-  private static final class StartingRemoteLeelaz extends TrackingLeelaz {
-    private boolean loaded;
-
-    private StartingRemoteLeelaz() throws java.io.IOException {
-      engineCommand = "remote-compute://zhizi";
-    }
-
-    @Override
-    public boolean isLoaded() {
-      return loaded;
-    }
-  }
-
   private static final class NewGameGateFrame extends LizzieFrame {
     private int conflictCount;
     private boolean stopAiPlayingCalled;
@@ -2396,32 +2313,6 @@ class LizzieFrameRegressionTest {
     public boolean stopAiPlayingAndPolicy() {
       stopAiPlayingCalled = true;
       return false;
-    }
-  }
-
-  private static final class WebSocketClockGateFrame extends LizzieFrame {
-    private int warningCount;
-
-    private WebSocketClockGateFrame() {
-      super();
-    }
-
-    @Override
-    public void showUnsupportedWebSocketAdvancedClock() {
-      warningCount++;
-    }
-  }
-
-  private static final class ClockGateLeelaz extends Leelaz {
-    private int commandCount;
-
-    private ClockGateLeelaz() throws Exception {
-      super(RemoteComputeConfig.COMMAND_CUSTOM_WS);
-    }
-
-    @Override
-    public void sendCommand(String command) {
-      commandCount++;
     }
   }
 

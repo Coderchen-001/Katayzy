@@ -2,7 +2,6 @@ package featurecat.lizzie.gui;
 
 import featurecat.lizzie.Config;
 import featurecat.lizzie.analysis.Leelaz;
-import featurecat.lizzie.analysis.remote.RemoteComputeConfig;
 import java.util.List;
 
 public final class DesktopTimeControl {
@@ -71,7 +70,7 @@ public final class DesktopTimeControl {
   }
 
   static boolean isWebSocket(Leelaz engine) {
-    return engine != null
-        && RemoteComputeConfig.isCustomWebSocketEngineCommand(engine.getEngineCommand());
+    // 远程算力（智子云/自建）已移除，本地引擎不存在 WebSocket 传输
+    return false;
   }
 }

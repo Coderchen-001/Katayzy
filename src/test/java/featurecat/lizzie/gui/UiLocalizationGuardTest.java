@@ -18,7 +18,6 @@ class UiLocalizationGuardTest {
       List.of(
           "BottomToolbar.java",
           "ConfigDialog2.java",
-          "RemoteComputeDialog.java",
           "LoadEngine.java",
           "FoxKifuDownload.java",
           "TencentKifuDownload.java",

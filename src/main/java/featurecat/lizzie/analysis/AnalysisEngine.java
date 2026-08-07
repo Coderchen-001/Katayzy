@@ -3,7 +3,6 @@ package featurecat.lizzie.analysis;
 import featurecat.lizzie.Config;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.analysis.remote.EngineTransport;
-import featurecat.lizzie.analysis.remote.RemoteComputeConfig;
 import featurecat.lizzie.gui.AnalysisSettings;
 import featurecat.lizzie.gui.EngineFailedMessage;
 import featurecat.lizzie.gui.RemoteEngineData;
@@ -202,10 +201,6 @@ public class AnalysisEngine {
     this.password = remoteData.password;
     this.useKeyGen = remoteData.useKeyGen;
     this.keyGenPath = remoteData.keyGenPath;
-    if (RemoteComputeConfig.isRemoteComputeEngineCommand(engineCommand)) {
-      this.useJavaSSH = false;
-      this.useRemoteCompute = true;
-    }
 
     startEngine(engineCommand);
   }
@@ -315,25 +310,7 @@ public class AnalysisEngine {
     CommandLaunchHelper.LaunchSpec launchSpec =
         CommandLaunchHelper.prepare(Utils.splitCommand(engineCommand));
     commands = launchSpec.getCommandParts();
-    this.useRemoteCompute = RemoteComputeConfig.isRemoteComputeEngineCommand(engineCommand);
-    if (this.useRemoteCompute) {
-      this.useJavaSSH = false;
-      process = null;
-      try {
-        remoteTransport = RemoteComputeConfig.createTransportForCommand(engineCommand);
-        remoteTransport.start();
-        initializeStreams(
-            remoteTransport.stdout(), remoteTransport.stdin(), remoteTransport.stderr());
-        isLoaded = true;
-      } catch (IOException e) {
-        showErrMsg(
-            resourceBundle.getString("Leelaz.engineFailed")
-                + ": "
-                + (e.getLocalizedMessage() == null ? "远程算力连接失败" : e.getLocalizedMessage()));
-        isLoaded = false;
-        return;
-      }
-    } else if (this.useJavaSSH) {
+    if (this.useJavaSSH) {
       this.javaSSH = new AnalysisEngineSSHController(this, this.ip, this.port, this.isPreLoad);
       boolean loginStatus = false;
       if (this.useKeyGen) {
@@ -2371,11 +2348,12 @@ public class AnalysisEngine {
   }
 
   private static boolean shouldAnalyzeMissingNode(BoardHistoryNode node) {
-    // 与全盘快速分析（shouldAnalyzeNode）使用同一 visits 阈值判据：
-    // 已有分析结果但 visits 低于目标（如旧 2visits 残留）时仍视为缺失，
-    // 确保弈客曲线补全 / 导航补全与野狐（腾讯）棋谱一样按目标 visits 逐节点分析。
+    // 与全盘快速分析一致按 visits 阈值判缺失（低于目标 visits 视为缺失并补分析，
+    // 使弈客曲线补全/导航补全与野狐（腾讯）棋谱一样按目标 visits 逐节点分析）。
+    // 注意：不含 analysisAlwaysOverride——missing-mainline 是"补全缺失"路径
+    // （preservation path），即使 override 开启也不重分析已充分分析的节点。
     BoardData data = node == null ? null : node.getData();
-    return isRealHistoryAction(data) && shouldAnalyzeNode(node, targetAnalysisVisits());
+    return isRealHistoryAction(data) && data.getPlayouts() < targetAnalysisVisits();
   }
 
   public static int targetAnalysisVisits() {
@@ -2399,9 +2377,7 @@ public class AnalysisEngine {
     if (Lizzie.config.analysisReuseCurrentEngine) {
       return false;
     }
-    return useRemoteCompute
-        == RemoteComputeConfig.isRemoteComputeEngineCommand(
-            resolveConfiguredAnalysisEngineCommand(true));
+    return true;
   }
 
   public boolean usesSharedForegroundEngine() {

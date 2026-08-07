@@ -96,7 +96,7 @@ if ($BaseBundle -eq "") { $BaseBundle = Join-Path $OutputRoot "Katayzy" }
 if (-not (Test-Path $BaseBundle)) { Write-Host "基准包不存在: $BaseBundle" -ForegroundColor Red; exit 1 }
 
 robocopy $progDir $bundleDir /E /NFL /NDL /NJH /NJS /NP | Out-Null
-foreach ($d in @("engines","clockHelper","user-data","save","human-sl-models")) {
+foreach ($d in @("engines","clockHelper","user-data","save")) {
   robocopy (Join-Path $BaseBundle $d) (Join-Path $bundleDir $d) /E /NFL /NDL /NJH /NJS /NP | Out-Null
 }
 robocopy (Join-Path $BaseBundle "app\jcef-bundle") (Join-Path $bundleDir "app\jcef-bundle") /E /NFL /NDL /NJH /NJS /NP | Out-Null
