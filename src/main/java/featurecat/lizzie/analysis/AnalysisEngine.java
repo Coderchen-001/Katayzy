@@ -335,22 +335,10 @@ public class AnalysisEngine {
       }
     } else {
       Path engineExecutable = KataGoRuntimeHelper.resolveCommandExecutable(commands);
-      if (Config.isBundledKataGoCommand(engineCommand)) {
-        try {
-          KataGoRuntimeHelper.ensureBundledRuntimeReady(engineExecutable, Lizzie.frame);
-        } catch (IOException e) {
-          showErrMsg(
-              resourceBundle.getString("Leelaz.engineFailed") + ": " + e.getLocalizedMessage());
-          process = null;
-          isLoaded = false;
-          return;
-        }
-      }
       List<String> launchCommands =
           KataGoRuntimeHelper.prepareBundledLaunchCommand(commands, engineExecutable);
       ProcessBuilder processBuilder = new ProcessBuilder(launchCommands);
       CommandLaunchHelper.configureProcessBuilder(processBuilder, launchSpec);
-      KataGoRuntimeHelper.configureBundledProcessBuilder(processBuilder, engineExecutable);
       processBuilder.redirectErrorStream(true);
       try {
         process = processBuilder.start();

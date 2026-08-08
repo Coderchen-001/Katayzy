@@ -41,7 +41,6 @@ import featurecat.lizzie.rules.SGFParser;
 import featurecat.lizzie.rules.Stone;
 import featurecat.lizzie.rules.Zobrist;
 import featurecat.lizzie.theme.MorandiPalette;
-import featurecat.lizzie.util.KataGoRuntimeHelper;
 import featurecat.lizzie.util.Utils;
 import featurecat.lizzie.util.YikeSyncDebugLog;
 import java.awt.*;
@@ -18682,17 +18681,7 @@ public class LizzieFrame extends JFrame {
   }
 
   private boolean isCurrentPrimaryEngineBundledOpenCl() {
-    if (Lizzie.leelaz == null) {
-      return false;
-    }
-    try {
-      java.nio.file.Path executable =
-          KataGoRuntimeHelper.resolveCommandExecutable(
-              Utils.splitCommand(Lizzie.leelaz.engineCommand()));
-      return KataGoRuntimeHelper.isBundledOpenClPath(executable);
-    } catch (RuntimeException e) {
-      return false;
-    }
+    return false;
   }
 
   private QuickAnalysisWarmupAction currentQuickAnalysisWarmupAction(boolean requiresAutoAnalyze) {

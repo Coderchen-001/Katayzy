@@ -529,7 +529,6 @@ public final class KataGoAutoSetupHelper {
       if (parent != null && Files.isDirectory(parent)) {
         builder.directory(parent.toFile());
       }
-      KataGoRuntimeHelper.configureBundledProcessBuilder(builder, enginePath);
       builder.redirectErrorStream(true);
       process = builder.start();
       final Process runningProcess = process;

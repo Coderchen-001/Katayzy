@@ -295,7 +295,6 @@ public class Leelaz {
   public volatile boolean isDownWithError = false;
   public volatile boolean isLoaded = false;
   private volatile long bundledStartupToken = 0L;
-  private volatile boolean openClFp32CompatibilityActive = false;
   private final AtomicBoolean openClCompatibilityRecoveryAttempted = new AtomicBoolean(false);
   public boolean isCheckingVersion;
   public volatile boolean isCheckingName;
@@ -631,7 +630,6 @@ public class Leelaz {
     // Matcher wMatcher = wPattern.matcher(engineCommand);
     currentEnginename = getEngineName(index);
     isDownWithError = false;
-    openClFp32CompatibilityActive = false;
     openClCompatibilityRecoveryAttempted.set(false);
     if (this.useJavaSSH) {
       process = null;
@@ -662,38 +660,10 @@ public class Leelaz {
       if (bundledCommand) {
         startupToken = beginBundledStartup(engineExecutable);
       }
-      if (Config.isBundledKataGoCommand(engineCommand)) {
-        try {
-          KataGoRuntimeHelper.ensureBundledRuntimeReady(engineExecutable, Lizzie.frame);
-        } catch (IOException e) {
-          closeBundledStartupDialog();
-          String err = e.getLocalizedMessage();
-          try {
-            tryToDignostic(
-                Lizzie.resourceBundle.getString("Leelaz.engineFailed")
-                    + ": "
-                    + ((err == null)
-                        ? Lizzie.resourceBundle.getString("Leelaz.engineStartNoExceptionMessage")
-                        : err),
-                true);
-            if (shouldOpenInteractiveDiagnostic()) {
-              LizzieFrame.openMoreEngineDialog();
-            }
-          } catch (JSONException e1) {
-            e1.printStackTrace();
-            isDownWithError = true;
-          }
-          isDownWithError = true;
-          return;
-        }
-      }
       List<String> launchCommands =
           KataGoRuntimeHelper.prepareBundledLaunchCommand(commands, engineExecutable);
-      openClFp32CompatibilityActive =
-          KataGoRuntimeHelper.isOpenClFp32CompatibilityActive(launchCommands, engineExecutable);
       ProcessBuilder processBuilder = new ProcessBuilder(launchCommands);
       CommandLaunchHelper.configureProcessBuilder(processBuilder, launchSpec);
-      KataGoRuntimeHelper.configureBundledProcessBuilder(processBuilder, engineExecutable);
       processBuilder.redirectErrorStream(false);
       try {
         process = processBuilder.start();
@@ -3984,7 +3954,7 @@ public class Leelaz {
       completeForegroundRestore(interruptedForegroundWork);
     }
     failReadBoardGmaEngineRestore("engine transport closed");
-    if (!isNormalEnd && !tryRecoverBundledOpenClNativeExit(binding.process)) {
+    if (!isNormalEnd) {
       isDownWithError = true;
       // isLoaded=false;
       tryToDignostic(
@@ -4005,75 +3975,7 @@ public class Leelaz {
     }
   }
 
-  private boolean tryRecoverBundledOpenClNativeExit() {
-    return tryRecoverBundledOpenClNativeExit(process);
-  }
 
-  private boolean tryRecoverBundledOpenClNativeExit(Process expectedProcess) {
-    if (expectedProcess == null
-        || useJavaSSH
-        || openClCompatibilityRecoveryAttempted.get()) {
-      return false;
-    }
-    int exitCode;
-    try {
-      exitCode = expectedProcess.exitValue();
-    } catch (IllegalThreadStateException e) {
-      return false;
-    }
-    Path engineExecutable = KataGoRuntimeHelper.resolveCommandExecutable(commands);
-    if (!KataGoRuntimeHelper.shouldRecoverOpenClNativeExit(
-        commands, engineExecutable, exitCode, openClFp32CompatibilityActive)) {
-      return false;
-    }
-    ExclusiveGtpLifecycleReservation reservation = beginAutomaticEngineRestartReservation();
-    if (reservation == null
-        || !openClCompatibilityRecoveryAttempted.compareAndSet(false, true)
-        || !KataGoRuntimeHelper.rememberOpenClFp32Compatibility(commands, engineExecutable)) {
-      if (reservation != null) {
-        reservation.close();
-      }
-      return false;
-    }
-
-    isDownWithError = false;
-    isLoaded = false;
-    canCheckAlive = false;
-    if (this == Lizzie.leelaz) {
-      if (Lizzie.frame != null) {
-        SwingUtilities.invokeLater(Lizzie.frame::prepareQuickAnalysisForPrimaryOpenClRecovery);
-      }
-    }
-    int engineIndex = currentEngineN;
-    Thread recovery =
-        new Thread(
-            () -> {
-              boolean restoreScheduled = false;
-              try {
-                restartClosedEngine(engineIndex, reservation::close);
-                restoreScheduled = true;
-              } catch (IOException | RuntimeException failure) {
-                failure.printStackTrace();
-                isDownWithError = true;
-                SwingUtilities.invokeLater(
-                    () ->
-                        tryToDignostic(
-                            buildEngineExitDiagnostic(
-                                text(
-                                    "BundledEngineStartup.openclRecoveryFailed",
-                                    "NVIDIA OpenCL compatibility recovery failed.")),
-                            false));
-              } finally {
-                if (!restoreScheduled) {
-                  reservation.close();
-                }
-              }
-            },
-            "katago-opencl-fp32-recovery");
-    recovery.setDaemon(true);
-    recovery.start();
-    return true;
-  }
 
   //	private void stopAutoAna() {
   //		//if (!isClosing) {
@@ -10470,14 +10372,8 @@ public class Leelaz {
       return;
     }
     final boolean nvidiaBundled = KataGoRuntimeHelper.isNvidiaBundledPath(engineExecutable);
-    final boolean firstOpenCLTuning =
-        !nvidiaBundled
-            && KataGoRuntimeHelper.needsFirstOpenCLTuning(
-                engineExecutable, openClFp32CompatibilityActive);
     final long timeoutMillis =
-        firstOpenCLTuning
-            ? FIRST_OPENCL_TUNING_START_TIMEOUT_MS
-            : (nvidiaBundled ? NVIDIA_ENGINE_START_TIMEOUT_MS : BUNDLED_ENGINE_START_TIMEOUT_MS);
+        nvidiaBundled ? NVIDIA_ENGINE_START_TIMEOUT_MS : BUNDLED_ENGINE_START_TIMEOUT_MS;
     Thread watchdog =
         new Thread(
             () -> {
