@@ -1,8 +1,6 @@
 package featurecat.lizzie.util;
 
-import featurecat.lizzie.Config;
 import featurecat.lizzie.Lizzie;
-import featurecat.lizzie.util.KataGoAutoSetupHelper.SetupSnapshot;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -10,15 +8,6 @@ import java.util.List;
 import java.util.Locale;
 
 public final class KataGoRuntimeHelper {
-  private static final String NVIDIA_ENGINE_DIR = "windows-x64-nvidia";
-  private static final String NVIDIA50_CUDA_ENGINE_DIR = "windows-x64-nvidia50-cuda";
-  private static final String NVIDIA_TRT_ENGINE_DIR = "windows-x64-nvidia-tensorrt";
-  private static final String NVIDIA50_TRT_ENGINE_DIR = "windows-x64-nvidia50-trt";
-  private static final String NVIDIA_BACKEND = "nvidia";
-  private static final String NVIDIA50_CUDA_BACKEND = "nvidia50-cuda";
-  private static final String NVIDIA_TRT_BACKEND = "nvidia-tensorrt";
-  private static final String NVIDIA50_TRT_BACKEND = "nvidia50-trt";
-  private static final int MAX_APPLE_ANALYSIS_THREADS = 8;
   private static volatile boolean benchmarkEngineSyncSuppressed = false;
 
   private KataGoRuntimeHelper() {}
@@ -77,41 +66,16 @@ public final class KataGoRuntimeHelper {
     }
   }
 
-  public static boolean isNvidiaBundledPath(Path enginePath) {
-    return resolveNvidiaBackend(enginePath) != null;
-  }
-
-  private static String resolveNvidiaBackend(Path enginePath) {
-    if (enginePath == null) {
-      return null;
-    }
-    String normalized = enginePath.toAbsolutePath().normalize().toString().replace('\\', '/');
-    String normalizedLower = normalized.toLowerCase(Locale.ROOT);
-    if (normalizedLower.contains("/" + NVIDIA_TRT_ENGINE_DIR + "/")) {
-      return NVIDIA_TRT_BACKEND;
-    }
-    if (normalizedLower.contains("/" + NVIDIA50_TRT_ENGINE_DIR + "/")) {
-      return NVIDIA_TRT_BACKEND;
-    }
-    if (normalizedLower.contains("/" + NVIDIA50_CUDA_ENGINE_DIR + "/")) {
-      return NVIDIA50_CUDA_BACKEND;
-    }
-    if (normalizedLower.contains("/" + NVIDIA_ENGINE_DIR + "/")) {
-      return NVIDIA_BACKEND;
-    }
-    return null;
-  }
-
   public static List<String> prepareBundledLaunchCommand(
       List<String> originalCommand, Path enginePath) {
     if (originalCommand == null) {
       return null;
     }
     List<String> launchCommand = new ArrayList<String>(originalCommand);
-    if (enginePath == null || Lizzie.config == null) {
+    if (Lizzie.config == null) {
       return launchCommand;
     }
-    if (!Config.isBundledKataGoExecutable(enginePath)) {
+    if (!looksLikeKataGoCommand(buildCommandLine(originalCommand))) {
       return launchCommand;
     }
     appendAnalysisPvLenOverride(launchCommand);
@@ -141,8 +105,7 @@ public final class KataGoRuntimeHelper {
   /**
    * Run a one-time KataGo benchmark on the first launch so default thread counts reflect the actual
    * hardware. Shows a non-modal notification to the user while the benchmark runs. No-op if a
-   * benchmark result is already stored, if no engine is available, or on Apple Silicon (handled by
-   * {@link #startAppleSiliconAutoOptimizationAsync()}).
+   * benchmark result is already stored or if no engine is available.
    */
   public static String optimizeAnalysisEngineCommand(
       String engineCommand, int maxVisits, boolean isBatchAnalysisMode) {
@@ -187,83 +150,15 @@ public final class KataGoRuntimeHelper {
       return commandChanged ? buildCommandLine(commandParts) : engineCommand;
     }
 
-    if (shouldUseAppleSiliconAnalysisProfile(engineCommand)) {
-      AnalysisThreadProfile profile =
-          resolveAppleSiliconAnalysisProfile(maxVisits, isBatchAnalysisMode);
-      if (!hasAnalysisThreadOverride) {
-        appendOverrideConfig(commandParts, "numAnalysisThreads=" + profile.numAnalysisThreads);
-        commandChanged = true;
-      }
-      if (!hasSearchThreadOverride) {
-        appendOverrideConfig(
-            commandParts,
-            "numSearchThreadsPerAnalysisThread=" + profile.numSearchThreadsPerAnalysisThread);
-        commandChanged = true;
-      }
-      return buildCommandLine(commandParts);
-    }
-
     // 快速分析（小 visits）不再强制单线程覆盖：让 cfg 的 numSearchThreadsPerAnalysisThread
     // 生效。伴生进程（b10c384）同时服务快速分析与整盘精析（复用同一进程），
     // 16 线程对两者都更快（分析进程的线程池常驻，无启动开销）。
     return commandChanged ? buildCommandLine(commandParts) : engineCommand;
   }
 
-  private static boolean shouldUseAppleSiliconAnalysisProfile(String engineCommand) {
-    if (!isAppleSiliconHost()) {
-      return false;
-    }
-    String normalized = engineCommand == null ? "" : engineCommand.toLowerCase(Locale.ROOT);
-    if (!normalized.contains(" analysis")) {
-      return false;
-    }
-    return Config.isBundledKataGoCommand(engineCommand);
-  }
-
   private static boolean looksLikeKataGoCommand(String engineCommand) {
     String normalized = engineCommand == null ? "" : engineCommand.toLowerCase(Locale.ROOT);
     return normalized.contains("katago");
-  }
-
-  private static AnalysisThreadProfile resolveAppleSiliconAnalysisProfile(
-      int maxVisits, boolean isBatchAnalysisMode) {
-    int totalThreadBudget = Math.max(4, Math.min(16, Utils.getRecommendedKataGoThreads()));
-    int effectiveVisits = Math.max(1, maxVisits);
-    int perAnalysisThread;
-    int maxParallelAnalyses;
-
-    if (effectiveVisits <= 8) {
-      perAnalysisThread = 1;
-      maxParallelAnalyses = MAX_APPLE_ANALYSIS_THREADS;
-    } else if (effectiveVisits <= 36) {
-      perAnalysisThread = 2;
-      maxParallelAnalyses = 6;
-    } else if (effectiveVisits <= 100) {
-      perAnalysisThread = 2;
-      maxParallelAnalyses = 5;
-    } else if (effectiveVisits <= 220) {
-      perAnalysisThread = 3;
-      maxParallelAnalyses = 4;
-    } else {
-      perAnalysisThread = Math.min(4, Math.max(2, totalThreadBudget / 3));
-      maxParallelAnalyses = 3;
-    }
-
-    if (isBatchAnalysisMode && effectiveVisits >= 100) {
-      perAnalysisThread = Math.max(perAnalysisThread, 3);
-      maxParallelAnalyses = Math.min(maxParallelAnalyses, 4);
-    }
-
-    int numAnalysisThreads =
-        Math.max(
-            2, Math.min(maxParallelAnalyses, Math.max(1, totalThreadBudget / perAnalysisThread)));
-
-    if (effectiveVisits <= 12 && totalThreadBudget >= 6) {
-      numAnalysisThreads =
-          Math.max(numAnalysisThreads, Math.min(MAX_APPLE_ANALYSIS_THREADS, totalThreadBudget));
-    }
-
-    return new AnalysisThreadProfile(numAnalysisThreads, perAnalysisThread);
   }
 
   private static AnalysisThreadProfile resolveWholeGameAnalysisProfile() {
@@ -459,25 +354,6 @@ public final class KataGoRuntimeHelper {
       return "\"" + trimmed.replace("\"", "\\\"") + "\"";
     }
     return trimmed;
-  }
-
-  private static boolean isAppleSiliconHost() {
-    String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-    String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
-    return (osName.contains("mac") || osName.contains("darwin"))
-        && (arch.contains("arm64") || arch.contains("aarch64"));
-  }
-
-  private static boolean isAppleSiliconOptimizationEligible(SetupSnapshot snapshot) {
-    if (!isAppleSiliconHost() || snapshot == null) {
-      return false;
-    }
-    if (!snapshot.hasEngine() || !snapshot.hasConfigs() || !snapshot.hasWeight()) {
-      return false;
-    }
-    String enginePath =
-        snapshot.enginePath.toAbsolutePath().normalize().toString().toLowerCase(Locale.ROOT);
-    return enginePath.contains("macos-arm64");
   }
 
 }

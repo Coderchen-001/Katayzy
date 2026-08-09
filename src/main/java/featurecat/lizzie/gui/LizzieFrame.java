@@ -13676,28 +13676,6 @@ public class LizzieFrame extends JFrame {
     }
   }
 
-  public void prepareQuickAnalysisForPrimaryOpenClRecovery() {
-    if (!SwingUtilities.isEventDispatchThread()) {
-      SwingUtilities.invokeLater(this::prepareQuickAnalysisForPrimaryOpenClRecovery);
-      return;
-    }
-    quickAnalysisEngineGeneration.incrementAndGet();
-    stopQuickAnalysisWarmupTimer();
-    stopQuickAnalysisNavigationResumeTimer();
-    synchronized (pendingQuickAnalysisCallbacks) {
-      pendingQuickAnalysisCallbacks.clear();
-    }
-    AnalysisEngine staleEngine = analysisEngine;
-    analysisEngine = null;
-    if (staleEngine != null) {
-      staleEngine.clearRequestCallbacks();
-      staleEngine.normalQuit();
-    }
-    if (!quickAnalysisEngineStarting.get()) {
-      scheduleQuickAnalysisWarmupWhenPrimaryReady(1200, false);
-    }
-  }
-
   public void openWholeGameDeepAnalysis() {
     if (!SwingUtilities.isEventDispatchThread()) {
       SwingUtilities.invokeLater(this::openWholeGameDeepAnalysis);
@@ -18680,16 +18658,10 @@ public class LizzieFrame extends JFrame {
         && !isAnaPlayingAgainstLeelaz;
   }
 
-  private boolean isCurrentPrimaryEngineBundledOpenCl() {
-    return false;
-  }
-
   private QuickAnalysisWarmupAction currentQuickAnalysisWarmupAction(boolean requiresAutoAnalyze) {
     boolean dependsOnPrimary =
         quickAnalysisDependsOnPrimary(
-            false,
-            isCurrentPrimaryEngineBundledOpenCl(),
-            Lizzie.config != null && Lizzie.config.analysisReuseCurrentEngine);
+            false, Lizzie.config != null && Lizzie.config.analysisReuseCurrentEngine);
     boolean primaryLoaded =
         !dependsOnPrimary || (Lizzie.leelaz != null && Lizzie.leelaz.isLoaded());
     boolean primaryFailed =
@@ -18704,9 +18676,8 @@ public class LizzieFrame extends JFrame {
         primaryFailed);
   }
 
-  static boolean quickAnalysisDependsOnPrimary(
-      boolean remotePrimary, boolean bundledOpenClPrimary, boolean reusePrimary) {
-    return remotePrimary || bundledOpenClPrimary || reusePrimary;
+  static boolean quickAnalysisDependsOnPrimary(boolean remotePrimary, boolean reusePrimary) {
+    return remotePrimary || reusePrimary;
   }
 
   static QuickAnalysisWarmupAction decideQuickAnalysisWarmup(

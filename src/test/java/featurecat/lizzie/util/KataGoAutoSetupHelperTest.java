@@ -312,22 +312,11 @@ public class KataGoAutoSetupHelperTest {
                 KataGoAutoSetupHelper.PackageFlavor.CORE_UPDATE_ONLY,
                 KataGoAutoSetupHelper.inspectLocalKataGo().packageFlavor));
 
-    Path incomplete = Files.createTempDirectory("katago-incomplete-package");
-    Files.writeString(
-        incomplete.resolve("lizzieyzy-next-installed-manifest.json"),
-        "{\"platform\":\"windows\",\"flavor\":\"opencl\"}");
-    withUserDirAndConfig(
-        incomplete,
-        () ->
-            assertEquals(
-                KataGoAutoSetupHelper.PackageFlavor.INCOMPLETE_BUNDLE,
-                KataGoAutoSetupHelper.inspectLocalKataGo().packageFlavor));
   }
 
   @Test
   void recognizesEverySupportedCompletePackageFlavor() throws Exception {
     Object[][] cases = {
-      {"opencl", KataGoAutoSetupHelper.PackageFlavor.OPENCL},
       {"nvidia", KataGoAutoSetupHelper.PackageFlavor.NVIDIA},
       {"nvidia50.cuda", KataGoAutoSetupHelper.PackageFlavor.NVIDIA50_CUDA},
       {"nvidia-tensorrt", KataGoAutoSetupHelper.PackageFlavor.TENSORRT},
@@ -357,45 +346,6 @@ public class KataGoAutoSetupHelperTest {
     }
   }
 
-  @Test
-  void discoversJpackagePortableAssetsInsideAppDirectory() throws Exception {
-    Path portableRoot = Files.createTempDirectory("katago-jpackage-portable");
-    Path app = Files.createDirectories(portableRoot.resolve("app"));
-    Path workDir = Files.createDirectories(portableRoot.resolve("user-data"));
-    touch(portableRoot.resolve(".lizzie-portable"));
-    touch(app.resolve("PROJECT_INFO.txt"));
-    Files.writeString(
-        app.resolve("lizzieyzy-next-installed-manifest.json"),
-        "{\"platform\":\"windows\",\"flavor\":\"opencl\"}");
-    Path engine =
-        touch(
-            app.resolve("engines")
-                .resolve("katago")
-                .resolve(detectTestPlatformDir())
-                .resolve(testKataGoBinaryName()));
-    Path configs =
-        Files.createDirectories(app.resolve("engines").resolve("katago").resolve("configs"));
-    Path gtp = touch(configs.resolve("gtp.cfg"));
-    Path analysis = touch(configs.resolve("analysis.cfg"));
-    Path weight = touch(app.resolve("weights").resolve("default.bin.gz"));
-
-    withProcessDirAndConfig(
-        portableRoot,
-        workDir,
-        () -> {
-          KataGoAutoSetupHelper.LocalKataGoDiscoveryResult result =
-              KataGoAutoSetupHelper.inspectLocalKataGo();
-
-          assertTrue(result.isComplete());
-          assertEquals(portableRoot, result.appRoot);
-          assertEquals(KataGoAutoSetupHelper.PackageFlavor.OPENCL, result.packageFlavor);
-          assertEquals(KataGoAutoSetupHelper.DiscoverySource.BUNDLED_PACKAGE, result.source);
-          assertEquals(engine, result.enginePath);
-          assertEquals(gtp, result.gtpConfigPath);
-          assertEquals(analysis, result.analysisConfigPath);
-          assertEquals(weight, result.activeWeightPath);
-        });
-  }
 
   @Test
   void resolvesSavedRelativeCommandAgainstJpackageAppDirectory() throws Exception {
@@ -695,7 +645,6 @@ public class KataGoAutoSetupHelperTest {
                   + " -config "
                   + quote(estimateConfig));
 
-          assertFalse(KataGoAutoSetupHelper.repairBrokenBundledCommandsIfNeeded());
           assertFalse(KataGoAutoSetupHelper.repairBrokenStartupEngineIfNeeded());
 
           ArrayList<EngineData> repairedEngines = Utils.getEngineData();

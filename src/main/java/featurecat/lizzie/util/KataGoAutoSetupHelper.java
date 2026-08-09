@@ -1,6 +1,5 @@
 package featurecat.lizzie.util;
 
-import featurecat.lizzie.Config;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.analysis.EngineManager;
 import featurecat.lizzie.gui.EngineData;
@@ -120,7 +119,6 @@ public final class KataGoAutoSetupHelper {
   }
 
   public enum PackageFlavor {
-    OPENCL,
     NVIDIA,
     NVIDIA50_CUDA,
     TENSORRT,
@@ -673,70 +671,6 @@ public final class KataGoAutoSetupHelper {
         applyAutoSetup(snapshot.withActiveWeight(snapshot.activeWeightPath), false);
         return true;
       }
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return false;
-  }
-
-  public static boolean repairBrokenBundledCommandsIfNeeded() {
-    if (Lizzie.config == null
-        || Lizzie.config.uiConfig == null
-        || Lizzie.config.leelazConfig == null) {
-      return false;
-    }
-    try {
-      SetupSnapshot snapshot = inspectLocalSetup();
-      if (!snapshot.hasEngine() || !snapshot.hasConfigs() || !snapshot.hasWeight()) {
-        return false;
-      }
-      ArrayList<EngineData> engines = Utils.getEngineData();
-      int defaultEngine = Lizzie.config.uiConfig.optInt("default-engine", -1);
-      boolean repairDefault = false;
-      if (defaultEngine >= 0 && defaultEngine < engines.size()) {
-        EngineData engineData = engines.get(defaultEngine);
-        repairDefault =
-            shouldRepairBundledCommand(
-                engineData.name,
-                engineData.commands,
-                snapshot.enginePath,
-                snapshot.gtpConfigPath,
-                snapshot.activeWeightPath);
-      }
-      if (!repairDefault) {
-        for (EngineData engineData : engines) {
-          if (engineData != null
-              && engineData.isDefault
-              && shouldRepairBundledCommand(
-                  engineData.name,
-                  engineData.commands,
-                  snapshot.enginePath,
-                  snapshot.gtpConfigPath,
-                  snapshot.activeWeightPath)) {
-            repairDefault = true;
-            break;
-          }
-        }
-      }
-      boolean repairAnalysis =
-          shouldRepairAuxCommand(
-              Lizzie.config.uiConfig.optString("analysis-engine-command", ""),
-              snapshot.enginePath,
-              snapshot.analysisConfigPath,
-              snapshot.activeWeightPath);
-      boolean repairEstimate =
-          shouldRepairAuxCommand(
-              Lizzie.config.uiConfig.optString("estimate-command", ""),
-              snapshot.enginePath,
-              snapshot.estimateConfigPath != null
-                  ? snapshot.estimateConfigPath
-                  : snapshot.gtpConfigPath,
-              snapshot.activeWeightPath);
-      if (!(repairDefault || repairAnalysis || repairEstimate)) {
-        return false;
-      }
-      applyAutoSetup(snapshot.withActiveWeight(snapshot.activeWeightPath), false);
-      return true;
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -1581,8 +1515,7 @@ public final class KataGoAutoSetupHelper {
   }
 
   private static boolean expectsBundledEngine(PackageFlavor flavor) {
-    return flavor == PackageFlavor.OPENCL
-        || flavor == PackageFlavor.NVIDIA
+    return flavor == PackageFlavor.NVIDIA
         || flavor == PackageFlavor.NVIDIA50_CUDA
         || flavor == PackageFlavor.TENSORRT
         || flavor == PackageFlavor.CPU
@@ -2015,9 +1948,6 @@ public final class KataGoAutoSetupHelper {
     if (normalized.contains("nvidia")) {
       return PackageFlavor.NVIDIA;
     }
-    if (normalized.contains("opencl")) {
-      return PackageFlavor.OPENCL;
-    }
     if (normalized.contains("cpu")) {
       return PackageFlavor.CPU;
     }
@@ -2388,8 +2318,7 @@ public final class KataGoAutoSetupHelper {
     if (isTensorRtManagedCommand(name, command)) {
       return false;
     }
-    boolean bundledLike =
-        isManagedWeightProfileName(name) || Config.isBundledKataGoCommand(command);
+    boolean bundledLike = isManagedWeightProfileName(name);
     if (!bundledLike) {
       return false;
     }
@@ -2528,19 +2457,6 @@ public final class KataGoAutoSetupHelper {
     }
     return false;
   }
-
-  private static boolean shouldRepairAuxCommand(
-      String command, Path expectedEnginePath, Path expectedConfigPath, Path expectedWeightPath) {
-    if (!Config.isBundledKataGoCommand(command)) {
-      return false;
-    }
-    if (isTensorRtManagedCommand("", command)) {
-      return false;
-    }
-    return isCommandBrokenOrOutdated(
-        command, expectedEnginePath, expectedConfigPath, expectedWeightPath);
-  }
-
   private static boolean isTensorRtManagedCommand(String name, String command) {
     if (TENSORRT_ENGINE_NAME.equals(name)) {
       return true;

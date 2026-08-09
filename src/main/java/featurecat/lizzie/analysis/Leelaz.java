@@ -294,8 +294,6 @@ public class Leelaz {
   public volatile boolean started = false;
   public volatile boolean isDownWithError = false;
   public volatile boolean isLoaded = false;
-  private volatile long bundledStartupToken = 0L;
-  private final AtomicBoolean openClCompatibilityRecoveryAttempted = new AtomicBoolean(false);
   public boolean isCheckingVersion;
   public volatile boolean isCheckingName;
   public String initialCommand;
@@ -332,8 +330,6 @@ public class Leelaz {
   public String bestMovesEnginename = "";
   public String oriEnginename = "";
   public boolean autoAnalysed = false;
-  private static final long BUNDLED_ENGINE_START_TIMEOUT_MS = 90000L;
-  private static final long NVIDIA_ENGINE_START_TIMEOUT_MS = 180000L;
   private static final long ENGINE_TUNING_START_TIMEOUT_MS = 600000L;
   private static final long LOAD_SGF_SEND_FAILURE_CLEANUP_TIMEOUT_MILLIS = 1000L;
   private static final long LOAD_SGF_PENDING_RESPONSE_GRACE_TIMEOUT_MILLIS = 3000L;
@@ -630,7 +626,6 @@ public class Leelaz {
     // Matcher wMatcher = wPattern.matcher(engineCommand);
     currentEnginename = getEngineName(index);
     isDownWithError = false;
-    openClCompatibilityRecoveryAttempted.set(false);
     if (this.useJavaSSH) {
       process = null;
       this.javaSSH = new SSHController(this, this.ip, this.port);
@@ -654,12 +649,6 @@ public class Leelaz {
       }
     } else {
       Path engineExecutable = KataGoRuntimeHelper.resolveCommandExecutable(commands);
-      boolean bundledCommand = Config.isBundledKataGoCommand(engineCommand);
-      boolean nvidiaBundled = KataGoRuntimeHelper.isNvidiaBundledPath(engineExecutable);
-      long startupToken = 0L;
-      if (bundledCommand) {
-        startupToken = beginBundledStartup(engineExecutable);
-      }
       List<String> launchCommands =
           KataGoRuntimeHelper.prepareBundledLaunchCommand(commands, engineExecutable);
       ProcessBuilder processBuilder = new ProcessBuilder(launchCommands);
@@ -668,7 +657,6 @@ public class Leelaz {
       try {
         process = processBuilder.start();
       } catch (IOException e) {
-        closeBundledStartupDialog();
         String err = e.getLocalizedMessage();
         try {
           tryToDignostic(
@@ -689,9 +677,6 @@ public class Leelaz {
         return;
       }
       initializeStreams();
-      if (bundledCommand) {
-        startBundledStartupWatchdog(startupToken, engineExecutable);
-      }
     }
     // Send a version request to check that we have a supported version
     // Response handled in parseLine
@@ -1038,7 +1023,6 @@ public class Leelaz {
   }
 
   public void normalQuit() {
-    closeBundledStartupDialog();
     isNormalEnd = true;
     leela0110StopPonder();
     if (Lizzie.leelaz2 != null && this == Lizzie.leelaz2) {
@@ -2013,7 +1997,6 @@ public class Leelaz {
       if (params[1].equals("Leela") && params.length == 2) {
         isLeela0110 = true;
         isLoaded = true;
-        closeBundledStartupDialog();
       }
       //						if (params[1].startsWith("KataGoYm"))
       //							sendCommandToLeelazWithOutLog("lizzie_use");
@@ -2036,7 +2019,6 @@ public class Leelaz {
           Lizzie.config.leelaversion = version;
         }
         isLoaded = true;
-        closeBundledStartupDialog();
         isTuning = false;
         if (Lizzie.leelaz2 != null && this == Lizzie.leelaz2) {
           if (currentEngineN > 20) LizzieFrame.menu.changeEngineIcon2(20, 2);
@@ -2047,7 +2029,6 @@ public class Leelaz {
         }
       } else {
         isLoaded = true;
-        closeBundledStartupDialog();
         isTuning = false;
         isKatago = false;
         startupCommandAction = StartupCommandAction.LEELA_SAI;
@@ -2094,7 +2075,6 @@ public class Leelaz {
         }
         isCheckingVersion = false;
         isLoaded = true;
-        closeBundledStartupDialog();
         isTuning = false;
         // Lizzie.initializeAfterVersionCheck();
         if (Lizzie.leelaz2 != null && this == Lizzie.leelaz2) {
@@ -10266,17 +10246,7 @@ public class Leelaz {
     if (useJavaSSH) {
       return 60000L;
     }
-    if (Config.isBundledKataGoCommand(engineCommand)) {
-      try {
-        Path executable =
-            KataGoRuntimeHelper.resolveCommandExecutable(Utils.splitCommand(engineCommand));
-        if (KataGoRuntimeHelper.isNvidiaBundledPath(executable)) {
-          return NVIDIA_ENGINE_START_TIMEOUT_MS;
-        }
-      } catch (RuntimeException ignored) {
-      }
-    }
-    return BUNDLED_ENGINE_START_TIMEOUT_MS;
+    return 90000L;
   }
 
   long engineTuningSynchronizationTimeoutMillis() {
@@ -10284,7 +10254,6 @@ public class Leelaz {
   }
 
   public void tryToDignostic(String message, boolean isModal) {
-    closeBundledStartupDialog();
     boolean primaryEngine = this == Lizzie.leelaz;
     if (!shouldOpenInteractiveDiagnostic(primaryEngine, Lizzie.isFirstLaunchSession())) {
       return;
@@ -10353,96 +10322,6 @@ public class Leelaz {
 
   public int currentEngineN() {
     return currentEngineN;
-  }
-
-  private long beginBundledStartup(Path engineExecutable) {
-    long token = System.nanoTime();
-    bundledStartupToken = token;
-    return token;
-  }
-
-  private void closeBundledStartupDialog() {
-    if (isLoaded && this == Lizzie.leelaz) {
-      Lizzie.markEngineReady();
-    }
-  }
-
-  private void startBundledStartupWatchdog(long token, Path engineExecutable) {
-    if (token <= 0L || preload || useJavaSSH || !Config.isBundledKataGoCommand(engineCommand)) {
-      return;
-    }
-    final boolean nvidiaBundled = KataGoRuntimeHelper.isNvidiaBundledPath(engineExecutable);
-    final long timeoutMillis =
-        nvidiaBundled ? NVIDIA_ENGINE_START_TIMEOUT_MS : BUNDLED_ENGINE_START_TIMEOUT_MS;
-    Thread watchdog =
-        new Thread(
-            () -> {
-              long deadline = System.currentTimeMillis() + timeoutMillis;
-              while (System.currentTimeMillis() < deadline) {
-                if (token != bundledStartupToken || isLoaded || isDownWithError || isNormalEnd) {
-                  return;
-                }
-                if (process != null && !process.isAlive()) {
-                  break;
-                }
-                // Engine tuning / TensorRT compilation can take several minutes; keep waiting while it runs.
-                if (isTuning) {
-                  deadline =
-                      Math.max(
-                          deadline,
-                          System.currentTimeMillis() + ENGINE_TUNING_START_TIMEOUT_MS);
-                }
-                try {
-                  Thread.sleep(250L);
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-              }
-              if (token != bundledStartupToken || isLoaded || isDownWithError || isNormalEnd) {
-                return;
-              }
-              isDownWithError = true;
-              if (process != null) {
-                try {
-                  process.destroyForcibly();
-                } catch (Exception e) {
-                }
-              }
-              String message =
-                  text(
-                          "BundledEngineStartup.timeout",
-                          "The engine did not finish loading in time. Please check GPU drivers, runtime files, and folder permissions.")
-                      + "\n"
-                      + text("BundledEngineStartup.workDir", "Working folder")
-                      + ": "
-                      + Lizzie.config.getRuntimeWorkDirectory().getAbsolutePath();
-              SwingUtilities.invokeLater(
-                  () -> {
-                    closeBundledStartupDialog();
-                    try {
-                      tryToDignostic(message, true);
-                      if (shouldOpenInteractiveDiagnostic()) {
-                        LizzieFrame.openMoreEngineDialog();
-                      }
-                    } catch (JSONException e) {
-                      e.printStackTrace();
-                    }
-                  });
-            },
-            "bundled-engine-startup-watchdog");
-    watchdog.setDaemon(true);
-    watchdog.start();
-  }
-
-  private String text(String key, String fallback) {
-    try {
-      if (Lizzie.resourceBundle != null && Lizzie.resourceBundle.containsKey(key)) {
-        return Lizzie.resourceBundle.getString(key);
-      }
-    } catch (Exception e) {
-    }
-    return fallback;
   }
 
   public String engineCommand() {
