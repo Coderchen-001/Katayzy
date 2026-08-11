@@ -110,7 +110,6 @@ public class SidebarHeaderPanel extends JPanel {
   public void updateSnapshot(ProblemListSnapshot snapshot) {
     String previous = progressLabelFor(this.currentSnapshot);
     this.currentSnapshot = snapshot;
-    setToolTipText(progressTooltipFor(snapshot));
     AccessibilitySupport.announce(this, previous, progressLabelFor(snapshot));
     repaint();
   }
@@ -142,14 +141,6 @@ public class SidebarHeaderPanel extends JPanel {
         "Evaluated {0}/{1}",
         analyzedMoves,
         snapshot.totalMoves);
-  }
-
-  static String progressTooltipFor(ProblemListSnapshot snapshot) {
-    String label = progressLabelFor(snapshot);
-    if (label.isEmpty()) {
-      return null;
-    }
-    return format("SidebarHeader.progress.tooltip", "Problem move progress: {0}.", label);
   }
 
   @Override

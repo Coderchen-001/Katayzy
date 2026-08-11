@@ -816,8 +816,6 @@ public class Menu extends JMenuBar {
 
     moveMenu.addSeparator();
 
-    String moveNumberInBranchTips = resourceBundle.getString("Menu.moveNumberInBranchTips");
-
     final JFontCheckBoxMenuItem moveNumberInBranchFromOne =
         new JFontCheckBoxMenuItem(
             resourceBundle.getString("Menu.moveNumberInBracnhFromOne")); // ("分支内从1开始显示");
@@ -834,7 +832,6 @@ public class Menu extends JMenuBar {
           }
         });
     moveMenu.add(moveNumberInBranchFromOne);
-    moveNumberInBranchFromOne.setToolTipText(moveNumberInBranchTips);
 
     final JFontCheckBoxMenuItem moveNumberInBranchContinue =
         new JFontCheckBoxMenuItem(
@@ -853,7 +850,6 @@ public class Menu extends JMenuBar {
           }
         });
     moveMenu.add(moveNumberInBranchContinue);
-    moveNumberInBranchContinue.setToolTipText(moveNumberInBranchTips);
 
     moveMenu.addSeparator();
 
@@ -939,8 +935,6 @@ public class Menu extends JMenuBar {
 
     final JFontCheckBoxMenuItem showCommentConrolPane =
         new JFontCheckBoxMenuItem(resourceBundle.getString("Menu.showCommentConrolPane"));
-    showCommentConrolPane.setToolTipText(
-        resourceBundle.getString("Menu.showCommentConrolPane.tooltip"));
     showCommentConrolPane.addActionListener(
         new ActionListener() {
           @Override
@@ -1110,7 +1104,6 @@ public class Menu extends JMenuBar {
 
     final JFontCheckBoxMenuItem commitPane =
         new JFontCheckBoxMenuItem(resourceBundle.getString("Menu.commitPane")); // ("评论面板(Alt+T)");
-    commitPane.setToolTipText(resourceBundle.getString("Menu.commitPane.tooltip"));
     panel.add(commitPane);
     commitPane.addActionListener(
         new ActionListener() {
@@ -5638,7 +5631,6 @@ public class Menu extends JMenuBar {
     }
     btnKomiUp = new JFontButton(komiUp);
     btnKomiUp.setFocusable(false);
-    btnKomiUp.setToolTipText(resourceBundle.getString("Accessibility.increaseKomi"));
 
     ImageIcon komiDown;
     komiDown = new ImageIcon();
@@ -5650,7 +5642,6 @@ public class Menu extends JMenuBar {
     }
     btnKomiDown = new JFontButton(komiDown);
     btnKomiDown.setFocusable(false);
-    btnKomiDown.setToolTipText(resourceBundle.getString("Accessibility.decreaseKomi"));
 
     btnKomiUp.addActionListener(
         new ActionListener() {
@@ -5880,7 +5871,6 @@ public class Menu extends JMenuBar {
 
     more2 = new JFontButton("...");
     more2.setFocusable(false);
-    more2.setToolTipText(resourceBundle.getString("Accessibility.pdaOptions"));
     more2.addActionListener(
         new ActionListener() {
           public void actionPerformed(ActionEvent e) {
@@ -5952,7 +5942,6 @@ public class Menu extends JMenuBar {
     // -1, 20, 20);
 
     chkWRN = new JFontCheckBox();
-    chkWRN.setToolTipText(resourceBundle.getString("Menu.chkWRN.toolTopText"));
     chkWRN.addActionListener(
         new ActionListener() {
           public void actionPerformed(ActionEvent e) {
@@ -6001,7 +5990,6 @@ public class Menu extends JMenuBar {
     // chkWRN.setSelected(Lizzie.config.autoLoadKataEngineWRN);
     lblWRN = new JFontLabel(resourceBundle.getString("Menu.lblWRN")); // ("分析广度拓展");
     txtWRN = new JFontTextField();
-    txtWRN.setToolTipText(resourceBundle.getString("Menu.chkWRN.toolTopText"));
     txtWRN.setDocument(new DoubleDocument());
     txtWRN.setEnabled(false);
     // if (!Lizzie.config.autoLoadKataEngineWRN) txtWRN.setEnabled(false);
@@ -6099,7 +6087,6 @@ public class Menu extends JMenuBar {
         });
 
     chkPDA = new JFontCheckBox();
-    chkPDA.setToolTipText(resourceBundle.getString("Menu.chkPDA.toolTopText"));
     chkPDA.addActionListener(
         new ActionListener() {
           public void actionPerformed(ActionEvent e) {
@@ -6151,7 +6138,6 @@ public class Menu extends JMenuBar {
     lblGfPDA = new JFontLabel(resourceBundle.getString("Menu.lblPDA"));
     txtGfPDA = new JFontTextField();
     txtGfPDA.setEnabled(false);
-    txtGfPDA.setToolTipText(resourceBundle.getString("Menu.chkPDA.toolTopText"));
     txtGfPDA.setDocument(new KomiDocument(false));
 
     Document dt4 = txtGfPDA.getDocument();
@@ -6540,27 +6526,22 @@ public class Menu extends JMenuBar {
 
   private void setToolTipJMenu(JMenuItem menu) {
     if (Lizzie.config.isChinese) return;
-    menu.setToolTipText(menu.getText());
   }
 
   private void setToolTipJCheckMenu(JCheckBoxMenuItem menu, JFontLabel label) {
     if (Lizzie.config.isChinese) return;
-    menu.setToolTipText(label.getText());
   }
 
   private void setTooltip(JCheckBoxMenuItem menu) {
     if (Lizzie.config.isChinese) return;
-    menu.setToolTipText(menu.getText());
   }
 
   private void setToolTipJMenu(JMenuItem menu, JFontLabel label) {
     if (Lizzie.config.isChinese) return;
-    menu.setToolTipText(label.getText());
   }
 
   private void setTooltip(JButton button) {
     if (Lizzie.config.isChinese) return;
-    button.setToolTipText(button.getText());
   }
 
   public void updateRecentFileMenu() {
@@ -6574,7 +6555,6 @@ public class Menu extends JMenuBar {
               String recentFilePath = Lizzie.config.recentFilePaths.get(i);
               File recentF = new File(recentFilePath);
               final JFontMenuItem recentFile = new JFontMenuItem(j + ": " + recentF.getName());
-              recentFile.setToolTipText(recentFilePath);
               recentFile.addActionListener(
                   new ActionListener() {
                     @Override
@@ -6802,9 +6782,7 @@ public class Menu extends JMenuBar {
       } else {
         String friendlyName = Leelaz.friendlyEngineName(engineDt.name, engineDt.commands);
         engine[i].setText("[" + (i + 1) + "] " + friendlyName);
-        engine[i].setToolTipText(engineDt.commands);
         engine[i].setVisible(true);
-        engine[i].setToolTipText(engineDt.commands);
         int a = i;
         engine[i].addActionListener(
             new ActionListener() {
@@ -6853,7 +6831,6 @@ public class Menu extends JMenuBar {
       } else {
         String friendlyName2 = Leelaz.friendlyEngineName(engineDt.name, engineDt.commands);
         engine2[i].setText("[" + (i + 1) + "] " + friendlyName2);
-        engine2[i].setToolTipText(engineDt.commands);
         engine2[i].setVisible(true);
         int a = i;
         engine2[i].addActionListener(
@@ -6913,8 +6890,6 @@ public class Menu extends JMenuBar {
     }
     btnDoubleMenu = new JFontButton();
     btnDoubleMenu.setFocusable(false);
-    btnDoubleMenu.setToolTipText(
-        resourceBundle.getString("Accessibility.toolbarDetailsDescription"));
     if (Lizzie.config.showDoubleMenu) btnDoubleMenu.setIcon(iconUp);
     else btnDoubleMenu.setIcon(iconDown);
     btnDoubleMenu.setMargin(new Insets(0, 0, 0, 0));
@@ -6951,7 +6926,6 @@ public class Menu extends JMenuBar {
     black.setFocusable(false);
     black.setMargin(new Insets(0, 0, 0, 0));
     // this.add(black);
-    black.setToolTipText(resourceBundle.getString("Menu.playBlackToolTipText"));
 
     white = new JFontButton(iconwhite);
     white.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
@@ -6975,7 +6949,6 @@ public class Menu extends JMenuBar {
     white.setFocusable(false);
     white.setMargin(new Insets(0, 0, 0, 0));
     // this.add(white);
-    white.setToolTipText(resourceBundle.getString("Menu.playWhiteToolTipText"));
 
     // black.setPreferredSize(new Dimension(25, 22));
     //  white.setPreferredSize(new Dimension(25, 22));
@@ -7004,7 +6977,6 @@ public class Menu extends JMenuBar {
         new Dimension(
             Lizzie.config.isFrameFontSmall() ? 22 : (Lizzie.config.isFrameFontMiddle() ? 25 : 28),
             Lizzie.config.isFrameFontSmall() ? 22 : (Lizzie.config.isFrameFontMiddle() ? 25 : 28)));
-    blackwhite.setToolTipText(resourceBundle.getString("Menu.playAlternatelyToolTipText"));
 
     playPass = new JFontButton(iconplayPass);
     playPass.setMargin(new Insets(0, 0, 0, 0));
@@ -7012,7 +6984,6 @@ public class Menu extends JMenuBar {
         new Dimension(
             Lizzie.config.isFrameFontSmall() ? 22 : (Lizzie.config.isFrameFontMiddle() ? 25 : 28),
             Lizzie.config.isFrameFontSmall() ? 22 : (Lizzie.config.isFrameFontMiddle() ? 25 : 28)));
-    playPass.setToolTipText(resourceBundle.getString("Menu.playPassToolTipText"));
     playPass.setFocusable(false);
     playPass.addActionListener(
         new ActionListener() {
@@ -7054,7 +7025,6 @@ public class Menu extends JMenuBar {
         });
     selectAllow.setFocusable(false);
     selectAllow.setMargin(new Insets(0, 0, 0, -1));
-    selectAllow.setToolTipText(resourceBundle.getString("Menu.selectAllowToolTipText"));
 
     selectAvoid = new JFontButton(iconAvoid);
     selectAvoid.addActionListener(
@@ -7087,7 +7057,6 @@ public class Menu extends JMenuBar {
         });
     selectAvoid.setFocusable(false);
     selectAvoid.setMargin(new Insets(0, 0, 0, -1));
-    selectAvoid.setToolTipText(resourceBundle.getString("Menu.selectAvoidToolTipText"));
 
     ImageIcon horizonDown;
     horizonDown = new ImageIcon();
@@ -7256,7 +7225,6 @@ public class Menu extends JMenuBar {
     selectAllowMore = new JButton(horizonDown);
     selectAllowMore.setMargin(new Insets(0, 0, 0, 0));
     selectAllowMore.setFocusable(false);
-    selectAllowMore.setToolTipText(resourceBundle.getString("Accessibility.allowMoveOptions"));
     selectAllowMore.setPreferredSize(
         new Dimension(
             (Lizzie.config.isFrameFontSmall() ? 12 : (Lizzie.config.isFrameFontMiddle() ? 15 : 18)),
@@ -7414,7 +7382,6 @@ public class Menu extends JMenuBar {
     selectAvoidMore = new JButton(horizonDown);
     selectAvoidMore.setMargin(new Insets(0, 0, 0, 0));
     selectAvoidMore.setFocusable(false);
-    selectAvoidMore.setToolTipText(resourceBundle.getString("Accessibility.avoidMoveOptions"));
     selectAvoidMore.setPreferredSize(
         new Dimension(
             (Lizzie.config.isFrameFontSmall() ? 12 : (Lizzie.config.isFrameFontMiddle() ? 15 : 18)),
@@ -7460,7 +7427,6 @@ public class Menu extends JMenuBar {
     if (Lizzie.leelaz != null && !Lizzie.leelaz.isKatago && !Lizzie.config.showDoubleMenu) {
       // this.add(clearSelect);
     }
-    clearSelect.setToolTipText(resourceBundle.getString("Menu.clearSelectToolTipText"));
     toggleShowForce(Lizzie.config.showForceMenu);
     // add(clearSelect);
     //
@@ -7610,8 +7576,6 @@ public class Menu extends JMenuBar {
       JFontButton btnNewFile = new JFontButton(iconNewFile);
       btnNewFile.setFocusable(false);
       btnNewFile.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
-      btnNewFile.setToolTipText(
-          resourceBundle.getString("Menu.btnNewFile.toolTipText")); // "打开棋谱(O)");
       btnNewFile.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7622,7 +7586,6 @@ public class Menu extends JMenuBar {
       JFontButton btnOpen = new JFontButton(iconOpen);
       btnOpen.setFocusable(false);
       btnOpen.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
-      btnOpen.setToolTipText(resourceBundle.getString("Menu.btnOpen.toolTipText")); // "打开棋谱(O)");
       btnOpen.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7633,7 +7596,6 @@ public class Menu extends JMenuBar {
       JFontButton btnSave = new JFontButton(iconSave);
       btnSave.setFocusable(false);
       btnSave.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
-      btnSave.setToolTipText(resourceBundle.getString("Menu.btnSave.toolTipText")); // ("保存棋谱(S)");
       btnSave.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7649,7 +7611,6 @@ public class Menu extends JMenuBar {
           new Dimension(
               Lizzie.config.isChinese ? Config.menuHeight * 4 : Config.menuHeight * 6,
               Config.menuHeight));
-      btnFoxKifu.setToolTipText(resourceBundle.getString("Menu.foxKifu"));
       btnFoxKifu.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7666,7 +7627,6 @@ public class Menu extends JMenuBar {
           new Dimension(
               Lizzie.config.isChinese ? Config.menuHeight * 4 : Config.menuHeight * 7,
               Config.menuHeight));
-      btnTencentKifu.setToolTipText(resourceBundle.getString("Menu.tencentKifu"));
       btnTencentKifu.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7685,8 +7645,6 @@ public class Menu extends JMenuBar {
                   Lizzie.config.isChinese ? Config.menuHeight * 4 : Config.menuHeight * 6,
                   btnPlayerStrengthEstimate.getPreferredSize().width + 12),
               Config.menuHeight));
-      btnPlayerStrengthEstimate.setToolTipText(
-          resourceBundle.getString("Menu.playerStrengthEstimate"));
       btnPlayerStrengthEstimate.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7697,7 +7655,6 @@ public class Menu extends JMenuBar {
       JFontButton btnFlashAnalyze = new JFontButton(iconFlash);
       btnFlashAnalyze.setFocusable(false);
       btnFlashAnalyze.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
-      btnFlashAnalyze.setToolTipText(resourceBundle.getString("Menu.btnAnalyze.btnFlashAnalyze"));
       btnFlashAnalyze
           .getAccessibleContext()
           .setAccessibleDescription(resourceBundle.getString("Menu.btnAnalyze.btnFlashAnalyze"));
@@ -7708,8 +7665,6 @@ public class Menu extends JMenuBar {
       JFontButton btnHawkeye = new JFontButton(iconHawkeye);
       btnHawkeye.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnHawkeye.setFocusable(false);
-      btnHawkeye.setToolTipText(
-          resourceBundle.getString("Menu.btnHawkeye.toolTipText")); // ("自动分析(A)");
       btnHawkeye.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7723,8 +7678,6 @@ public class Menu extends JMenuBar {
       btnRankMark = new JFontButton();
       btnRankMark.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnRankMark.setFocusable(false);
-      btnRankMark.setToolTipText(
-          resourceBundle.getString("Menu.btnRankMark.toolTipText")); // ("自动分析(A)");
       btnRankMark.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7740,8 +7693,6 @@ public class Menu extends JMenuBar {
       JFontButton btnSetMain = new JFontButton(iconSetMain);
       btnSetMain.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnSetMain.setFocusable(false);
-      btnSetMain.setToolTipText(
-          resourceBundle.getString("Menu.btnSetMain.toolTipText")); // ("设为主分支(L)");
       btnSetMain.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7752,8 +7703,6 @@ public class Menu extends JMenuBar {
       JFontButton btnBackMain = new JFontButton(iconBackMain);
       btnBackMain.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnBackMain.setFocusable(false);
-      btnBackMain.setToolTipText(
-          resourceBundle.getString("Menu.btnBackMain.toolTipText")); // ("返回主分支(T)");
       btnBackMain.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7764,8 +7713,6 @@ public class Menu extends JMenuBar {
       JFontButton btnChangeTurn = new JFontButton(iconChangeTurn);
       btnChangeTurn.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnChangeTurn.setFocusable(false);
-      btnChangeTurn.setToolTipText(
-          resourceBundle.getString("Menu.btnChangeTurn.toolTipText")); // ("设为主分支(L)");
       btnChangeTurn.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7776,7 +7723,6 @@ public class Menu extends JMenuBar {
       JFontButton btnContrlPanel = new JFontButton(iconControlPanel);
       btnContrlPanel.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnContrlPanel.setFocusable(false);
-      btnContrlPanel.setToolTipText(resourceBundle.getString("Menu.btnContrlPanel.toolTipText"));
       btnContrlPanel.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7789,7 +7735,6 @@ public class Menu extends JMenuBar {
       else btnMarkup.setIcon(iconMarkup1);
       btnMarkup.setFocusable(false);
       btnMarkup.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
-      btnMarkup.setToolTipText(resourceBundle.getString("Menu.btnMarkup.toolTipText")); // "标记工具");
       btnMarkup.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7804,7 +7749,6 @@ public class Menu extends JMenuBar {
       if (Lizzie.frame.markupType == 1) btnMarkupLabel.setIcon(markupLabel2);
       else btnMarkupLabel.setIcon(markupLabel1);
       btnMarkupLabel.setFocusable(false);
-      btnMarkupLabel.setToolTipText(resourceBundle.getString("Accessibility.markupLetter"));
       btnMarkupLabel.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnMarkupLabel.addActionListener(
           new ActionListener() {
@@ -7819,7 +7763,6 @@ public class Menu extends JMenuBar {
       if (Lizzie.frame.markupType == 7) btnMarkupLabelNum.setIcon(markupLabelNum2);
       else btnMarkupLabelNum.setIcon(markupLabelNum1);
       btnMarkupLabelNum.setFocusable(false);
-      btnMarkupLabelNum.setToolTipText(resourceBundle.getString("Accessibility.markupNumber"));
       btnMarkupLabelNum.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnMarkupLabelNum.addActionListener(
           new ActionListener() {
@@ -7834,7 +7777,6 @@ public class Menu extends JMenuBar {
       if (Lizzie.frame.markupType == 2) btnMarkupCircle.setIcon(markupCircle2);
       else btnMarkupCircle.setIcon(markupCircle1);
       btnMarkupCircle.setFocusable(false);
-      btnMarkupCircle.setToolTipText(resourceBundle.getString("Accessibility.markupCircle"));
       btnMarkupCircle.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnMarkupCircle.addActionListener(
           new ActionListener() {
@@ -7849,7 +7791,6 @@ public class Menu extends JMenuBar {
       if (Lizzie.frame.markupType == 3) btnMarkupX.setIcon(markupX2);
       else btnMarkupX.setIcon(markupX1);
       btnMarkupX.setFocusable(false);
-      btnMarkupX.setToolTipText(resourceBundle.getString("Accessibility.markupCross"));
       btnMarkupX.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnMarkupX.addActionListener(
           new ActionListener() {
@@ -7864,7 +7805,6 @@ public class Menu extends JMenuBar {
       if (Lizzie.frame.markupType == 4) btnMarkupSquare.setIcon(markupSquare2);
       else btnMarkupSquare.setIcon(markupSquare1);
       btnMarkupSquare.setFocusable(false);
-      btnMarkupSquare.setToolTipText(resourceBundle.getString("Accessibility.markupSquare"));
       btnMarkupSquare.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnMarkupSquare.addActionListener(
           new ActionListener() {
@@ -7879,7 +7819,6 @@ public class Menu extends JMenuBar {
       if (Lizzie.frame.markupType == 5) btnMarkupTri.setIcon(markupsanjiao2);
       else btnMarkupTri.setIcon(markupsanjiao1);
       btnMarkupTri.setFocusable(false);
-      btnMarkupTri.setToolTipText(resourceBundle.getString("Accessibility.markupTriangle"));
       btnMarkupTri.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnMarkupTri.addActionListener(
           new ActionListener() {
@@ -7894,7 +7833,6 @@ public class Menu extends JMenuBar {
       if (Lizzie.frame.markupType == 6) btnMarkupEraser.setIcon(eraser2);
       else btnMarkupEraser.setIcon(eraser1);
       btnMarkupEraser.setFocusable(false);
-      btnMarkupEraser.setToolTipText(resourceBundle.getString("Accessibility.markupEraser"));
       btnMarkupEraser.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnMarkupEraser.addActionListener(
           new ActionListener() {
@@ -7908,8 +7846,6 @@ public class Menu extends JMenuBar {
       JFontButton btnMarkupClear = new JFontButton(clear);
       btnMarkupClear.setFocusable(false);
       btnMarkupClear.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
-      btnMarkupClear.setToolTipText(
-          resourceBundle.getString("Menu.btnMarkupClear.toolTipText")); // ("清除");
       btnMarkupClear.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7921,7 +7857,6 @@ public class Menu extends JMenuBar {
       JFontButton btnDrawPainting = new JFontButton(drawPaint);
       btnDrawPainting.setFocusable(false);
       btnDrawPainting.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
-      btnDrawPainting.setToolTipText(resourceBundle.getString("Menu.drawPainting.toolTipText"));
       btnDrawPainting.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -8138,7 +8073,6 @@ public class Menu extends JMenuBar {
 
       JButton selectAllowMore = new JButton(horizonDown);
       selectAllowMore.setFocusable(false);
-      selectAllowMore.setToolTipText(resourceBundle.getString("Accessibility.allowMoveOptions"));
       selectAllowMore.setPreferredSize(
           new Dimension(
               (Lizzie.config.isFrameFontSmall()
@@ -8304,7 +8238,6 @@ public class Menu extends JMenuBar {
 
       JButton selectAvoidMore = new JButton(horizonDown);
       selectAvoidMore.setFocusable(false);
-      selectAvoidMore.setToolTipText(resourceBundle.getString("Accessibility.avoidMoveOptions"));
       selectAvoidMore.setPreferredSize(
           new Dimension(
               (Lizzie.config.isFrameFontSmall()
@@ -8812,7 +8745,6 @@ public class Menu extends JMenuBar {
 
   private JFontCheckBoxMenuItem moveRankModeItem(String resourceKey, MoveRankEvaluationMode mode) {
     JFontCheckBoxMenuItem item = new JFontCheckBoxMenuItem(resourceBundle.getString(resourceKey));
-    item.setToolTipText(resourceBundle.getString(resourceKey + ".tooltip"));
     item.addActionListener(e -> setMoveRankEvaluationMode(mode));
     return item;
   }
@@ -9749,7 +9681,6 @@ public class Menu extends JMenuBar {
       } else {
         String friendlyName = Leelaz.friendlyEngineName(engineDt.name, engineDt.commands);
         engine[i].setText("[" + (i + 1) + "] " + friendlyName);
-        engine[i].setToolTipText(engineDt.commands);
         engine[i].setVisible(true);
         int a = i;
         engine[i].addActionListener(
@@ -9759,7 +9690,6 @@ public class Menu extends JMenuBar {
               }
             });
         engine2[i].setText("[" + (i + 1) + "] " + friendlyName);
-        engine2[i].setToolTipText(engineDt.commands);
         engine2[i].setVisible(true);
 
         engine2[i].addActionListener(

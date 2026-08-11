@@ -94,8 +94,6 @@ class SidebarHeaderPanelHitTest {
     assertEquals("评估中 228/229", SidebarHeaderPanel.progressLabelFor(snapshot(228, 229, true)));
     assertEquals("已评估 228/229", SidebarHeaderPanel.progressLabelFor(snapshot(228, 229, false)));
     assertEquals("评估完成", SidebarHeaderPanel.progressLabelFor(snapshot(229, 229, false)));
-    assertEquals(
-        "问题手评估进度：已评估 228/229。", SidebarHeaderPanel.progressTooltipFor(snapshot(228, 229, false)));
   }
 
   private static FontMetrics headerMetrics() {

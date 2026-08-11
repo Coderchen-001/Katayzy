@@ -18459,6 +18459,9 @@ public class LizzieFrame extends JFrame {
       return false;
     }
     if (!Lizzie.leelaz.isPondering()) {
+      // 自动分析路径直接 ponder()（不经 togglePonder）：先清除按访问量停止的粘性锁存，
+      // 避免上一手达到 visits 限制后残留的 stopByPlayouts 使当前手无法自动停止。
+      Lizzie.leelaz.clearPonderLimit();
       Lizzie.leelaz.ponder();
     }
     refresh();

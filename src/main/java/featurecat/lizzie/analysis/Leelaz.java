@@ -9821,6 +9821,11 @@ public class Leelaz {
 
   public void ponder(boolean addPlayer, boolean blackToPlay) {
     if (noAnalyze) return;
+    // 每次开始 pondering 前清除"按访问量停止"的粘性锁存（outOfPlayoutsLimit）。
+    // 棋谱自动分析等路径直接调用 ponder()（不经 togglePonder），若上次分析达到
+    // visits 限制后残留 stopByPlayouts，本次会被 L9837 锁存成 outOfPlayoutsLimit=true，
+    // 导致当前手达到 1500 visits 也无法自动停止。此处统一清除，覆盖所有调用者。
+    clearPonderLimit();
     YikeSyncDebugLog.log(
         "Leelaz ponder request addPlayer="
             + addPlayer

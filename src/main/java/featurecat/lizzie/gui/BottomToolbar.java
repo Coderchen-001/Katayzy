@@ -601,6 +601,7 @@ public class BottomToolbar extends JPanel {
     clearButton =
         new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.clearButton")); // ("清空棋盘");
     AppleStyleSupport.markDanger(clearButton);
+    clearButton.setToolTipText(null);
     firstButton = new JFontButton("|<");
     lastButton = new JFontButton(">|");
     countButton =
@@ -611,6 +612,7 @@ public class BottomToolbar extends JPanel {
     backward10 = new JFontButton("<<");
     gotomove =
         new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.gotomove")); // ("跳转");
+    gotomove.setToolTipText(null);
     savefile =
         new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.savefile")); // ("保存");
     backward1 = new JFontButton("<");
@@ -622,15 +624,16 @@ public class BottomToolbar extends JPanel {
             Lizzie.resourceBundle.getString("BottomToolbar.kataEstimate")); // ("Kata评估");
     analyse = new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.analyse")); // ("分析");
     AppleStyleSupport.markPrimary(analyse);
+    analyse.setToolTipText(null);
     heatMap = new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.heatMap")); // ("纯网络");
     backMain =
         new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.backMain")); // ("返回主分支");
     setMain =
         new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.setMain")); // ("设为主分支");
+    setMain.setToolTipText(null);
     batchOpen =
         new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.batchOpen")); // ("批量分析");
     AppleStyleSupport.markPrimary(batchOpen);
-    batchOpen.setToolTipText(resourceBundle.getString("BottomToolbar.autoAnalyzeTip"));
     batchOpen
         .getAccessibleContext()
         .setAccessibleDescription(resourceBundle.getString("BottomToolbar.autoAnalyzeTip"));
@@ -643,6 +646,7 @@ public class BottomToolbar extends JPanel {
     coords = new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.coords")); // ("坐标");
     autoPlay =
         new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.autoPlay")); // ("自动播放");
+    autoPlay.setToolTipText(null);
     moreActionsButton = new JFontButton(resourceBundle.getString("BottomToolbar.moreActions"));
 
     iconUp = new ImageIcon();
