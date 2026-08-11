@@ -11724,6 +11724,11 @@ public class LizzieFrame extends JFrame {
       Lizzie.leelaz.setGameStatus(false);
       if (Lizzie.config.autoSavePlayedGame) autoSavePlayedGame();
       Lizzie.frame.isAnaPlayingAgainstLeelaz = false;
+      // 对局结束/切回分析时清除按访问量停止的粘性锁存（outOfPlayoutsLimit），
+      // 否则续弈切回棋谱分析后当前手达到 visits 限制也无法自动停止。
+      if (Lizzie.leelaz != null) {
+        Lizzie.leelaz.clearPonderLimit();
+      }
       LizzieFrame.toolbar.chkAutoPlay.setSelected(false);
       LizzieFrame.toolbar.isAutoPlay = false;
       LizzieFrame.toolbar.chkAutoPlayBlack.setSelected(false);

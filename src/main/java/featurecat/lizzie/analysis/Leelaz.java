@@ -9940,6 +9940,10 @@ public class Leelaz {
   }
 
   public void togglePonder() {
+    // 每次切换 pondering 前清除"按访问量停止"的粘性锁存（outOfPlayoutsLimit）。
+    // 该锁存只在 clearAfterMove（真正落子/进退棋谱）时清除；续弈切回棋谱分析等
+    // 不改变局面的路径会残留它，导致当前手达到 visits 限制也无法自动停止。
+    clearPonderLimit();
     YikeSyncDebugLog.log(
         "Leelaz togglePonder before isPondering="
             + isPondering
