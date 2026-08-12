@@ -7576,6 +7576,7 @@ public class Menu extends JMenuBar {
       JFontButton btnNewFile = new JFontButton(iconNewFile);
       btnNewFile.setFocusable(false);
       btnNewFile.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnNewFile.setToolTipText(resourceBundle.getString("Menu.btnNewFile.toolTipText"));
       btnNewFile.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7586,6 +7587,7 @@ public class Menu extends JMenuBar {
       JFontButton btnOpen = new JFontButton(iconOpen);
       btnOpen.setFocusable(false);
       btnOpen.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnOpen.setToolTipText(resourceBundle.getString("Menu.btnOpen.toolTipText"));
       btnOpen.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7596,6 +7598,7 @@ public class Menu extends JMenuBar {
       JFontButton btnSave = new JFontButton(iconSave);
       btnSave.setFocusable(false);
       btnSave.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnSave.setToolTipText(resourceBundle.getString("Menu.btnSave.toolTipText"));
       btnSave.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7655,6 +7658,7 @@ public class Menu extends JMenuBar {
       JFontButton btnFlashAnalyze = new JFontButton(iconFlash);
       btnFlashAnalyze.setFocusable(false);
       btnFlashAnalyze.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnFlashAnalyze.setToolTipText(resourceBundle.getString("Menu.btnAnalyze.toolTipText"));
       btnFlashAnalyze
           .getAccessibleContext()
           .setAccessibleDescription(resourceBundle.getString("Menu.btnAnalyze.btnFlashAnalyze"));
@@ -7665,6 +7669,7 @@ public class Menu extends JMenuBar {
       JFontButton btnHawkeye = new JFontButton(iconHawkeye);
       btnHawkeye.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnHawkeye.setFocusable(false);
+      btnHawkeye.setToolTipText(resourceBundle.getString("Menu.btnHawkeye.toolTipText"));
       btnHawkeye.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7678,6 +7683,7 @@ public class Menu extends JMenuBar {
       btnRankMark = new JFontButton();
       btnRankMark.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnRankMark.setFocusable(false);
+      btnRankMark.setToolTipText(resourceBundle.getString("Menu.btnRankMark.toolTipText"));
       btnRankMark.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7693,6 +7699,7 @@ public class Menu extends JMenuBar {
       JFontButton btnSetMain = new JFontButton(iconSetMain);
       btnSetMain.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnSetMain.setFocusable(false);
+      btnSetMain.setToolTipText(resourceBundle.getString("Menu.btnSetMain.toolTipText"));
       btnSetMain.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7703,6 +7710,7 @@ public class Menu extends JMenuBar {
       JFontButton btnBackMain = new JFontButton(iconBackMain);
       btnBackMain.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnBackMain.setFocusable(false);
+      btnBackMain.setToolTipText(resourceBundle.getString("Menu.btnBackMain.toolTipText"));
       btnBackMain.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7713,6 +7721,7 @@ public class Menu extends JMenuBar {
       JFontButton btnChangeTurn = new JFontButton(iconChangeTurn);
       btnChangeTurn.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnChangeTurn.setFocusable(false);
+      btnChangeTurn.setToolTipText(resourceBundle.getString("Menu.btnChangeTurn.toolTipText"));
       btnChangeTurn.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7723,6 +7732,7 @@ public class Menu extends JMenuBar {
       JFontButton btnContrlPanel = new JFontButton(iconControlPanel);
       btnContrlPanel.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
       btnContrlPanel.setFocusable(false);
+      btnContrlPanel.setToolTipText(resourceBundle.getString("Menu.btnContrlPanel.toolTipText"));
       btnContrlPanel.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7735,6 +7745,7 @@ public class Menu extends JMenuBar {
       else btnMarkup.setIcon(iconMarkup1);
       btnMarkup.setFocusable(false);
       btnMarkup.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnMarkup.setToolTipText(resourceBundle.getString("Menu.btnMarkup.toolTipText"));
       btnMarkup.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7750,6 +7761,7 @@ public class Menu extends JMenuBar {
       else btnMarkupLabel.setIcon(markupLabel1);
       btnMarkupLabel.setFocusable(false);
       btnMarkupLabel.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnMarkupLabel.setToolTipText(resourceBundle.getString("Menu.btnMarkup.toolTipText"));
       btnMarkupLabel.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7764,6 +7776,7 @@ public class Menu extends JMenuBar {
       else btnMarkupLabelNum.setIcon(markupLabelNum1);
       btnMarkupLabelNum.setFocusable(false);
       btnMarkupLabelNum.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnMarkupLabelNum.setToolTipText(resourceBundle.getString("Menu.btnMarkup.toolTipText"));
       btnMarkupLabelNum.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7778,6 +7791,7 @@ public class Menu extends JMenuBar {
       else btnMarkupCircle.setIcon(markupCircle1);
       btnMarkupCircle.setFocusable(false);
       btnMarkupCircle.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnMarkupCircle.setToolTipText(resourceBundle.getString("Menu.btnMarkup.toolTipText"));
       btnMarkupCircle.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7792,6 +7806,7 @@ public class Menu extends JMenuBar {
       else btnMarkupX.setIcon(markupX1);
       btnMarkupX.setFocusable(false);
       btnMarkupX.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnMarkupX.setToolTipText(resourceBundle.getString("Menu.btnMarkup.toolTipText"));
       btnMarkupX.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7806,6 +7821,7 @@ public class Menu extends JMenuBar {
       else btnMarkupSquare.setIcon(markupSquare1);
       btnMarkupSquare.setFocusable(false);
       btnMarkupSquare.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnMarkupSquare.setToolTipText(resourceBundle.getString("Menu.btnMarkup.toolTipText"));
       btnMarkupSquare.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7820,6 +7836,7 @@ public class Menu extends JMenuBar {
       else btnMarkupTri.setIcon(markupsanjiao1);
       btnMarkupTri.setFocusable(false);
       btnMarkupTri.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnMarkupTri.setToolTipText(resourceBundle.getString("Menu.btnMarkup.toolTipText"));
       btnMarkupTri.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7834,6 +7851,7 @@ public class Menu extends JMenuBar {
       else btnMarkupEraser.setIcon(eraser1);
       btnMarkupEraser.setFocusable(false);
       btnMarkupEraser.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnMarkupEraser.setToolTipText(resourceBundle.getString("Menu.btnMarkup.toolTipText"));
       btnMarkupEraser.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7846,6 +7864,7 @@ public class Menu extends JMenuBar {
       JFontButton btnMarkupClear = new JFontButton(clear);
       btnMarkupClear.setFocusable(false);
       btnMarkupClear.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnMarkupClear.setToolTipText(resourceBundle.getString("Menu.btnMarkupClear.toolTipText"));
       btnMarkupClear.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -7857,6 +7876,7 @@ public class Menu extends JMenuBar {
       JFontButton btnDrawPainting = new JFontButton(drawPaint);
       btnDrawPainting.setFocusable(false);
       btnDrawPainting.setPreferredSize(new Dimension(Config.menuHeight, Config.menuHeight));
+      btnDrawPainting.setToolTipText(resourceBundle.getString("Menu.drawPainting.toolTipText"));
       btnDrawPainting.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
