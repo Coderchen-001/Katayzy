@@ -56,9 +56,8 @@ public final class AccessibilitySupport {
       button
           .getInputMap(JComponent.WHEN_FOCUSED)
           .put(KeyStroke.getKeyStroke("released ENTER"), "released");
-      if (button.getToolTipText() == null || button.getToolTipText().isBlank()) {
-        button.setToolTipText(clean(description).isEmpty() ? clean(name) : clean(description));
-      }
+      // 注意：这里不设置 setToolTipText——GUI 按钮的悬浮字条统一去除（用户要求），
+      // 辅助功能（accessible name/description）已由 named() 设置，读屏软件不受影响。
     }
     return button;
   }

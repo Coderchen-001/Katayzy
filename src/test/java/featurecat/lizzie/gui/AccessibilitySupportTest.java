@@ -1,6 +1,7 @@
 package featurecat.lizzie.gui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,7 +30,7 @@ class AccessibilitySupportTest {
   }
 
   @Test
-  void iconButtonsReceiveReadableSemanticsAndTooltip() {
+  void iconButtonsReceiveReadableSemantics() {
     JButton button = new JButton();
 
     AccessibilitySupport.button(button, "Refresh weights", "Reload the official weight list");
@@ -38,7 +39,8 @@ class AccessibilitySupportTest {
     assertEquals(
         "Reload the official weight list",
         button.getAccessibleContext().getAccessibleDescription());
-    assertEquals("Reload the official weight list", button.getToolTipText());
+    // tooltip 不再由 a11y 注入（GUI 悬浮字条统一去除），保持 null
+    assertNull(button.getToolTipText());
   }
 
   @Test
