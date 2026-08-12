@@ -101,7 +101,7 @@ foreach ($d in @("engines","clockHelper","user-data","save")) {
 }
 robocopy (Join-Path $BaseBundle "app\jcef-bundle") (Join-Path $bundleDir "app\jcef-bundle") /E /NFL /NDL /NJH /NJS /NP | Out-Null
 robocopy (Join-Path $BaseBundle "app\readboard") (Join-Path $bundleDir "app\readboard") /E /NFL /NDL /NJH /NJS /NP | Out-Null
-foreach ($f in @(".lizzie-portable","使用说明.txt","启动器.bat","scripts\check_env.ps1","scripts\check_first_run.ps1","scripts\add_engine.ps1","scripts\build_engines.ps1","scripts\update_weights.ps1","app\PROJECT_INFO.txt","state\README.txt")) {
+foreach ($f in @(".lizzie-portable","使用说明.txt","启动器.bat","scripts\check_env.ps1","scripts\check_first_run.ps1","scripts\add_engine.ps1","scripts\build_engines.ps1","scripts\update_weights.ps1","scripts\launcher_lock.ps1","app\PROJECT_INFO.txt","state\README.txt")) {
   $dest = Join-Path $bundleDir $f
   $destDir = Split-Path $dest -Parent
   if ($destDir -and -not (Test-Path $destDir)) { New-Item -ItemType Directory -Force -Path $destDir | Out-Null }
