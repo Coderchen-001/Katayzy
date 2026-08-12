@@ -96,7 +96,7 @@ if ($BaseBundle -eq "") { $BaseBundle = Join-Path $OutputRoot "Katayzy" }
 if (-not (Test-Path $BaseBundle)) { Write-Host "基准包不存在: $BaseBundle" -ForegroundColor Red; exit 1 }
 
 robocopy $progDir $bundleDir /E /NFL /NDL /NJH /NJS /NP /XF Katayzy.ico | Out-Null
-foreach ($d in @("engines","clockHelper","user-data","save")) {
+foreach ($d in @("engines","clockHelper","user-data","save","theme")) {
   robocopy (Join-Path $BaseBundle $d) (Join-Path $bundleDir $d) /E /XD KataGoData gtp_logs /NFL /NDL /NJH /NJS /NP | Out-Null
 }
 robocopy (Join-Path $BaseBundle "app\jcef-bundle") (Join-Path $bundleDir "app\jcef-bundle") /E /NFL /NDL /NJH /NJS /NP | Out-Null
@@ -106,6 +106,16 @@ foreach ($f in @(".lizzie-portable","使用说明.txt","启动器.bat","scripts\
   $destDir = Split-Path $dest -Parent
   if ($destDir -and -not (Test-Path $destDir)) { New-Item -ItemType Directory -Force -Path $destDir | Out-Null }
   Copy-Item (Join-Path $BaseBundle $f) $dest -Recurse -Force
+}
+
+# ---------------------------------------------------------------- TRT LICENSE（每次打包必须）
+$trtLicenseSrc = "D:\全新重构项目-卡塔狗桌面版\打包所需katago全套（优先从这里拿）\英伟达Trt版本\cuda12.8+trt10.9.0\LICENSE.txt"
+$trtLicenseDst = Join-Path $bundleDir "engines\katago-trt\LICENSE.txt"
+if (Test-Path $trtLicenseSrc) {
+  Copy-Item $trtLicenseSrc $trtLicenseDst -Force
+  Write-Host "  [TRT LICENSE] 已从全套源复制到 engines\katago-trt\LICENSE.txt" -ForegroundColor Green
+} elseif (-not (Test-Path $trtLicenseDst)) {
+  Write-Host "  [警告] 未找到 TRT LICENSE.txt（全套源与基准包均缺失），请检查！" -ForegroundColor Yellow
 }
 
 # ---------------------------------------------------------------- 6. pre-provision b10c384 companion (out-of-box)
