@@ -2,6 +2,9 @@
 
 The menu bar is only the 12 JMenu entries. Top-bar controls such as komi, player stones and
 analysis toggles are added to `Lizzie.frame.topPanel` from Menu.java; they are a separate surface.
+
+Line comments are stripped before matching and multi-line `add(...)` calls are balanced, so
+commented-out additions and split arguments are handled correctly.
 """
 
 from __future__ import annotations
@@ -13,17 +16,60 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 MENU = ROOT / "src/main/java/featurecat/lizzie/gui/Menu.java"
 OUT = ROOT / "docs/ui2/top-panel-inventory.csv"
-ADD_RE = re.compile(r"Lizzie\.frame\.topPanel\.add\(\s*(\w+)\s*\)")
+ADD = "Lizzie.frame.topPanel.add("
+LABEL_KEY_RE = re.compile(r'getString\(\s*"([^"]+)"')
+
+
+def strip_line_comment(line: str) -> str:
+    in_string = False
+    escaped = False
+    for index, char in enumerate(line):
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\" and in_string:
+            escaped = True
+            continue
+        if char == '"':
+            in_string = not in_string
+        elif not in_string and char == "/" and index + 1 < len(line) and line[index + 1] == "/":
+            return line[:index]
+    return line
+
+
+def extract_calls(lines: list[str]) -> list[tuple[int, str]]:
+    calls: list[tuple[int, str]] = []
+    index = 0
+    while index < len(lines):
+        clean = strip_line_comment(lines[index])
+        position = clean.find(ADD)
+        if position < 0:
+            index += 1
+            continue
+        start_line = index + 1
+        text = clean[position:]
+        depth = text.count("(") - text.count(")")
+        while depth > 0 and index + 1 < len(lines):
+            index += 1
+            next_line = strip_line_comment(lines[index])
+            text += " " + next_line
+            depth += next_line.count("(") - next_line.count(")")
+        argument = text[len(ADD) :].strip()
+        calls.append((start_line, argument))
+        index += 1
+    return calls
 
 
 def main() -> None:
-    text = MENU.read_text(encoding="utf-8").splitlines()
+    lines = MENU.read_text(encoding="utf-8").splitlines()
     rows = []
-    for line_number, line in enumerate(text, 1):
-        match = ADD_RE.search(line)
-        if not match:
-            continue
-        variable = match.group(1)
+    for line_number, argument in extract_calls(lines):
+        if argument.startswith("new JFontLabel"):
+            match = LABEL_KEY_RE.search(argument)
+            variable = match.group(1).split(".")[-1] if match else "label"
+            variable = variable.replace("-", "")
+        else:
+            variable = re.match(r"(\w+)", argument).group(1)
         if 7900 <= line_number <= 7960:
             group = "players/stop"
         elif 8300 <= line_number <= 8330:
@@ -40,6 +86,11 @@ def main() -> None:
             group = "double-menu"
         else:
             group = "other"
+        notes = "由 Menu.java 的 topPanel.add 提取；不是菜单栏成员"
+        if variable == "lblLimit":
+            notes += "；条件可见：showTimeControlInMenu || showPlayoutControlInMenu"
+        if variable in {"black", "white", "blackwhite", "playPass", "clearSelect", "chkShowWinrate"}:
+            notes += "；另有 toolPanel 变体挂载 L9278-9287"
         rows.append(
             {
                 "id": f"TP-{len(rows) + 1:03d}",
@@ -48,7 +99,7 @@ def main() -> None:
                 "group": group,
                 "surface": "LizzieFrame.topPanel",
                 "status": "待分类",
-                "notes": "由 Menu.java 的 topPanel.add 提取；不是菜单栏成员",
+                "notes": notes,
             }
         )
     OUT.parent.mkdir(parents=True, exist_ok=True)

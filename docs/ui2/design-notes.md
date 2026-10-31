@@ -232,12 +232,15 @@ Any menu consolidation is deferred to a separate full UI + product-logic refacto
 and component-level rewrite only.
 
 The menu bar is exactly **12 JMenu entries**. Top-bar controls are not members of the menu bar:
-46 widgets are added to `LizzieFrame.topPanel` from `Menu.java` (player stones, komi/PDA/WRN,
+43 widgets are added to `LizzieFrame.topPanel` from `Menu.java` (player stones, komi/PDA/WRN,
 select-allow/avoid, double-game controls, analysis and engine controls). Keep these two inventories
 separate:
 
 - `feature-inventory.csv` — menu/toolbar/context/status/dialog entries;
-- `top-panel-inventory.csv` — the 46 topPanel widgets, with source line evidence.
+- `top-panel-inventory.csv` — the 43 topPanel widgets, with source line evidence.
+
+Some widgets also have a `toolPanel` variant mount at `Menu.java:9278-9287`; this is the
+independent-toolbar layout, not a second topPanel. The inventory notes mark those variants.
 
 `live` (同步) is a top-level **menu**, not a topPanel widget. `shareKifu` is constructed but its
 `this.add(shareKifu)` is commented out; record it as inactive, not as a visible share menu.

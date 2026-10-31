@@ -1,15 +1,15 @@
 id,variable,source_line,group,surface,status,notes
 TP-001,byoyomiTime,6904,byoyomi-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
 TP-002,btnDoubleMenu,7569,double-menu,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-003,black,7952,players/stop,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-004,white,7953,players/stop,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-005,blackwhite,7954,players/stop,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-006,playPass,7957,players/stop,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-003,black,7952,players/stop,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员；另有 toolPanel 变体挂载 L9278-9287
+TP-004,white,7953,players/stop,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员；另有 toolPanel 变体挂载 L9278-9287
+TP-005,blackwhite,7954,players/stop,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员；另有 toolPanel 变体挂载 L9278-9287
+TP-006,playPass,7957,players/stop,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员；另有 toolPanel 变体挂载 L9278-9287
 TP-007,selectAllow,8316,select-allow-avoid,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
 TP-008,selectAllowMore,8319,select-allow-avoid,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
 TP-009,selectAvoid,8320,select-allow-avoid,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
 TP-010,selectAvoidMore,8323,select-allow-avoid,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-011,clearSelect,8324,select-allow-avoid,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-011,clearSelect,8324,select-allow-avoid,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员；另有 toolPanel 变体挂载 L9278-9287
 TP-012,doubleMenuNewGame,8443,double-game,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
 TP-013,doubleMenuStopGame,8444,double-game,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
 TP-014,doubleMenuPauseGame,8450,double-game,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
@@ -20,28 +20,25 @@ TP-018,lblCustomPda,8898,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Me
 TP-019,txtPDA,8899,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
 TP-020,customPDAMorePanel,8913,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
 TP-021,chkPDA,8919,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-022,lblGfPDAForDouble,8924,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-023,txtGfPDA,8925,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-024,chkWRN,8931,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-025,lblWRNForDouble,8936,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-026,txtWRN,8937,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-027,chkTime,8951,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-028,txtTimeLimit,8952,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-029,chkPlayOut,8955,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-030,txtPlayOutsLimit,8956,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-031,lblShowAnalyze,9116,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-032,chkAnalyzeBlack,9117,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-033,chkAnalyzeWhite,9118,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-034,lblShowCandidate,9133,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-035,chkShowBlack,9135,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-036,chkShowWhite,9136,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-037,lblMoveInfo,9139,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-038,chkShowWinrate,9142,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-039,chkShowPlayouts,9143,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-040,chkShowScore,9144,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-041,setRules,9159,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-042,tsumeGo,9163,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-043,setLzSaiParam,9167,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-044,setBoardSize,9171,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-045,saveLoad,9175,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
-TP-046,lblMoveInfo,9442,other,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-022,txtGfPDA,8925,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-023,chkWRN,8931,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-024,txtWRN,8937,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-025,lblLimit,8947,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员；条件可见：showTimeControlInMenu || showPlayoutControlInMenu
+TP-026,chkTime,8951,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-027,txtTimeLimit,8952,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-028,chkPlayOut,8955,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-029,txtPlayOutsLimit,8956,komi-pda-wrn-time,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-030,lblShowAnalyze,9116,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-031,chkAnalyzeBlack,9117,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-032,chkAnalyzeWhite,9118,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-033,lblShowCandidate,9133,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-034,chkShowBlack,9135,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-035,chkShowWhite,9136,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-036,chkShowWinrate,9142,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员；另有 toolPanel 变体挂载 L9278-9287
+TP-037,chkShowPlayouts,9143,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-038,chkShowScore,9144,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-039,setRules,9159,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-040,tsumeGo,9163,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-041,setLzSaiParam,9167,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-042,setBoardSize,9171,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-043,saveLoad,9175,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员

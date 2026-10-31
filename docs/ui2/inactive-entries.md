@@ -8,6 +8,10 @@ unless the product decision is to restore them.
 | Entry | Evidence | Note |
 |---|---|---|
 | `shareKifu` (分享) | `Menu.java:3881`; `this.add(shareKifu)` commented at `3885` | Five children are built (current SGF, batch SGF, edit, local history, search) but the menu is not added to the menu bar. Record as inactive. |
+| `lblGfPDAForDouble` | `Menu.java:8924` | Commented `topPanel.add`; the live widget is `txtGfPDA` at L8926. |
+| `lblWRNForDouble` | `Menu.java:8936` | Commented `topPanel.add`; the live widget is `txtWRN` at L8938. |
+| `lblMoveInfo` | `Menu.java:9139` | Commented `topPanel.add`; not a visible widget. |
+| `lblMoveInfo` | `Menu.java:9442` | Commented `topPanel.add`; duplicate commented residue. |
 
 ## No current menu entry
 
