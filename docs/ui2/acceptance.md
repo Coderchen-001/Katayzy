@@ -17,6 +17,9 @@
 - [ ] upstream `D:\temp\lizzieyzy` cross-check completed;
 - [ ] no missing top-level entry point;
 - [ ] `children-check.md` structural cleanup completed (hand-number/rank rows);
+- [ ] runtime mapping is closed: `437 = 340 leaves + 47 separators + 50 popups`, the five feature
+      buckets sum to 340, and every `unmatched` row has a disposition; `toolbar-mirror` entries
+      carry an Action variable or `topPanel.add` line as evidence.
 - [ ] every existing dialog and toolbar action has a row;
 - [ ] every entry-bearing audit record has a disposition (mapped, duplicate, non-entry copy/config
   key); zero unexplained differences in the filtered audit;

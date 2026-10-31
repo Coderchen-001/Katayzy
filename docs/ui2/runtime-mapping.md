@@ -1,76 +1,201 @@
-# Runtime Menu Mapping
+# Runtime Menu Mapping (generated)
 
-Purpose: turn the 119-entry omission queue into runtime evidence by matching the clean-build
-component dump against the static inventory and the parsed menu tree.
+Structural rows: **437 = 340 leaves + 47 separators + 50 popups**
 
-## Clean-build baseline
+| Bucket | Count |
+|---|---:|
+| matched | 167 |
+| toolbar-mirror | 0 |
+| engine-dynamic | 0 |
+| config-hidden | 38 |
+| unmatched | 135 |
+| separator | 47 |
+| popup-glue | 50 |
 
-From the clean `-DskipTests package` artifact (no formatter):
+Leaf total: **340**; five feature buckets sum: **340**
 
-```text
-dump lines        773
-top-level menus    12
-sub-containers     38
-JPopupMenu rows    50
-separators         47
-leaves            340
-  JFontMenuItem         162
-  JFontCheckBoxMenuItem 173
-  InfoMenuItem            1
-  JFontLabel              2
-  JFontButton             2
-```
+## Unmapped inventory rows
 
-`350` is the leaf count before excluding the five `InfoMenuItem`/label/button rows; it is not the
-same unit as the 213 semantic inventory rows. Do not equate them.
+- `M-FILE-003`
+- `M-VIEW-001`
+- `M-VIEW-002`
+- `M-VIEW-006`
+- `M-VIEW-015`
+- `M-VIEW-017`
+- `M-VIEW-018`
+- `M-VIEW-019`
+- `M-GAME-001`
+- `M-GAME-002`
+- `M-GAME-006`
+- `M-GAME-008`
+- `M-ANA-001`
+- `M-SYNC-003`
+- `M-SET-002`
+- `M-SET-003`
+- `M-ENG-002`
+- `M-GAME-013`
+- `M-HELP-005`
+- `M-VIEW-047`
+- `M-GAME-014A`
+- `M-GAME-014B`
+- `M-GAME-014C`
+- `M-VIEW-049`
+- `M-VIEW-050`
+- `M-VIEW-053`
+- `M-VIEW-060`
+- `M-VIEW-062`
+- `M-VIEW-063`
+- `M-VIEW-071`
+- `M-VIEW-072`
+- `M-VIEW-073`
+- `M-VIEW-074`
+- `M-VIEW-087`
+- `M-FILE-022`
+- `M-SET-005`
+- `M-SET-013`
+- `M-TOP-001`
+- `M-TOP-003`
+- `M-TOP-004`
+- `M-TOP-005`
+- `M-TOP-006`
+- `M-TOP-008`
+- `M-ENG-011`
+- `M-TOP-010`
 
-## Buckets
+## Unmatched runtime rows
 
-Every runtime row must land in exactly one bucket:
-
-| Bucket | Meaning |
-|---|---|
-| `matched` | maps to one feature-inventory row by stable key |
-| `separator` | visual glue; not a feature, but counted |
-| `popup-glue` | `JPopupMenu` row itself; not a feature |
-| `toolbar-mirror` | `工具栏/显示` mirror of a command already in the toolbar bucket |
-| `engine-dynamic` | engine menu child whose title/count changes with engine state |
-| `config-hidden` | present in the tree but hidden by the config profile |
-| `unmatched` | no current inventory row; must become an omission record |
-
-Do not silently drop `InfoMenuItem`, `JFontLabel` or `JFontButton`; put them in `unmatched` until
-mapped.
-
-## Matching key
-
-Use:
-
-```text
-(parent stable path, component class, normalized text)
-```
-
-`#N` is still a sibling ordinal and shifts when a separator is inserted. For diffing, compare the
-multiset of stable keys, not raw paths. Use text/path only to disambiguate duplicate keys.
-
-## Inventory reconciliation
-
-- `显示` has many toolbar mirrors; map them to `entry_type=toolbar`/mirror rows, not to menu rows.
-- The engine menu title is “未加载引擎” in the no-engine baseline; map by top-level position, not
-  title.
-- `帮助` has one real leaf in this baseline; the no-entry list should remain absent.
-- Separators and popup rows are excluded from the feature totals but remain asserted structurally.
-
-The omission queue is closed only when every runtime `unmatched` row has either a new inventory row
-or a documented toolbar/hidden/dynamic reason, and every inventory entry is either matched or
-explicitly exempted.
-
-## fmt policy
-
-`pom.xml` no longer binds `fmt:format` to `package` (execution phase `none`). A clean build must not
-rewrite source. Formatting is an explicit, isolated commit:
-
-```bash
-mvn fmt:format
-```
-
-Do not run a formatter as part of baseline generation.
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='超过宽度依然使用滚动条(超过部分将不显示)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#8`  text='独立棋局控制面板'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontMenuItem`  text='可视化面板设置'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#10`  text='浮动主棋盘(保留原棋盘)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#13`  text='独立选点列表(U)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='独立显示'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='合并在菜单栏上'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2`  text='不显示'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#3`  text='自动换行(仅独立显示时)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='独立/合并工具栏按钮'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='基本按钮(仅独立显示时)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2`  text='落子工具'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#3`  text='强制计算工具'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#4`  text='对局控制'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#5`  text='单步分析限制(时间)(秒)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#6`  text='单步分析限制(计算量)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#7`  text='选点分析控制'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#8`  text='选点显示控制'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#9`  text='选点信息控制'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#10`  text='规则'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#11`  text='死活'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#12`  text='参数'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#13`  text='棋盘'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#14`  text='存档'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#1`  text='不显示'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='使用详细工具栏'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='显示拓展/隐藏详细工具栏按钮'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenuItem`  text='设置模块顺序'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#1`  text='Kata评估'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#9`  text='选点列表'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#10`  text='刷新'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#11`  text='继续分析'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#16`  text='删除'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#17`  text='落子评价'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem`  text='不显示'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#1`  text='最后1手'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#4`  text='全部'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem`  text='不显示'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#1`  text='显示最后一手'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#2`  text='显示最后多手:3'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#3`  text='显示所有'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#4`  text='原棋盘不显示评价标记(棋盘同步时)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='智能平衡（推荐）'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='仅目差'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2`  text='仅胜率'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem#3`  text='综合（更敏感）'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem`  text='胜率'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#1`  text='计算量'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#2`  text='目数'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#3`  text='显示目数为差值'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontMenuItem`  text='自定义顺序'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#4`  text='延迟显示'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#5`  text='显示选点右上方角标'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#6`  text='候选点最高值红色高亮'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#7`  text='轮白下字体显示为白色'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#8`  text='总是显示黑胜率/目数'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontMenuItem#1`  text='设置选点变化图回放间隔'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem#1`  text='仅显示圈'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem#2`  text='圈+胜率/目数(此手非选点或选点计算量低时)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontMenuItem`  text='设置低计算量阈值(当前:30)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#7/popup/JFontCheckBoxMenuItem#1`  text='经典配色（原版 lizzieyzy）'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#2`  text='记录选点信息到评论中'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#3`  text='棋盘下方显示黑白名字'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#4`  text='显示评论/问题手面板顶部控制条'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#6`  text='显示清空棋盘提示对话框'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#7`  text='显示覆盖文件提示对话框'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='胜率'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='目数'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2`  text='全部'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenuItem`  text='设置初始目数差最大值'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='第一感热点图'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='计算后热点图'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2`  text='不显示热点图'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontCheckBoxMenuItem`  text='变化图'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontCheckBoxMenuItem#1`  text='仅棋盘棋子'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='计算贴目后目数差'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='盘面目数差'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#8`  text='以方块透明度表示占有率(不显示在活子上)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2`  text='以方块透明度表示占有率(不显示在活子上)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#11`  text='按选点显示评估(最低版本1.11.0)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#12`  text='使用快捷键(大键盘点)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#12/popup/JFontMenuItem`  text='默认模式(Alt+1)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#13/popup/JFontMenuItem#3`  text='额外浮动棋盘'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2`  text=''
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2/JFontLabel`  text='自定义布局1(Alt+8)'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3`  text=''
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3/JFontLabel`  text='自定义布局2(Alt+9)'
+- `ModelJMenuBar/JFontMenu#2/popup/JFontMenu/popup/JFontMenuItem`  text='人机对局(Genmove模式 N)'
+- `ModelJMenuBar/JFontMenu#2/popup/JFontMenu/popup/InfoMenuItem`  text='人机对局(分析模式 Alt+N)'
+- `ModelJMenuBar/JFontMenu#2/popup/JFontMenu#1/popup/JFontMenuItem`  text='续弈[AI执黑](Genmove模式)(回车)'
+- `ModelJMenuBar/JFontMenu#2/popup/JFontMenu#1/popup/JFontMenuItem#1`  text='续弈[AI执白](Genmove模式)(回车)'
+- `ModelJMenuBar/JFontMenu#2/popup/JFontMenu#1/popup/JFontMenuItem#3`  text='续弈[AI执白](分析模式)(Alt+回车)'
+- `ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#1`  text='终止人机对局(空格)'
+- `ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#4`  text='让AI落子最佳一手(逗号)'
+- `ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#6`  text='折叠已落棋子(不能撤销)'
+- `ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#7`  text='自动补完征子'
+- `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem`  text='开始/停止 分析(空格)'
+- `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#3`  text='抓取死活题(Shift+T)'
+- `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#5`  text='整盘精析（推荐）'
+- `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#10`  text='整盘速览（闪电）'
+- `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#11`  text='局部精析'
+- `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#12`  text='全部分支精析'
+- `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#13`  text='精析设置'
+- `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#16`  text='形势判断( / 或小键盘点)'
+- `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#19`  text='清除分析信息(全局)'
+- `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#20`  text='清除分析信息(此手)'
+- `ModelJMenuBar/JFontMenu#4/popup/JFontCheckBoxMenuItem#2`  text='启用点击棋子回看'
+- `ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#12`  text='撤销删除(可在右键菜单中操作)'
+- `ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#13`  text='恢复删除(可在右键菜单中操作)'
+- `ModelJMenuBar/JFontMenu#5/popup/JFontMenuItem#1`  text='打开弈客网页版'
+- `ModelJMenuBar/JFontMenu#5/popup/JFontMenuItem#3`  text='野狐棋谱(输入野狐昵称获取)'
+- `ModelJMenuBar/JFontMenu#5/popup/JFontMenu/popup/JFontMenuItem#1`  text='复制访问地址'
+- `ModelJMenuBar/JFontMenu#5/popup/JFontCheckBoxMenuItem`  text='允许弈客直播/大厅进入对局室'
+- `ModelJMenuBar/JFontMenu#5/popup/JFontCheckBoxMenuItem#1`  text='有新的一手时总是跳转到最新一手'
+- `ModelJMenuBar/JFontMenu#5/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem`  text='总是保持棋盘一致(回退时可能破坏历史手顺)'
+- `ModelJMenuBar/JFontMenu#5/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#1`  text='滚轮控制变化图时自动获取焦点'
+- `ModelJMenuBar/JFontMenu#8/popup/JFontMenuItem#3`  text='初始化设置'
+- `ModelJMenuBar/JFontMenu#8/popup/JFontMenuItem#5`  text='主题'
+- `ModelJMenuBar/JFontMenu#8/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#3`  text='其他'
+- `ModelJMenuBar/JFontMenu#8/popup/JFontMenu#2/popup/JFontCheckBoxMenuItem`  text='系统默认'
+- `ModelJMenuBar/JFontMenu#8/popup/JFontMenu#2/popup/JFontCheckBoxMenuItem#1`  text='Java默认'
+- `ModelJMenuBar/JFontMenu#8/popup/JFontCheckBoxMenuItem`  text='播放落子声'
+- `ModelJMenuBar/JFontMenu#8/popup/JFontCheckBoxMenuItem#1`  text='同步时不播放落子声'
+- `ModelJMenuBar/JFontMenu#8/popup/JFontCheckBoxMenuItem#2`  text='显示跑谱贡献菜单'
+- `ModelJMenuBar/JFontMenu#9/popup/JFontMenuItem`  text='可视化KataGo分布式训练'
+- `ModelJMenuBar/JFontMenu#9/popup/JFontMenuItem#1`  text='KataGo训练设置'
+- `ModelJMenuBar/JFontMenu#9/popup/JFontMenuItem#2`  text='KataGo官方网站'
+- `ModelJMenuBar/JFontMenu#10/popup/JFontMenuItem`  text='[1] v1.18.2 cuDNN9.24 b11c768 261030'
+- `ModelJMenuBar/JFontMenu#10/popup/JFontMenuItem#1`  text='[2] v1.18.2 cuDNN9.24 b10c512 261030'
+- `ModelJMenuBar/JFontMenu#10/popup/JFontMenuItem#21`  text='重启当前引擎'
+- `ModelJMenuBar/JFontMenu#10/popup/JFontMenu/popup/JFontMenuItem`  text='关闭当前引擎'
+- `ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem`  text='[1] v1.18.2 cuDNN9.24 b11c768 261030'
+- `ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem#1`  text='[2] v1.18.2 cuDNN9.24 b10c512 261030'
+- `ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem#21`  text='重启当前引擎'
+- `ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem#22`  text='关闭当前引擎'
