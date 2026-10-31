@@ -23,8 +23,8 @@ M-VIEW-010,menu,显示 > 外观主题 > 外壳配色 > 暖灰,暖灰,,setShellTh
 M-VIEW-011,menu,显示 > 外观主题 > 外壳配色 > 墨青,墨青,,setShellTheme(SLATE),Menu.java,enabled:always,checked:appShellTheme==SLATE,no,—,Windows/通用,未接,,,katayzy-new
 M-VIEW-012,menu,显示 > 外观主题 > 自定义棋盘背景,自定义棋盘背景,,chooseCustomBoard,Menu.java,enabled:always,,no,文件选择器,Windows/通用,未接,,,katayzy-new
 M-VIEW-013,menu,显示 > 外观主题 > 清除自定义棋盘背景,清除自定义棋盘背景,,clearCustomBoard,Menu.java,enabled:有自定义背景,,no,—,Windows/通用,未接,,,katayzy-new
-M-VIEW-014,menu,显示 > 外观主题 > 苹果风格界面,苹果风格界面,,toggleAppleStyle,Menu.java,enabled:always,checked:isAppleStyle,no,—,Windows/通用,废弃,自研 Apple 风格 UI 与 FlatLaf 路线冲突，废弃；由 FlatLaf 主题替代,,katayzy-new
-M-VIEW-015,menu,显示 > 外观主题 > 经典配色,经典配色,,toggleClassicColors,Menu.java,enabled:always,checked:useMorandiColors,no,—,Windows/通用,废弃,自研经典配色路径与 FlatLaf 冲突，废弃；保留棋盘/外壳预设即可,,katayzy-new
+M-VIEW-014,menu,显示 > 外观主题 > 苹果风格界面,苹果风格界面,,toggleAppleStyle,Menu.java,enabled:always,checked:isAppleStyle,no,—,Windows/通用,未接,UI2 不移植自绘渲染，但菜单入口暂保留，避免一二级菜单变更；完全删除需另做产品决策,,katayzy-new
+M-VIEW-015,menu,显示 > 外观主题 > 经典配色,经典配色,,toggleClassicColors,Menu.java,enabled:always,checked:useMorandiColors,no,—,Windows/通用,未接,UI2 不移植自绘配色，但菜单入口暂保留，避免一二级菜单变更；完全删除需另做产品决策,,katayzy-new
 M-VIEW-016,menu,显示 > 手数显示,手数显示,M,moveNumberMenu,Menu.java,enabled:always,,no,—,Windows/通用,未接,子菜单,,both
 M-VIEW-017,menu,显示 > 落子评价标记,落子评价标记,Alt+M,moveRankMenu,Menu.java,enabled:engineLoaded,,yes,—,Windows/通用,未接,子菜单,,both
 M-VIEW-018,menu,显示 > 选点,选点,,suggestionsMenu,Menu.java,enabled:engineLoaded,,yes,—,Windows/通用,未接,子菜单,,both

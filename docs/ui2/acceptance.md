@@ -50,6 +50,7 @@ represented here.
 - [ ] embedded `BoardRenderer` renders correctly at 100% and HiDPI;
 - [ ] existing board input (click, drag, keyboard) still works;
 - [ ] top bar/menu bar uses FlatLaf;
+- [ ] menu hierarchy, labels, shortcuts and entry points are unchanged (IA freeze);
 - [ ] bottom bar uses FlatLaf and the normal/primary/danger role model;
 - [ ] left analysis column placeholder renders;
 - [ ] right variation column placeholder renders;

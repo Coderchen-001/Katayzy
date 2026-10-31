@@ -215,17 +215,35 @@ after UI2 is stable.
 
 ## 11. Product decisions
 
-### Retire self-drawn UI skins
+### Information architecture is frozen
+
+The existing menu hierarchy is intentional. The current feature inventory is an audit, not a
+redesign proposal.
+
+During UI2:
+
+- do not move entries between first-level and second-level menus;
+- do not remove menu entries or dialog entries;
+- do not “downgrade to advanced” features;
+- do not change shortcut ownership;
+- preserve all existing entry points and their labels.
+
+Any menu consolidation is deferred to a separate full UI + product-logic refactor. UI2 is a visual
+and component-level rewrite only.
+
+### Retire self-drawn UI skins, without changing the menu
 
 `Apple 风格界面` and `经典配色` are self-maintained Look-and-Feel paths. They conflict with the
-FlatLaf migration and do not provide enough value to keep maintaining them.
+FlatLaf migration and are not ported.
 
-Decision:
+However, the corresponding menu entries stay during UI2 to avoid an information-architecture
+change. They can be mapped to a FlatLaf equivalent, disabled with an explanation, or kept as a
+compatibility path until the full refactor. Deleting the entries requires an explicit product
+decision after UI2 acceptance.
 
-- do **not** port `AppleStyleSupport` or `MorandiPalette` look-and-feel code to UI2;
-- remove the `苹果风格界面` and `经典配色` menu entries;
+- do **not** port `AppleStyleSupport` or `MorandiPalette` look-and-feel rendering to UI2;
 - use FlatLaf Light/Dark/IntelliJ themes plus the `AppShellTheme` presets;
-- keep only app-specific composition: board themes, shell presets, analysis layout, strength report,
+- keep app-specific composition: board themes, shell presets, analysis layout, strength report,
   theme previews.
 
 Mature references (Windows 11, macOS, IntelliJ, VS Code) provide more visual range than the old
