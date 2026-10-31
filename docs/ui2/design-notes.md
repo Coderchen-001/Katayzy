@@ -164,6 +164,10 @@ Keep the distinction between an **Action implementation** and an **entry point**
 
 So “deduplicate by action” means one implementation, not one UI row.
 
+`origin` column: `both` for shared entries, `katayzy-new` for fork-only features, and
+`upstream-741c301` for upstream entries added during the cross-check. New-only entries need a
+product decision; they are not silently dropped during the merge.
+
 Dynamic labels: the `label` column stores the baseline label. If the label changes with state,
 record the rule in `notes` and the visibility condition in `state_matrix`. The second-engine menu
 is the first example: visible only in double-engine mode, and its title becomes `[n] engine-name`
