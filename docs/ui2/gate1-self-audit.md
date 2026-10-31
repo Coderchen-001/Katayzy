@@ -27,15 +27,16 @@ A mechanical six-bucket entry-closure run after adding the missing language/font
 container reverse-check (`audit-closure.md`, scope 552 records):
 
 ```text
-mapped       47
-container    70
+mapped      110
+container    12
+dynamic      11
 non-entry   241
 comment      13
-omission    181
+omission    165
 ```
 
 `container` records are only accepted when their label matches a feature-inventory container row;
-otherwise they fall into `omission`. The 181 omission records are a review queue, not 181 confirmed
+all 12 container path checks pass. The 165 omission records are a review queue, not 165 confirmed
 missing features: exact-label matching misses renamed toolbar entries, top-level menu containers and
 old copy. Each must be mapped to an existing feature ID or added as a row.
 

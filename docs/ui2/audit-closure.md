@@ -7,10 +7,32 @@ Buckets: mapped / container / dynamic / non-entry / comment / omission. Every en
 | Disposition | Count |
 |---|---:|
 | comment | 13 |
-| container | 70 |
-| mapped | 47 |
+| container | 12 |
+| dynamic | 11 |
+| mapped | 110 |
 | non-entry | 241 |
-| omission | 181 |
+| omission | 165 |
+
+## Container path check
+
+Container rows checked: 12; path failures: 0.
+
+
+## Dynamic entries
+
+| Source | Line | Key/label |
+|---|---:|---|
+| Menu.java | 3030 | `Menu.breakEngineGame` |
+| Menu.java | 9890 | `Menu.editProgram` |
+| Menu.java | 5058 | `Menu.engineConfig` |
+| Menu.java | 2924 | `Menu.newEngineGame` |
+| Menu.java | 7479 | `Menu.newEngineGame` |
+| Menu.java | 8351 | `Menu.newEngineGame` |
+| RightClickMenu.java | 254 | `RightClickMenu.clearAllTracked` |
+| RightClickMenu.java | 227 | `RightClickMenu.clearPriority` |
+| RightClickMenu.java | 223 | `RightClickMenu.findMove` |
+| RightClickMenu.java | 225 | `RightClickMenu.priority` |
+| RightClickMenu.java | 252 | `RightClickMenu.untrackPoint` |
 
 ## Omission entry records
 
@@ -38,7 +60,6 @@ Buckets: mapped / container / dynamic / non-entry / comment / omission. Every en
 | Menu.java | 531 | `Menu.boardStyleChineseClassic` |
 | Menu.java | 529 | `Menu.boardStyleJapanese` |
 | Menu.java | 4292 | `Menu.bottomToolBar` |
-| Menu.java | 3030 | `Menu.breakEngineGame` |
 | Menu.java | 3019 | `Menu.breakGame` |
 | Menu.java | 3164 | `Menu.captureTsumeGo` |
 | Menu.java | 691 | `Menu.classicColorTheme` |
@@ -55,8 +76,6 @@ Buckets: mapped / container / dynamic / non-entry / comment / omission. Every en
 | Menu.java | 3723 | `Menu.delete` |
 | Menu.java | 3733 | `Menu.deleteBranch` |
 | Menu.java | 3391 | `Menu.edit` |
-| Menu.java | 9890 | `Menu.editProgram` |
-| Menu.java | 5058 | `Menu.engineConfig` |
 | Menu.java | 3309 | `Menu.estimateStones` |
 | Menu.java | 1826 | `Menu.extraMode1` |
 | Menu.java | 1839 | `Menu.extraMode2` |
@@ -99,13 +118,9 @@ Buckets: mapped / container / dynamic / non-entry / comment / omission. Every en
 | Menu.java | 482 | `Menu.mainBoardPos` |
 | Menu.java | 1005 | `Menu.mainPanelSettings` |
 | Menu.java | 594 | `Menu.makeAutoPlay` |
-| Menu.java | 1167 | `Menu.maxTreeWidth` |
 | Menu.java | 1801 | `Menu.minView` |
 | Menu.java | 577 | `Menu.moveMenu` |
 | Menu.java | 581 | `Menu.moveRankMenu` |
-| Menu.java | 2924 | `Menu.newEngineGame` |
-| Menu.java | 7479 | `Menu.newEngineGame` |
-| Menu.java | 8351 | `Menu.newEngineGame` |
 | Menu.java | 590 | `Menu.nextMoveHint` |
 | Menu.java | 629 | `Menu.nextMoveHintInformation` |
 | Menu.java | 605 | `Menu.nextMoveHintNone` |
@@ -123,11 +138,9 @@ Buckets: mapped / container / dynamic / non-entry / comment / omission. Every en
 | Menu.java | 3278 | `Menu.playerStrengthEstimate` |
 | Menu.java | 5044 | `Menu.quickLinks` |
 | Menu.java | 8573 | `Menu.rankMenu.evaluationMode` |
-| Menu.java | 4032 | `Menu.readBoard` |
 | Menu.java | 4137 | `Menu.readBoardSettings` |
 | Menu.java | 3754 | `Menu.redoDelete` |
 | Menu.java | 499 | `Menu.rightMove` |
-| Menu.java | 268 | `Menu.saveBranchRaw` |
 | Menu.java | 2994 | `Menu.scoreGame` |
 | Menu.java | 1051 | `Menu.scoreLead` |
 | Menu.java | 3669 | `Menu.setAsMain` |
@@ -181,13 +194,6 @@ Buckets: mapped / container / dynamic / non-entry / comment / omission. Every en
 | Menu.java | 3973 | `Menu.yikeLive` |
 | BottomToolbar.java | 1028 | `Menu.yikeLiveWeb` |
 | Menu.java | 3985 | `Menu.yikeLiveWeb` |
-| RightClickMenu.java | 254 | `RightClickMenu.clearAllTracked` |
-| RightClickMenu.java | 227 | `RightClickMenu.clearPriority` |
-| RightClickMenu.java | 223 | `RightClickMenu.findMove` |
-| RightClickMenu.java | 265 | `RightClickMenu.previousMove` |
-| RightClickMenu2.java | 104 | `RightClickMenu.previousMove` |
-| RightClickMenu.java | 225 | `RightClickMenu.priority` |
-| RightClickMenu.java | 252 | `RightClickMenu.untrackPoint` |
 | Menu.java | 5201 | `menu.frameFontSizeOther` |
 | Menu.java | 5212 | `menu.frameLooks` |
 | Menu.java | 5229 | `menu.frameLooksJava` |
