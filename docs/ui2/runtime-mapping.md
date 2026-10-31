@@ -4,11 +4,11 @@ Structural rows: **437 = 340 leaves + 47 separators + 50 popups**
 
 | Bucket | Count |
 |---|---:|
-| matched | 186 |
+| matched | 198 |
 | toolbar-mirror | 0 |
 | engine-dynamic | 48 |
 | config-hidden | 0 |
-| unmatched | 106 |
+| unmatched | 94 |
 | separator | 47 |
 | popup-glue | 50 |
 
@@ -16,14 +16,20 @@ Leaf total: **340**; five feature buckets sum: **340**
 
 ## Unmapped inventory rows
 
-- `M-SET-002`
 - `M-SET-003`
 - `M-GAME-014C`
-- `M-VIEW-049`
-- `M-VIEW-053`
-- `M-VIEW-063`
-- `M-VIEW-071`
 - `M-VIEW-087`
+
+## Exempt but unmatched inventory rows
+
+These are not silently dropped: they are exempt from the path gate but must still be
+reviewed for runtime coverage.
+
+- `M-ENG-004`
+- `M-ENG-007`
+- `M-VIEW-063`
+- `M-ENG-009`
+- `M-ENG-010`
 
 ## Unmatched runtime rows
 
@@ -60,25 +66,13 @@ Leaf total: **340**; five feature buckets sum: **340**
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#11`  text='继续分析'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#16`  text='删除'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#17`  text='落子评价'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem`  text='不显示'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#1`  text='显示最后一手'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#2`  text='显示最后多手:3'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#3`  text='显示所有'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#4`  text='原棋盘不显示评价标记(棋盘同步时)'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='智能平衡（推荐）'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='仅目差'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2`  text='仅胜率'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem`  text='胜率'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#1`  text='计算量'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#2`  text='目数'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#3`  text='显示目数为差值'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontMenuItem`  text='自定义顺序'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#4`  text='延迟显示'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#5`  text='显示选点右上方角标'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#6`  text='候选点最高值红色高亮'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#7`  text='轮白下字体显示为白色'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#8`  text='总是显示黑胜率/目数'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontMenuItem#1`  text='设置选点变化图回放间隔'
+- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem`  text='无'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem#1`  text='仅显示圈'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem#2`  text='圈+胜率/目数(此手非选点或选点计算量低时)'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontMenuItem`  text='设置低计算量阈值(当前:30)'

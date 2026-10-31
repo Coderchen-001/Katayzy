@@ -86,7 +86,7 @@ M-SYNC-007,menu,同步 > Web 旁观 > 启动 Web 旁观,启动 Web 旁观,,toggl
 M-HELP-001,menu,帮助 > 使用说明,使用说明,,openManual,Menu.java,enabled:always,,no,浏览器/PDF,Windows/通用,no-entry,当前源码无菜单入口/上游遗留；IA 冻结下保留记录但不计入当前可见入口,,both,,
 M-HELP-002,menu,帮助 > 检查更新,检查更新,,checkVersion,Menu.java,enabled:always,,no,对话框,Windows/通用,no-entry,当前源码无菜单入口/上游遗留；IA 冻结下保留记录但不计入当前可见入口,,both,,
 M-SET-001,menu,设置 > 综合设置,综合设置,Shift+X,openConfig,Menu.java,enabled:always,,no,ConfigDialog2,Windows/通用,未接,后续拆 SettingsDialog,,both,,
-M-SET-002,menu,设置 > 主题外观,主题外观,,openThemeSettings,Menu.java,enabled:always,,no,ConfigDialog2,Windows/通用,未接,,,both,,
+M-SET-002,menu,设置 > 界面外观,界面外观,,openThemeSettings,Menu.java,enabled:always,,no,ConfigDialog2,Windows/通用,未接,,,both,,
 M-SET-003,menu,设置 > 引擎设置,引擎设置,,openEngineSettings,Menu.java,enabled:always,,no,ConfigDialog2/引擎对话框,Windows/通用,未接,,,both,,
 M-SET-004,menu,设置 > 快捷键,快捷键,,openShortcutSettings,Menu.java,enabled:always,,no,ConfigDialog2,Windows/通用,no-entry,当前源码无菜单入口/上游遗留；IA 冻结下保留记录但不计入当前可见入口,,both,,
 T-BOT-001,toolbar,底栏 > 继续分析/暂停分析,继续分析/暂停分析,空格,togglePonder,BottomToolbar.java,enabled:engineLoaded,checked:isPondering,yes,—,Windows/通用,未接,主操作,,both,,
@@ -168,29 +168,29 @@ M-GAME-014A,menu,棋局 > 人机续弈 > 续弈[AI执黑],续弈[AI执黑](Genmo
 M-GAME-014B,menu,棋局 > 人机续弈 > 续弈[AI执白],续弈[AI执白](Genmove模式),Enter,continueGenmoveGameAsBlack,Menu.java,enabled:engineLoaded,,yes,—,Windows/通用,未接,资源键 Menu.continueGenmoveGameAsBlack,,both,,
 M-GAME-014C,menu,棋局 > 人机续弈 > 续弈[AI执黑]（分析模式）,续弈[AI执黑](分析模式),,continueAnalyzeGameAsWhite,Menu.java,enabled:engineLoaded,,yes,—,Windows/通用,未接,资源键 Menu.continueAnalyzeGameAsWhite,,both,,
 M-GAME-014D,menu,棋局 > 人机续弈 > 续弈[AI执黑](分析模式),续弈[AI执黑](分析模式)(Alt+回车),,continueAnalyzeGameAsBlack,Menu.java,enabled:engineLoaded,,yes,—,Windows/通用,未接,资源键 Menu.continueAnalyzeGameAsBlack,,both,,
-M-VIEW-049,menu,显示 > 手数显示 > 不显示,不显示,,setMoveNumber(0),Menu.java,enabled:always,moveNumber==0,no,—,Windows/通用,未接,资源键 Menu.noMoveNum,,both,,
+M-VIEW-049,menu,显示 > 手数(M) > 不显示,不显示,,setMoveNumber(0),Menu.java,enabled:always,moveNumber==0,no,—,Windows/通用,未接,资源键 Menu.noMoveNum,,both,,
 M-VIEW-050,menu,显示 > 手数(M) > 最后1手,最后1手,,setMoveNumber(1),Menu.java,enabled:always,moveNumber==1,no,—,Windows/通用,未接,资源键 Menu.lastOneMoveNum,,both,,
 M-VIEW-051,menu,显示 > 手数(M) > 最后5手,最后5手,,setMoveNumber(5),Menu.java,enabled:always,moveNumber==5,no,—,Windows/通用,未接,资源键 Menu.lastFiveMoveNum,,both,,
 M-VIEW-052,menu,显示 > 手数(M) > 最后10手,最后10手,,setMoveNumber(10),Menu.java,enabled:always,moveNumber==10,no,—,Windows/通用,未接,资源键 Menu.lastTenMoveNum,,both,,
-M-VIEW-053,menu,显示 > 手数显示 > 全部,全部,,setMoveNumber(-1),Menu.java,enabled:always,moveNumber==-1,no,—,Windows/通用,未接,资源键 Menu.allMoveNum,,both,,
-M-VIEW-054,menu,显示 > 手数显示 > 自定义,自定义,,openMoveNumberDialog,Menu.java,enabled:always,,no,—,Windows/通用,未接,资源键 Menu.anyMoveNum；MovenumberDialog,,both,,
+M-VIEW-053,menu,显示 > 手数(M) > 全部,全部,,setMoveNumber(-1),Menu.java,enabled:always,moveNumber==-1,no,—,Windows/通用,未接,资源键 Menu.allMoveNum,,both,,
+M-VIEW-054,menu,显示 > 手数(M) > 自定义,自定义,,openMoveNumberDialog,Menu.java,enabled:always,,no,—,Windows/通用,未接,资源键 Menu.anyMoveNum；MovenumberDialog,,both,,
 M-VIEW-055,menu,显示 > 手数显示 > 总是从1开始显示,总是从1开始显示,,toggleMoveNumberFromOne,Menu.java,enabled:always,showMoveNumberFromOne,no,—,Windows/通用,未接,资源键 Menu.moveNumberAlwaysFromOne,,both,,
 M-VIEW-056,menu,显示 > 手数显示 > 分支内从1开始显示,分支内从1开始显示,,setBranchMoveNumberFromOne,Menu.java,enabled:always,newMoveNumberInBranch,no,—,Windows/通用,未接,资源键 Menu.moveNumberInBracnhFromOne,,both,,
 M-VIEW-057,menu,显示 > 手数显示 > 分支内继续总手数,分支内继续总手数,,setBranchMoveNumberContinue,Menu.java,enabled:always,!newMoveNumberInBranch,no,—,Windows/通用,未接,资源键 Menu.moveNumberInBracnhFromOneContinue,,both,,
 M-VIEW-058,menu,显示 > 手数显示 > 分支内总是显示所有手数,分支内总是显示所有手数,,toggleShowMoveAllInBranch,Menu.java,enabled:always,showMoveAllInBranch,no,—,Windows/通用,未接,资源键 Menu.showAllMoveNumberInBranch,,both,,
 M-VIEW-059,menu,显示 > 手数显示 > 显示分支面板上的手数,显示分支面板上的手数,,toggleShowVarMove,Menu.java,enabled:always,showVarMove,no,—,Windows/通用,未接,资源键 Menu.showMoveNumberOnVariationPane,,both,,
-M-VIEW-060,menu,显示 > 手数(M) > 不显示,不显示,,setRankNone,Menu.java,enabled:always,rankMode==NONE,no,—,Windows/通用,未接,资源键 Menu.rankMenu.rankNoneMove,,both,,
-M-VIEW-061,menu,显示 > 落子评价标记 > 最后1手,最后1手,,rankLastMove,Menu.java,enabled:always,rankMode==LAST,no,—,Windows/通用,未接,资源键 Menu.rankMenu.rankLastMove；落子评价子菜单，不是手数显示,,both,,helper-method subtree (addRankMarkMenu L8472)
-M-VIEW-062,menu,显示 > 手数(M) > 全部,全部,,setRankAllMove,Menu.java,enabled:always,rankMode==ALL,no,—,Windows/通用,未接,资源键 Menu.rankMenu.rankAllMove,,both,,
-M-VIEW-063,menu,显示 > 手数(M) > 自定义手数,自定义手数,,setRankCustomMoves,Menu.java,enabled:always,rankMode==CUSTOM,no,—,Windows/通用,未接,资源键 Menu.rankMenu.setCustomMoves,,both,,
-M-VIEW-064,menu,显示 > 落子评价标记 > 评价方式 > 自动,自动,,rankModeAuto,Menu.java,enabled:always,rankBasis==AUTO,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.auto；addRankMarkMenu L8472 构建,,both,,helper-method subtree (addRankMarkMenu L8472)
-M-VIEW-065,menu,显示 > 落子评价标记 > 评价方式 > 目数,目数,,rankModeScore,Menu.java,enabled:always,rankBasis==SCORE,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.score；注意是“目数”不是“目差”,,both,,helper-method subtree (addRankMarkMenu L8472)
-M-VIEW-066,menu,显示 > 落子评价标记 > 评价方式 > 胜率,胜率,,rankModeWinrate,Menu.java,enabled:always,rankBasis==WINRATE,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.winrate,,both,,helper-method subtree (addRankMarkMenu L8472)
-M-VIEW-067,menu,显示 > 落子评价标记 > 评价方式 > 综合,综合,,rankModeCombined,Menu.java,enabled:always,rankBasis==COMBINED,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.combined,,both,,helper-method subtree (addRankMarkMenu L8472)
-M-VIEW-068,menu,显示 > 落子评价标记 > 在原位置显示,在原位置显示,,showMoveRankInOrigin,Menu.java,enabled:always,showMoveRankInOrigin,no,—,Windows/通用,未接,资源键 Menu.showMoveRankInOrigin；真实子项，撤销 no-entry,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-060,menu,显示 > 落子评价标记 > 不显示,不显示,,rankNoneMove,Menu.java,enabled:always,rankMode==NONE,no,—,Windows/通用,未接,资源键 Menu.rankMenu.rankNoneMove,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-061,menu,显示 > 落子评价标记 > 显示最后一手,显示最后一手,,rankLastMove,Menu.java,enabled:always,rankMode==LAST,no,—,Windows/通用,未接,资源键 Menu.rankMenu.rankLastMove；落子评价子菜单，不是手数显示,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-062,menu,显示 > 落子评价标记 > 显示所有,显示所有,,setRankAllMove,Menu.java,enabled:always,rankMode==ALL,no,—,Windows/通用,未接,资源键 Menu.rankMenu.rankAllMove,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-063,menu,显示 > 落子评价标记 > 显示最后多手:,显示最后多手:,,setRankCustomMoves,Menu.java,enabled:always,rankMode==CUSTOM,no,—,Windows/通用,未接,资源键 Menu.rankMenu.setCustomMoves,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-064,menu,显示 > 落子评价标记 > 判定依据 > 智能平衡（推荐）,智能平衡（推荐）,,rankModeAuto,Menu.java,enabled:always,rankBasis==AUTO,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.auto；addRankMarkMenu L8472 构建,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-065,menu,显示 > 落子评价标记 > 判定依据 > 仅目差,仅目差,,rankModeScore,Menu.java,enabled:always,rankBasis==SCORE,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.score；注意是“目数”不是“目差”,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-066,menu,显示 > 落子评价标记 > 判定依据 > 仅胜率,仅胜率,,rankModeWinrate,Menu.java,enabled:always,rankBasis==WINRATE,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.winrate,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-067,menu,显示 > 落子评价标记 > 判定依据 > 综合（更敏感）,综合（更敏感）,,rankModeCombined,Menu.java,enabled:always,rankBasis==COMBINED,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.combined,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-068,menu,显示 > 落子评价标记 > 原棋盘不显示评价标记(棋盘同步时),原棋盘不显示评价标记(棋盘同步时),,showMoveRankInOrigin,Menu.java,enabled:always,showMoveRankInOrigin,no,—,Windows/通用,未接,资源键 Menu.showMoveRankInOrigin；真实子项，撤销 no-entry,,both,,helper-method subtree (addRankMarkMenu L8472)
 M-VIEW-069,menu,显示 > 选点 > 鼠标悬停显示变化图,鼠标悬停显示变化图,,toggleSuggestionVariations,Menu.java,enabled:always,showSuggestionVariations,no,—,Windows/通用,未接,资源键 Menu.showVariationOnMouse,,both,,
 M-VIEW-070,menu,"显示 > 选点信息 > 鼠标悬停显示变化图时,变化图不刷新","鼠标悬停显示变化图时,变化图不刷新",,toggleNoRefreshOnMouse,Menu.java,enabled:always,noRefreshOnMouseMove,no,—,Windows/通用,未接,资源键 Menu.noRefreshOnMouse,,both,,
-M-VIEW-071,menu,显示 > 选点 > 总是显示黑胜率,总是显示黑胜率,,toggleAlwaysShowBlackWinrate,Menu.java,enabled:always,winrateAlwaysBlack,no,—,Windows/通用,未接,资源键 Menu.alwaysShowBlackWinrate,,both,,
+M-VIEW-071,menu,显示 > 选点信息 > 总是显示黑胜率/目数,总是显示黑胜率/目数,,toggleAlwaysShowBlackWinrate,Menu.java,enabled:always,winrateAlwaysBlack,no,—,Windows/通用,未接,资源键 Menu.alwaysShowBlackWinrate,,both,,
 M-VIEW-072,menu,显示 > 显示胜率/目数曲线 > 胜率,胜率,,setWinrateLineOnly,Menu.java,enabled:always,showWinrateLine && !showScoreLeadLine,no,—,Windows/通用,未接,资源键 Menu.showWinRateOrScoreLeadLine.winrate,,both,,
 M-VIEW-073,menu,显示 > 显示胜率/目数曲线 > 目数,目数,,setScoreLeadLineOnly,Menu.java,enabled:always,!showWinrateLine && showScoreLeadLine,no,—,Windows/通用,未接,资源键 Menu.showWinRateOrScoreLeadLine.scoreLead,,both,,
 M-VIEW-074,menu,显示 > 显示胜率/目数曲线 > 全部,全部,,setBothLines,Menu.java,enabled:always,showWinrateLine && showScoreLeadLine,no,—,Windows/通用,未接,资源键 Menu.showWinRateOrScoreLeadLine.both,,both,,
@@ -252,5 +252,9 @@ M-TOP-009,menu,同步,同步,,liveMenu,Menu.java,enabled:always,,no,—,Windows/
 M-TOP-010,menu,快速启动,快速启动,,quickLinksMenu,Menu.java,visible:showQuickLinks,,no,—,Windows/通用,未接,顶级菜单容器；updateFastLinks() 在配置关闭时 setVisible(false),,both,,
 M-NAV-003,menu,编辑 > 跳转到最前,跳转到最前(Home),,jumpToFirst,Menu.java,enabled:always,,no,—,Windows/通用,未接,评审补录；来自编辑菜单跳转组,,both,,
 M-NAV-004,menu,编辑 > 跳转到最后,跳转到最后(End),,jumpToLast,Menu.java,enabled:always,,no,—,Windows/通用,未接,评审补录；来自编辑菜单跳转组,,both,,
-M-VIEW-091,menu,显示 > 落子评价标记 > 无,无,,rankNoneMove,Menu.java,enabled:always,,no,—,Windows/通用,未接,资源键 Menu.rankMenu.rankNoneMove；addRankMarkMenu L8472 构建,,both,,helper-method subtree (addRankMarkMenu L8472)
-M-VIEW-092,menu,显示 > 落子评价标记 > 评价方式,评价方式,,moveRankBasisMenu,Menu.java,enabled:always,,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode；真实子菜单容器,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-092,menu,显示 > 落子评价标记 > 判定依据,判定依据,,moveRankBasisMenu,Menu.java,enabled:always,,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode；真实子菜单容器,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-093,menu,显示 > 选点信息 > 胜率,胜率,,toggleSuggestionWinrate,Menu.java,enabled:always,,no,—,Windows/通用,未接,运行时选点信息子树；补册,,both,,
+M-VIEW-094,menu,显示 > 选点信息 > 计算量,计算量,,toggleSuggestionPlayouts,Menu.java,enabled:always,,no,—,Windows/通用,未接,运行时选点信息子树；补册,,both,,
+M-VIEW-095,menu,显示 > 选点信息 > 目数,目数,,toggleSuggestionScore,Menu.java,enabled:always,,no,—,Windows/通用,未接,运行时选点信息子树；补册,,both,,
+M-VIEW-096,menu,显示 > 选点信息 > 显示目数为差值,显示目数为差值,,toggleSuggestionScoreDiff,Menu.java,enabled:always,,no,—,Windows/通用,未接,运行时选点信息子树；补册,,both,,
+M-VIEW-097,menu,显示 > 选点信息 > 自定义顺序,自定义顺序,,customSuggestionOrder,Menu.java,enabled:always,,no,—,Windows/通用,未接,运行时选点信息子树；补册,,both,,

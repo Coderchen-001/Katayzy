@@ -54,10 +54,10 @@ represented here.
   `path+action` may not.
 - **Path verification:** run `python tools/ui2/verify_paths.py`; every `path-mismatch.csv` row must
   be triaged in `path-mismatch-triage.md` as a CSV correction, an upstream-only ghost, a label
-  rewrite, or a non-error. Gate 1 requires **173/173 pass** after the 32 fixed exemptions
+  rewrite, or a non-error. Gate 1 requires **175/175 pass** after the 34 fixed exemptions
   (14 `no-entry` + 8 D-class + 1 toolbar reclassification + 1 pure-ASCII parser limitation +
-  8 helper-method subtree rows); run with `python tools/ui2/verify_paths.py --respect-dispositions`.
-  Current result: 174/174, 0 anomalies.
+  10 helper-method subtree rows); run with `python tools/ui2/verify_paths.py --respect-dispositions`.
+  Current result: 175/175, 0 anomalies.
 
 ## Gate 2A — FlatLaf shell preset
 

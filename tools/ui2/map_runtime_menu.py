@@ -193,6 +193,12 @@ def main() -> None:
         and not r.get("path_exempt")
         and r.get("migration_status") != "no-entry"
     ]
+    exempt_missing = [
+        r["id"]
+        for r in menu_rows
+        if r["id"] not in seen_inventory
+        and r.get("path_exempt")
+    ]
     with OUT_CSV.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(out[0].keys()))
         w.writeheader()
@@ -207,13 +213,18 @@ def main() -> None:
         f.write("\n## Unmapped inventory rows\n\n")
         for pid in missing:
             f.write(f"- `{pid}`\n")
+        f.write("\n## Exempt but unmatched inventory rows\n\n")
+        f.write("These are not silently dropped: they are exempt from the path gate but must still be\n")
+        f.write("reviewed for runtime coverage.\n\n")
+        for pid in exempt_missing:
+            f.write(f"- `{pid}`\n")
         f.write("\n## Unmatched runtime rows\n\n")
         for row in out:
             if row["bucket"] == "unmatched":
                 f.write(f"- `{row['path']}`  text={row['text']!r}\n")
     print(f"structural={structural} leaves={leaf_total} separators={len(separators)} popups={len(popups)}")
     print(dict(counts))
-    print(f"unmatched={counts['unmatched']} inventory_missing={len(missing)}")
+    print(f"unmatched={counts['unmatched']} inventory_missing={len(missing)} exempt_unmatched={len(exempt_missing)}")
 
 
 if __name__ == "__main__":
