@@ -24,9 +24,10 @@ Findings:
 - the remaining risk is duplicate or missing submenu children, not top-level menus.
 
 Path verification against the real `Menu.java` mount tree found 83 mismatches out of 203
-multi-level paths (`path-mismatch-triage.md`). This is a Gate 1 blocker: the CSV is a spec of the
-current UI, so a path that does not match the source is not acceptable. Top-level gaps
-(`contributeMenu`, `engineMenu2`) are already corrected; the remaining A/B/C rows still need fixes.
+multi-level paths; after the A-class parent fixes it is **75 mismatches out of 204** paths
+(`path-mismatch-triage.md`). This is still a Gate 1 blocker: the CSV is a spec of the current UI, so
+a path that does not match the source is not acceptable. Top-level gaps (`contributeMenu`,
+`engineMenu2`) are corrected; the remaining B/C rows still need fixes.
 
 A mechanical six-bucket entry-closure run after adding the missing language/font-size group,
 top-level menu containers and label normalization (`audit-closure.md`, scope 552 records):

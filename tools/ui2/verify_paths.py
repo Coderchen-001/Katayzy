@@ -162,6 +162,11 @@ def label_of(var, var_key, props):
 
 
 def main():
+    # Windows consoles may default to GBK; Korean/Japanese labels must not crash the verifier.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     props = load_props(PROPS)
     var_key, edges, bare_adds = parse_menu_java()
 
