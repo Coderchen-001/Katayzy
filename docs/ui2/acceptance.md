@@ -56,6 +56,19 @@ represented here.
   8 helper-method subtree rows); run with `python tools/ui2/verify_paths.py --respect-dispositions`.
   Current result: 174/174, 0 anomalies.
 
+## Gate 2A — FlatLaf shell preset
+
+This is the guardrail self-test milestone and the first real UI change.
+
+- [ ] L2 component-tree diff is exactly **0** (only LAF defaults may change, no structure);
+- [ ] L4 screenshots change broadly (the visual difference is expected and blessed);
+- [ ] no new/changed `addActionListener` calls;
+- [ ] FlatLaf setup is behind the UI2/LAF path, with the old path still available;
+- [ ] rollback to `ui2-golden-baseline` works.
+
+A non-zero L2 diff means the preset touched structure; that is a gate failure, not an expected
+visual change.
+
 ## Gate 2 — Vertical slice
 
 - [ ] `MainWindow` opens with FlatLaf active;

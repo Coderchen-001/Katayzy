@@ -20,6 +20,7 @@ This directory is the acceptance record for the UI2 rewrite.
 | `children-check.md` | Child coverage and remaining hand-number/rank structural blockers |
 | `l10n-sample.md` | 20-row decoded label sample for the final l10n check |
 | `build-guardrails.md` | L0–L5 gates, golden baseline scope, red-line exemption and rollback rules |
+| `third-party.md` | FlatLaf / MigLayout / SwingX license and notices plan |
 | `gate1-self-audit.md` | Gate 1 five-section self-audit; currently not passing |
 | `katayzy-new-disposition.md` | Disposition of the 28 current-only features |
 | `audit-closure.md` | Entry-bearing audit disposition and unmapped list |

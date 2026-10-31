@@ -327,6 +327,11 @@ decision after UI2 acceptance.
 Mature references (Windows 11, macOS, IntelliJ, VS Code) provide more visual range than the old
 home-grown skins.
 
+Licensing discipline: “copy the mature design” means use components, patterns and interaction
+models, not paste source or assets from another project without checking its license. FlatLaf,
+flatlaf-swingx and MigLayout keep their original licenses; ship their LICENSE/NOTICE text and list
+them in a third-party notices file.
+
 ## 12. Shared UI patterns
 
 The seven retained product features should keep their behavior and be re-skinned with one set of
