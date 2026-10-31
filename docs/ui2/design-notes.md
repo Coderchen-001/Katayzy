@@ -213,7 +213,25 @@ after UI2 is stable.
   cycle;
 - `Config` key names and theme directory layout stay backward compatible.
 
-## 11. Visual references
+## 11. Product decisions
+
+### Retire self-drawn UI skins
+
+`Apple 风格界面` and `经典配色` are self-maintained Look-and-Feel paths. They conflict with the
+FlatLaf migration and do not provide enough value to keep maintaining them.
+
+Decision:
+
+- do **not** port `AppleStyleSupport` or `MorandiPalette` look-and-feel code to UI2;
+- remove the `苹果风格界面` and `经典配色` menu entries;
+- use FlatLaf Light/Dark/IntelliJ themes plus the `AppShellTheme` presets;
+- keep only app-specific composition: board themes, shell presets, analysis layout, strength report,
+  theme previews.
+
+Mature references (Windows 11, macOS, IntelliJ, VS Code) provide more visual range than the old
+home-grown skins.
+
+## 12. Visual references
 
 - Windows 11: menus, settings cards, toggles, focus rings;
 - macOS: sidebar spacing, grouped settings, typography;
