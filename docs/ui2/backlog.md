@@ -31,7 +31,7 @@ Use this file for items explicitly deferred. Do not rely on chat memory.
 - [ ] revisit `不可见` candidates with reference-chain evidence (none marked yet);
 - [x] map the 16 descriptive dialog references in `surface-coverage.md`; see
   `dialog-mapping.md` (two are native `ReadBoard` flows, not Swing surfaces);
-- [ ] confirm the P0 list (currently 9 classes, including `Menu.java`);
+- [x] confirm the P0 list (9 classes, including `Menu.java`); see `gate1-self-audit.md`;
 - [ ] run `check_inventory_duplicates.py` and record `OK`;
 - [ ] complete the Gate 1 self-audit before starting `ui2/widgets`.
 
