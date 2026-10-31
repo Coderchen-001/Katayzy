@@ -1,108 +1,108 @@
 id,class,surface_type,all_signals,evidence,style_hits,style_detail,priority,replacement,status,notes
-UI-001,AnalysisFrame.java,frame,custom-paint+dialog+frame+graphics2d,custom-paint@114;dialog@71;frame@43;graphics2d@496,21,"newColor=14,newFont=3,setFont=3,setOpaque=1",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-002,AnalysisPartGame.java,dialog,dialog,dialog@9,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-003,AnalysisSettings.java,dialog,dialog,dialog@36,3,"newFont=2,setFont=1",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-004,AnalysisTable.java,frame,frame,frame@41,0,,P1,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-005,AppleStyleSupport.java,custom-paint,custom-paint+graphics2d,custom-paint@636;graphics2d@14,91,"newColor=36,newFont=7,setFont=7,setBorder=8,setOpaque=11,setBackground=8,setForeground=14",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-006,AutoAnalyzeMenu.java,popup,popup,popup@23,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-007,AutoPlay.java,frame,frame,frame@17,1,setBorder=1,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-008,BatchShareFrame.java,dialog,dialog,dialog@25,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-009,BlunderListPanel.java,custom-paint,custom-paint+graphics2d,custom-paint@191;graphics2d@198,54,"newColor=39,newFont=7,setFont=8",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-010,BoardRenderer.java,panel,graphics2d,graphics2d@144,72,"newColor=58,newFont=7,setFont=7",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-011,BoardStylePainter.java,panel,graphics2d,graphics2d@5,1,newColor=1,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-012,BottomToolbar.java,popup,custom-paint+popup+graphics2d,custom-paint@301;popup@917;graphics2d@16,60,"newColor=10,newFont=1,setFont=21,setBorder=6,setOpaque=10,setBackground=9,setForeground=3",P0,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-013,BrowserFrame.java,frame,frame,frame@45,16,"newColor=7,setBorder=2,setOpaque=1,setBackground=5,setForeground=1",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-014,BrowserInitializing.java,dialog,dialog,dialog@15,2,setBorder=2,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-015,CaptureTsumeGoFrame.java,frame,frame,frame@19,2,setBorder=2,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-016,CaptureTsumeGoSettings.java,dialog,dialog,dialog@16,2,setBorder=2,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-017,ChooseMoreEngine.java,dialog,dialog,dialog@388,7,"newFont=2,setFont=4,setOpaque=1",P1,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-018,ConfigDialog2.java,dialog,custom-paint+dialog+graphics2d,custom-paint@369;dialog@122;graphics2d@31,232,"newColor=68,newFont=37,setFont=29,setBorder=18,setOpaque=40,setBackground=16,setForeground=24",P0,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-019,ContributeSettings.java,dialog,dialog,dialog@24,1,setBorder=1,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-020,ContributeView.java,frame,frame,frame@48,15,"newColor=1,newFont=2,setFont=2,setBorder=7,setBackground=1,setForeground=2",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-021,Controller.java,dialog,dialog,dialog@18,3,"setFont=1,setBorder=2",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-022,DemoScrollBarUI.java,panel,graphics2d,graphics2d@7,10,"newColor=7,setBorder=3",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-023,DemoScrollBarUI2.java,panel,graphics2d,graphics2d@8,11,"newColor=8,setBorder=3",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-024,Discribe.java,dialog,dialog,dialog@12,3,"newFont=1,setFont=1,setBackground=1",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-025,DrawPainting.java,dialog,custom-paint+dialog+graphics2d,custom-paint@373;dialog@38;graphics2d@16,12,"newColor=3,setBorder=6,setBackground=3",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-026,EditShareFrame.java,dialog,dialog,dialog@21,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-027,EngineFailedMessage.java,dialog,dialog,dialog@29,3,"newFont=1,setFont=1,setForeground=1",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-028,EngineParameter.java,dialog,dialog,dialog@22,5,"newFont=1,setFont=1,setBorder=1,setBackground=2",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-029,EnginePkConfig.java,dialog,dialog,dialog@11,9,"newColor=1,newFont=1,setFont=1,setBorder=4,setOpaque=2",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-030,EstimateResults.java,dialog,custom-paint+dialog+graphics2d,custom-paint@346;dialog@33;graphics2d@12,14,"newFont=8,setFont=6",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-031,FastCommands.java,dialog,dialog,dialog@32,2,setBorder=2,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-032,FirstUseSettings.java,dialog,dialog,dialog@20,1,setForeground=1,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-033,FlashAnalyzeMenu.java,popup,popup,popup@35,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-034,FloatBoard.java,dialog,custom-paint+dialog+graphics2d,custom-paint@117;dialog@37;graphics2d@14,4,"newColor=2,setBackground=2",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-035,FloatBoardRenderer.java,panel,graphics2d,graphics2d@133,40,"newColor=29,newFont=6,setFont=5",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-036,FoxKifuDownload.java,frame,frame,frame@54,12,"newColor=2,newFont=2,setFont=2,setBorder=2,setOpaque=1,setBackground=1,setForeground=2",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-037,GameInfoDialog.java,dialog,dialog,dialog@20,2,setBorder=2,P1,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-038,GlassEffectRenderer.java,panel,graphics2d,graphics2d@11,30,newColor=30,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-039,GtpConsolePane.java,dialog,dialog,dialog@43,21,"newColor=6,newFont=2,setFont=2,setBorder=3,setOpaque=1,setBackground=3,setForeground=4",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-040,GtpEngineConfigDialog.java,dialog,dialog,dialog@52,11,"newFont=3,setFont=3,setBorder=2,setBackground=1,setForeground=2",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-041,HtmlMessage.java,dialog,dialog,dialog@22,4,"newFont=1,setFont=1,setBorder=1,setBackground=1",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-042,IndependentMainBoard.java,frame,custom-paint+frame+graphics2d,custom-paint@108;frame@48;graphics2d@19,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-043,IndependentSubBoard.java,frame,custom-paint+frame+graphics2d,custom-paint@72;frame@33;graphics2d@10,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-044,JFontTextArea.java,popup,popup,popup@49,6,"newFont=3,setFont=3",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-045,JFontTextField.java,popup,popup,popup@44,4,"newFont=2,setFont=2",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-046,JIMSendTextPane.java,popup,popup,popup@124,4,"newFont=2,setFont=2",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-047,JPaintTextPane.java,popup,custom-paint+popup+graphics2d,custom-paint@119;popup@134;graphics2d@7,2,"newFont=1,setFont=1",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-048,LizzieFrame.java,frame,custom-paint+dialog+popup+frame+graphics2d,custom-paint@780;dialog@14703;popup@1306;frame@107;graphics2d@833,411,"newColor=196,newFont=49,setFont=50,setBorder=17,setOpaque=34,setBackground=45,setForeground=20",P0,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-049,LoadEngine.java,dialog,dialog,dialog@537,9,"newFont=2,setFont=4,setOpaque=3",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-050,Loggin.java,dialog,dialog,dialog@19,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-051,Menu.java,popup,custom-paint+popup+graphics2d,custom-paint@9989;popup@7115;graphics2d@22,83,"newColor=5,newFont=12,setFont=30,setBorder=2,setBackground=20,setForeground=14",P0,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-052,Message.java,dialog,dialog,dialog@17,4,"newFont=1,setFont=1,setBorder=1,setBackground=1",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-053,MoreEngines.java,dialog,dialog,dialog@1338,25,"newFont=4,setFont=6,setBorder=3,setOpaque=1,setBackground=3,setForeground=8",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-054,MoveListFrame.java,frame,custom-paint+popup+frame+graphics2d,custom-paint@376;popup@1453;frame@57;graphics2d@377,157,"newColor=76,newFont=29,setFont=31,setOpaque=1,setBackground=20",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-055,MovenumberDialog.java,dialog,dialog,dialog@26,1,setBackground=1,P1,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-056,NewAnaGameDialog.java,dialog,dialog,dialog@30,8,"newFont=3,setFont=3,setBorder=2",P1,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-057,NewEngineGameDialog.java,dialog,dialog,dialog@31,51,"newColor=1,newFont=20,setFont=22,setBorder=6,setOpaque=2",P1,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-058,NewGameDialog.java,dialog,dialog,dialog@32,5,"newFont=1,setFont=1,setBorder=3",P1,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-059,OnlineDialog.java,dialog,dialog,dialog@84,1,setForeground=1,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-060,OtherPrograms.java,dialog,dialog,dialog@674,15,"newFont=5,setFont=7,setBorder=2,setOpaque=1",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-061,PrivateKifuSearch.java,frame,frame,frame@41,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-062,PublicKifuSearch.java,frame,frame,frame@44,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-063,RemoteEngineSettings.java,dialog,dialog,dialog@24,2,setBorder=2,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-064,RightClickMenu.java,popup,popup,popup@20,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-065,RightClickMenu2.java,popup,popup,popup@17,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-066,ScoreResult.java,dialog,custom-paint+dialog+graphics2d,custom-paint@456;dialog@38;graphics2d@17,15,"newColor=2,newFont=1,setFont=1,setBorder=2,setOpaque=1,setBackground=5,setForeground=3",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-067,SetAiTimes.java,dialog,dialog,dialog@37,3,"newFont=1,setFont=1,setBackground=1",P1,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-068,SetAnaGameRandomStart.java,dialog,dialog,dialog@16,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-069,SetAnalysisRules.java,dialog,dialog,dialog@16,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-070,SetBoardSize.java,dialog,dialog,dialog@30,6,"newFont=2,setFont=2,setBackground=2",P1,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-071,SetCustomMode.java,dialog,dialog,dialog@28,2,setBorder=2,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-072,SetDelayShowCandidates.java,dialog,dialog,dialog@16,1,setBorder=1,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-073,SetDiffAnalyze.java,dialog,dialog,dialog@24,2,setBorder=2,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-074,SetEstimateParam.java,dialog,dialog,dialog@20,1,setBackground=1,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-075,SetFrameFontSize.java,dialog,dialog,dialog@26,3,"newFont=1,setFont=1,setBackground=1",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-076,SetKataEngines.java,dialog,dialog,dialog@30,19,"newFont=1,setBackground=18",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-077,SetKataPDA.java,dialog,dialog,dialog@21,7,"newFont=2,setFont=2,setForeground=3",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-078,SetKataRules.java,dialog,dialog,dialog@19,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-079,SetKomi.java,dialog,dialog,dialog@22,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-080,SetLeelaEngines.java,dialog,dialog,dialog@13,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-081,SetMatchAiPara.java,dialog,dialog,dialog@14,1,setBackground=1,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-082,SetReplayTime.java,dialog,dialog,dialog@22,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-083,SetShareLabel.java,dialog,dialog,dialog@14,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-084,SetThreshold.java,dialog,dialog,dialog@28,8,"newFont=3,setFont=3,setBorder=2",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-085,ShareFrame.java,dialog,dialog,dialog@23,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-086,ShareMessage.java,dialog,dialog,dialog@20,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-087,SidebarHeaderPanel.java,custom-paint,custom-paint+graphics2d,custom-paint@163;graphics2d@165,31,"newColor=29,newFont=1,setFont=1",P0,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-088,SidebarPanel.java,custom-paint,custom-paint+graphics2d,custom-paint@127;graphics2d@129,27,"newColor=16,setBorder=3,setOpaque=8",P0,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-089,SidebarStatusPanel.java,custom-paint,custom-paint+graphics2d,custom-paint@24;graphics2d@9,9,"newColor=5,newFont=2,setFont=2",P0,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-090,SMessage.java,dialog,dialog,dialog@12,4,"newFont=1,setFont=1,setBorder=1,setBackground=1",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-091,StartAnaDialog.java,dialog,dialog,dialog@27,24,"newFont=11,setFont=11,setBorder=2",P1,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-092,StatisticsThreshold.java,dialog,dialog,dialog@23,16,"newColor=12,setBorder=2,setOpaque=1,setBackground=1",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-093,SubBoardRenderer.java,panel,graphics2d,graphics2d@93,20,"newColor=13,newFont=3,setFont=4",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-094,SuggestionInfoOrderSettings.java,dialog,custom-paint+dialog+graphics2d,custom-paint@83;dialog@40;graphics2d@19,9,"newColor=3,newFont=2,setFont=4",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-095,SyncDiagnosticsDialog.java,dialog,custom-paint+dialog+graphics2d,custom-paint@408;dialog@46;graphics2d@19,11,"newColor=4,newFont=1,setFont=1,setBorder=4,setOpaque=1",P1,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-096,TencentKifuDownload.java,frame,frame,frame@53,12,"newColor=2,newFont=2,setFont=2,setBorder=2,setOpaque=1,setBackground=1,setForeground=2",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-097,ToolbarPopupSupport.java,popup,custom-paint+popup+graphics2d,custom-paint@203;popup@75;graphics2d@10,15,"newColor=7,newFont=1,setFont=1,setBorder=2,setOpaque=2,setBackground=2",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-098,ToolbarPositionConfig.java,dialog,dialog,dialog@12,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-099,TopHeaderPanel.java,custom-paint,custom-paint+graphics2d,custom-paint@88;graphics2d@10,3,"newColor=1,setOpaque=2",P0,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-100,TsumeGoFrame.java,dialog,dialog,dialog@21,3,setBorder=3,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-101,VariationTree.java,panel,graphics2d,graphics2d@45,11,"newColor=7,newFont=2,setFont=2",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-102,VariationTreeBig.java,panel,graphics2d,graphics2d@46,10,"newColor=6,newFont=2,setFont=2",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-103,WaitForAnalysis.java,dialog,dialog,dialog@12,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-104,WholeGameAnalysisDialog.java,dialog,dialog+graphics2d,dialog@46;graphics2d@12,50,"newColor=12,setFont=6,setBorder=5,setOpaque=8,setBackground=8,setForeground=11",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-105,WindowMenuStrip.java,custom-paint,custom-paint+graphics2d,custom-paint@89;graphics2d@11,3,"newColor=2,setForeground=1",P0,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-106,WinrateGraph.java,panel,graphics2d,graphics2d@177,70,"newColor=37,newFont=16,setFont=17",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-107,YikeLiveDialog.java,frame,frame,frame@41,2,setBorder=2,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
+UI-001,AnalysisFrame.java,frame,custom-paint+dialog+frame+graphics2d,custom-paint@114;dialog@71;frame@43;graphics2d@496,21,"newColor=14,newFont=3,setFont=3,setOpaque=1",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-002,AnalysisPartGame.java,dialog,dialog,dialog@9,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-003,AnalysisSettings.java,dialog,dialog,dialog@36,3,"newFont=2,setFont=1",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-004,AnalysisTable.java,frame,frame,frame@41,0,,P1,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-005,AppleStyleSupport.java,custom-paint,custom-paint+graphics2d,custom-paint@636;graphics2d@14,91,"newColor=36,newFont=7,setFont=7,setBorder=8,setOpaque=11,setBackground=8,setForeground=14",P2,删除/替换,废弃,旧自绘 LAF/临时菜单实现，UI2 不移植
+UI-006,AutoAnalyzeMenu.java,popup,popup,popup@23,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-007,AutoPlay.java,frame,frame,frame@17,1,setBorder=1,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-008,BatchShareFrame.java,dialog,dialog,dialog@25,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-009,BlunderListPanel.java,custom-paint,custom-paint+graphics2d,custom-paint@191;graphics2d@198,54,"newColor=39,newFont=7,setFont=8",P2,FlatLaf + Card/Badge,待替换,信息展示型自绘面板；核心渲染白名单见保留档
+UI-010,BoardRenderer.java,panel,graphics2d,graphics2d@144,72,"newColor=58,newFont=7,setFont=7",P2,保留自绘,保留,棋盘/胜率图/变化树等核心渲染资产
+UI-011,BoardStylePainter.java,panel,graphics2d,graphics2d@5,1,newColor=1,P2,保留自绘,保留,棋盘/胜率图/变化树等核心渲染资产
+UI-012,BottomToolbar.java,popup,custom-paint+popup+graphics2d,custom-paint@301;popup@917;graphics2d@16,60,"newColor=10,newFont=1,setFont=21,setBorder=6,setOpaque=10,setBackground=9,setForeground=3",P0,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-013,BrowserFrame.java,frame,frame,frame@45,16,"newColor=7,setBorder=2,setOpaque=1,setBackground=5,setForeground=1",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-014,BrowserInitializing.java,dialog,dialog,dialog@15,2,setBorder=2,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-015,CaptureTsumeGoFrame.java,frame,frame,frame@19,2,setBorder=2,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-016,CaptureTsumeGoSettings.java,dialog,dialog,dialog@16,2,setBorder=2,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-017,ChooseMoreEngine.java,dialog,dialog,dialog@388,7,"newFont=2,setFont=4,setOpaque=1",P1,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-018,ConfigDialog2.java,dialog,custom-paint+dialog+graphics2d,custom-paint@369;dialog@122;graphics2d@31,232,"newColor=68,newFont=37,setFont=29,setBorder=18,setOpaque=40,setBackground=16,setForeground=24",P0,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-019,ContributeSettings.java,dialog,dialog,dialog@24,1,setBorder=1,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-020,ContributeView.java,frame,frame,frame@48,15,"newColor=1,newFont=2,setFont=2,setBorder=7,setBackground=1,setForeground=2",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-021,Controller.java,dialog,dialog,dialog@18,3,"setFont=1,setBorder=2",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-022,DemoScrollBarUI.java,panel,graphics2d,graphics2d@7,10,"newColor=7,setBorder=3",P2,FlatLaf 滚动条,待替换,被 LizzieFrame/SidebarPanel 直接引用，替换为 FlatLaf 滚动条
+UI-023,DemoScrollBarUI2.java,panel,graphics2d,graphics2d@8,11,"newColor=8,setBorder=3",P2,FlatLaf 滚动条,待替换,被 LizzieFrame/SidebarPanel 直接引用，替换为 FlatLaf 滚动条
+UI-024,Discribe.java,dialog,dialog,dialog@12,3,"newFont=1,setFont=1,setBackground=1",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-025,DrawPainting.java,dialog,custom-paint+dialog+graphics2d,custom-paint@373;dialog@38;graphics2d@16,12,"newColor=3,setBorder=6,setBackground=3",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-026,EditShareFrame.java,dialog,dialog,dialog@21,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-027,EngineFailedMessage.java,dialog,dialog,dialog@29,3,"newFont=1,setFont=1,setForeground=1",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-028,EngineParameter.java,dialog,dialog,dialog@22,5,"newFont=1,setFont=1,setBorder=1,setBackground=2",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-029,EnginePkConfig.java,dialog,dialog,dialog@11,9,"newColor=1,newFont=1,setFont=1,setBorder=4,setOpaque=2",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-030,EstimateResults.java,dialog,custom-paint+dialog+graphics2d,custom-paint@346;dialog@33;graphics2d@12,14,"newFont=8,setFont=6",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-031,FastCommands.java,dialog,dialog,dialog@32,2,setBorder=2,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-032,FirstUseSettings.java,dialog,dialog,dialog@20,1,setForeground=1,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-033,FlashAnalyzeMenu.java,popup,popup,popup@35,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-034,FloatBoard.java,dialog,custom-paint+dialog+graphics2d,custom-paint@117;dialog@37;graphics2d@14,4,"newColor=2,setBackground=2",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-035,FloatBoardRenderer.java,panel,graphics2d,graphics2d@133,40,"newColor=29,newFont=6,setFont=5",P2,保留自绘,保留,棋盘/胜率图/变化树等核心渲染资产
+UI-036,FoxKifuDownload.java,frame,frame,frame@54,12,"newColor=2,newFont=2,setFont=2,setBorder=2,setOpaque=1,setBackground=1,setForeground=2",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-037,GameInfoDialog.java,dialog,dialog,dialog@20,2,setBorder=2,P1,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-038,GlassEffectRenderer.java,panel,graphics2d,graphics2d@11,30,newColor=30,P2,保留自绘,保留,棋盘/胜率图/变化树等核心渲染资产
+UI-039,GtpConsolePane.java,dialog,dialog,dialog@43,21,"newColor=6,newFont=2,setFont=2,setBorder=3,setOpaque=1,setBackground=3,setForeground=4",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-040,GtpEngineConfigDialog.java,dialog,dialog,dialog@52,11,"newFont=3,setFont=3,setBorder=2,setBackground=1,setForeground=2",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-041,HtmlMessage.java,dialog,dialog,dialog@22,4,"newFont=1,setFont=1,setBorder=1,setBackground=1",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-042,IndependentMainBoard.java,frame,custom-paint+frame+graphics2d,custom-paint@108;frame@48;graphics2d@19,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-043,IndependentSubBoard.java,frame,custom-paint+frame+graphics2d,custom-paint@72;frame@33;graphics2d@10,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-044,JFontTextArea.java,popup,popup,popup@49,6,"newFont=3,setFont=3",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-045,JFontTextField.java,popup,popup,popup@44,4,"newFont=2,setFont=2",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-046,JIMSendTextPane.java,popup,popup,popup@124,4,"newFont=2,setFont=2",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-047,JPaintTextPane.java,popup,custom-paint+popup+graphics2d,custom-paint@119;popup@134;graphics2d@7,2,"newFont=1,setFont=1",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-048,LizzieFrame.java,frame,custom-paint+dialog+popup+frame+graphics2d,custom-paint@780;dialog@14703;popup@1306;frame@107;graphics2d@833,411,"newColor=196,newFont=49,setFont=50,setBorder=17,setOpaque=34,setBackground=45,setForeground=20",P0,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-049,LoadEngine.java,dialog,dialog,dialog@537,9,"newFont=2,setFont=4,setOpaque=3",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-050,Loggin.java,dialog,dialog,dialog@19,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-051,Menu.java,popup,custom-paint+popup+graphics2d,custom-paint@9989;popup@7115;graphics2d@22,83,"newColor=5,newFont=12,setFont=30,setBorder=2,setBackground=20,setForeground=14",P0,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-052,Message.java,dialog,dialog,dialog@17,4,"newFont=1,setFont=1,setBorder=1,setBackground=1",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-053,MoreEngines.java,dialog,dialog,dialog@1338,25,"newFont=4,setFont=6,setBorder=3,setOpaque=1,setBackground=3,setForeground=8",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-054,MoveListFrame.java,frame,custom-paint+popup+frame+graphics2d,custom-paint@376;popup@1453;frame@57;graphics2d@377,157,"newColor=76,newFont=29,setFont=31,setOpaque=1,setBackground=20",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-055,MovenumberDialog.java,dialog,dialog,dialog@26,1,setBackground=1,P1,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-056,NewAnaGameDialog.java,dialog,dialog,dialog@30,8,"newFont=3,setFont=3,setBorder=2",P1,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-057,NewEngineGameDialog.java,dialog,dialog,dialog@31,51,"newColor=1,newFont=20,setFont=22,setBorder=6,setOpaque=2",P1,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-058,NewGameDialog.java,dialog,dialog,dialog@32,5,"newFont=1,setFont=1,setBorder=3",P1,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-059,OnlineDialog.java,dialog,dialog,dialog@84,1,setForeground=1,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-060,OtherPrograms.java,dialog,dialog,dialog@674,15,"newFont=5,setFont=7,setBorder=2,setOpaque=1",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-061,PrivateKifuSearch.java,frame,frame,frame@41,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-062,PublicKifuSearch.java,frame,frame,frame@44,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-063,RemoteEngineSettings.java,dialog,dialog,dialog@24,2,setBorder=2,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-064,RightClickMenu.java,popup,popup,popup@20,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-065,RightClickMenu2.java,popup,popup,popup@17,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-066,ScoreResult.java,dialog,custom-paint+dialog+graphics2d,custom-paint@456;dialog@38;graphics2d@17,15,"newColor=2,newFont=1,setFont=1,setBorder=2,setOpaque=1,setBackground=5,setForeground=3",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-067,SetAiTimes.java,dialog,dialog,dialog@37,3,"newFont=1,setFont=1,setBackground=1",P1,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-068,SetAnaGameRandomStart.java,dialog,dialog,dialog@16,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-069,SetAnalysisRules.java,dialog,dialog,dialog@16,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-070,SetBoardSize.java,dialog,dialog,dialog@30,6,"newFont=2,setFont=2,setBackground=2",P1,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-071,SetCustomMode.java,dialog,dialog,dialog@28,2,setBorder=2,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-072,SetDelayShowCandidates.java,dialog,dialog,dialog@16,1,setBorder=1,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-073,SetDiffAnalyze.java,dialog,dialog,dialog@24,2,setBorder=2,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-074,SetEstimateParam.java,dialog,dialog,dialog@20,1,setBackground=1,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-075,SetFrameFontSize.java,dialog,dialog,dialog@26,3,"newFont=1,setFont=1,setBackground=1",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-076,SetKataEngines.java,dialog,dialog,dialog@30,19,"newFont=1,setBackground=18",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-077,SetKataPDA.java,dialog,dialog,dialog@21,7,"newFont=2,setFont=2,setForeground=3",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-078,SetKataRules.java,dialog,dialog,dialog@19,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-079,SetKomi.java,dialog,dialog,dialog@22,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-080,SetLeelaEngines.java,dialog,dialog,dialog@13,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-081,SetMatchAiPara.java,dialog,dialog,dialog@14,1,setBackground=1,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-082,SetReplayTime.java,dialog,dialog,dialog@22,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-083,SetShareLabel.java,dialog,dialog,dialog@14,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-084,SetThreshold.java,dialog,dialog,dialog@28,8,"newFont=3,setFont=3,setBorder=2",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-085,ShareFrame.java,dialog,dialog,dialog@23,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-086,ShareMessage.java,dialog,dialog,dialog@20,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-087,SidebarHeaderPanel.java,custom-paint,custom-paint+graphics2d,custom-paint@163;graphics2d@165,31,"newColor=29,newFont=1,setFont=1",P0,FlatLaf + Card/Badge,待替换,信息展示型自绘面板；核心渲染白名单见保留档
+UI-088,SidebarPanel.java,custom-paint,custom-paint+graphics2d,custom-paint@127;graphics2d@129,27,"newColor=16,setBorder=3,setOpaque=8",P0,FlatLaf + Card/Badge,待替换,信息展示型自绘面板；核心渲染白名单见保留档
+UI-089,SidebarStatusPanel.java,custom-paint,custom-paint+graphics2d,custom-paint@24;graphics2d@9,9,"newColor=5,newFont=2,setFont=2",P0,FlatLaf + Card/Badge,待替换,信息展示型自绘面板；核心渲染白名单见保留档
+UI-090,SMessage.java,dialog,dialog,dialog@12,4,"newFont=1,setFont=1,setBorder=1,setBackground=1",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-091,StartAnaDialog.java,dialog,dialog,dialog@27,24,"newFont=11,setFont=11,setBorder=2",P1,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-092,StatisticsThreshold.java,dialog,dialog,dialog@23,16,"newColor=12,setBorder=2,setOpaque=1,setBackground=1",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-093,SubBoardRenderer.java,panel,graphics2d,graphics2d@93,20,"newColor=13,newFont=3,setFont=4",P2,保留自绘,保留,棋盘/胜率图/变化树等核心渲染资产
+UI-094,SuggestionInfoOrderSettings.java,dialog,custom-paint+dialog+graphics2d,custom-paint@83;dialog@40;graphics2d@19,9,"newColor=3,newFont=2,setFont=4",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-095,SyncDiagnosticsDialog.java,dialog,custom-paint+dialog+graphics2d,custom-paint@408;dialog@46;graphics2d@19,11,"newColor=4,newFont=1,setFont=1,setBorder=4,setOpaque=1",P1,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-096,TencentKifuDownload.java,frame,frame,frame@53,12,"newColor=2,newFont=2,setFont=2,setBorder=2,setOpaque=1,setBackground=1,setForeground=2",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-097,ToolbarPopupSupport.java,popup,custom-paint+popup+graphics2d,custom-paint@203;popup@75;graphics2d@10,15,"newColor=7,newFont=1,setFont=1,setBorder=2,setOpaque=2,setBackground=2",P2,删除/替换,废弃,旧自绘 LAF/临时菜单实现，UI2 不移植
+UI-098,ToolbarPositionConfig.java,dialog,dialog,dialog@12,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-099,TopHeaderPanel.java,custom-paint,custom-paint+graphics2d,custom-paint@88;graphics2d@10,3,"newColor=1,setOpaque=2",P0,FlatLaf + Card/Badge,待替换,信息展示型自绘面板；核心渲染白名单见保留档
+UI-100,TsumeGoFrame.java,dialog,dialog,dialog@21,3,setBorder=3,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-101,VariationTree.java,panel,graphics2d,graphics2d@45,11,"newColor=7,newFont=2,setFont=2",P2,保留自绘,保留,棋盘/胜率图/变化树等核心渲染资产
+UI-102,VariationTreeBig.java,panel,graphics2d,graphics2d@46,10,"newColor=6,newFont=2,setFont=2",P2,保留自绘,保留,棋盘/胜率图/变化树等核心渲染资产
+UI-103,WaitForAnalysis.java,dialog,dialog,dialog@12,0,,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-104,WholeGameAnalysisDialog.java,dialog,dialog+graphics2d,dialog@46;graphics2d@12,50,"newColor=12,setFont=6,setBorder=5,setOpaque=8,setBackground=8,setForeground=11",P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变
+UI-105,WindowMenuStrip.java,custom-paint,custom-paint+graphics2d,custom-paint@89;graphics2d@11,3,"newColor=2,setForeground=1",P0,FlatLaf + Card/Badge,待替换,信息展示型自绘面板；核心渲染白名单见保留档
+UI-106,WinrateGraph.java,panel,graphics2d,graphics2d@177,70,"newColor=37,newFont=16,setFont=17",P2,保留自绘,保留,棋盘/胜率图/变化树等核心渲染资产
+UI-107,YikeLiveDialog.java,frame,frame,frame@41,2,setBorder=2,P2,FlatLaf + MigLayout,待替换,可见 Swing 容器，按 P0/P1/P2 换肤；入口和行为不变

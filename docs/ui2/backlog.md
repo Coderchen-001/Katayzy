@@ -26,8 +26,9 @@ Use this file for items explicitly deferred. Do not rely on chat memory.
 
 ## Gate 1 / UI2 prerequisites
 
-- [ ] Classify all 107 `ui-surface-inventory.csv` rows as `保留 / 不可见 / 待替换`;
-- [ ] give evidence for every `不可见` classification;
+- [x] Initial v0.1 classification of all 107 `ui-surface-inventory.csv` rows:
+  `8 保留 / 97 待替换 / 2 废弃 / 0 不可见`;
+- [ ] revisit `不可见` candidates with reference-chain evidence (none marked yet);
 - [ ] map the 16 descriptive dialog references in `surface-coverage.md`;
 - [ ] confirm the P0 list (currently 9 classes, including `Menu.java`);
 - [ ] run `check_inventory_duplicates.py` and record `OK`;

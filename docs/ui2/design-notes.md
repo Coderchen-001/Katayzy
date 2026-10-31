@@ -245,6 +245,10 @@ Every row must be classified before old rendering is removed:
 待替换    FlatLaf/MigLayout or another mature renderer
 ```
 
+Initial classification v0.1: **8 retain, 97 replace, 2 retire, 0 invisible**. No class is marked
+invisible yet because there is no reference-chain evidence; `DemoScrollBarUI/2` are used by
+`LizzieFrame` and `SidebarPanel`, so they are replace (FlatLaf scrollbars), not dead code.
+
 A screen is not “done” because the main window looks new. If a dialog or popup is still hand-painted,
 the UI is still inconsistent.
 
