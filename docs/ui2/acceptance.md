@@ -50,8 +50,9 @@ represented here.
 - **Path verification:** run `python tools/ui2/verify_paths.py`; every `path-mismatch.csv` row must
   be triaged in `path-mismatch-triage.md` as a CSV correction, an upstream-only ghost, a label
   rewrite, or a non-error. Gate 1 requires **173/173 pass** after the 31 fixed exemptions
-  (14 `no-entry` + 9 D-class + 8 source-verified label-parser exemptions); run with
-  `python tools/ui2/verify_paths.py --respect-dispositions`. Current result: 173/173, 0 anomalies.
+  (15 `no-entry` + 8 D-class + 1 toolbar reclassification + 7 source-verified label-parser
+  exemptions); run with `python tools/ui2/verify_paths.py --respect-dispositions`. Current result:
+  173/173, 0 anomalies.
 
 ## Gate 2 — Vertical slice
 
