@@ -182,14 +182,14 @@ M-VIEW-057,menu,显示 > 手数显示 > 分支内继续总手数,分支内继续
 M-VIEW-058,menu,显示 > 手数显示 > 分支内总是显示所有手数,分支内总是显示所有手数,,toggleShowMoveAllInBranch,Menu.java,enabled:always,showMoveAllInBranch,no,—,Windows/通用,未接,资源键 Menu.showAllMoveNumberInBranch,,both,,
 M-VIEW-059,menu,显示 > 手数显示 > 显示分支面板上的手数,显示分支面板上的手数,,toggleShowVarMove,Menu.java,enabled:always,showVarMove,no,—,Windows/通用,未接,资源键 Menu.showMoveNumberOnVariationPane,,both,,
 M-VIEW-060,menu,显示 > 手数(M) > 不显示,不显示,,setRankNone,Menu.java,enabled:always,rankMode==NONE,no,—,Windows/通用,未接,资源键 Menu.rankMenu.rankNoneMove,,both,,
-M-VIEW-061,menu,显示 > 手数(M) > 最后1手,最后1手,,setRankLastMove,Menu.java,enabled:always,rankMode==LAST,no,—,Windows/通用,未接,资源键 Menu.rankMenu.rankLastMove,,both,,
+M-VIEW-061,menu,显示 > 落子评价标记 > 最后1手,最后1手,,rankLastMove,Menu.java,enabled:always,rankMode==LAST,no,—,Windows/通用,未接,资源键 Menu.rankMenu.rankLastMove；落子评价子菜单，不是手数显示,,both,,helper-method subtree (addRankMarkMenu L8472)
 M-VIEW-062,menu,显示 > 手数(M) > 全部,全部,,setRankAllMove,Menu.java,enabled:always,rankMode==ALL,no,—,Windows/通用,未接,资源键 Menu.rankMenu.rankAllMove,,both,,
 M-VIEW-063,menu,显示 > 手数(M) > 自定义手数,自定义手数,,setRankCustomMoves,Menu.java,enabled:always,rankMode==CUSTOM,no,—,Windows/通用,未接,资源键 Menu.rankMenu.setCustomMoves,,both,,
-M-VIEW-064,menu,显示 > 显示胜率/目数曲线 > 自动,自动,,setRankModeAuto,Menu.java,enabled:always,rankBasis==AUTO,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.auto,,both,,
-M-VIEW-065,menu,显示 > 显示胜率/目数曲线 > 目数,目数,,setRankModeScore,Menu.java,enabled:always,rankBasis==SCORE,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.score,,both,,
-M-VIEW-066,menu,显示 > 显示胜率/目数曲线 > 胜率,胜率,,setRankModeWinrate,Menu.java,enabled:always,rankBasis==WINRATE,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.winrate,,both,,
-M-VIEW-067,menu,显示 > 显示胜率/目数曲线 > 全部,全部,,setRankModeCombined,Menu.java,enabled:always,rankBasis==COMBINED,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.combined,,both,,
-M-VIEW-068,menu,显示 > 落子评价标记 > 在原位置显示,在原位置显示,,toggleRankInOrigin,Menu.java,enabled:always,showMoveRankInOrigin,no,—,Windows/通用,no-entry,源码无“在原位置显示”；属于错置条目,,both,,
+M-VIEW-064,menu,显示 > 落子评价标记 > 评价方式 > 自动,自动,,rankModeAuto,Menu.java,enabled:always,rankBasis==AUTO,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.auto；addRankMarkMenu L8472 构建,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-065,menu,显示 > 落子评价标记 > 评价方式 > 目数,目数,,rankModeScore,Menu.java,enabled:always,rankBasis==SCORE,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.score；注意是“目数”不是“目差”,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-066,menu,显示 > 落子评价标记 > 评价方式 > 胜率,胜率,,rankModeWinrate,Menu.java,enabled:always,rankBasis==WINRATE,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.winrate,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-067,menu,显示 > 落子评价标记 > 评价方式 > 综合,综合,,rankModeCombined,Menu.java,enabled:always,rankBasis==COMBINED,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode.combined,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-068,menu,显示 > 落子评价标记 > 在原位置显示,在原位置显示,,showMoveRankInOrigin,Menu.java,enabled:always,showMoveRankInOrigin,no,—,Windows/通用,未接,资源键 Menu.showMoveRankInOrigin；真实子项，撤销 no-entry,,both,,helper-method subtree (addRankMarkMenu L8472)
 M-VIEW-069,menu,显示 > 选点 > 鼠标悬停显示变化图,鼠标悬停显示变化图,,toggleSuggestionVariations,Menu.java,enabled:always,showSuggestionVariations,no,—,Windows/通用,未接,资源键 Menu.showVariationOnMouse,,both,,
 M-VIEW-070,menu,"显示 > 选点信息 > 鼠标悬停显示变化图时,变化图不刷新","鼠标悬停显示变化图时,变化图不刷新",,toggleNoRefreshOnMouse,Menu.java,enabled:always,noRefreshOnMouseMove,no,—,Windows/通用,未接,资源键 Menu.noRefreshOnMouse,,both,,
 M-VIEW-071,menu,显示 > 选点 > 总是显示黑胜率,总是显示黑胜率,,toggleAlwaysShowBlackWinrate,Menu.java,enabled:always,winrateAlwaysBlack,no,—,Windows/通用,未接,资源键 Menu.alwaysShowBlackWinrate,,both,,
@@ -254,3 +254,5 @@ M-TOP-009,menu,同步,同步,,liveMenu,Menu.java,enabled:always,,no,—,Windows/
 M-TOP-010,menu,快速启动,快速启动,,quickLinksMenu,Menu.java,visible:showQuickLinks,,no,—,Windows/通用,未接,顶级菜单容器；updateFastLinks() 在配置关闭时 setVisible(false),,both,,
 M-NAV-003,menu,编辑 > 跳转到最前,跳转到最前(Home),,jumpToFirst,Menu.java,enabled:always,,no,—,Windows/通用,未接,评审补录；来自编辑菜单跳转组,,both,,
 M-NAV-004,menu,编辑 > 跳转到最后,跳转到最后(End),,jumpToLast,Menu.java,enabled:always,,no,—,Windows/通用,未接,评审补录；来自编辑菜单跳转组,,both,,
+M-VIEW-091,menu,显示 > 落子评价标记 > 无,无,,rankNoneMove,Menu.java,enabled:always,,no,—,Windows/通用,未接,资源键 Menu.rankMenu.rankNoneMove；addRankMarkMenu L8472 构建,,both,,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-092,menu,显示 > 落子评价标记 > 评价方式,评价方式,,moveRankBasisMenu,Menu.java,enabled:always,,no,—,Windows/通用,未接,资源键 Menu.rankMenu.evaluationMode；真实子菜单容器,,both,,helper-method subtree (addRankMarkMenu L8472)

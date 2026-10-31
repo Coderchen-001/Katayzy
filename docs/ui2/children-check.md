@@ -18,31 +18,34 @@ issues.
 | 棋局 > 人机续弈 | M-GAME-014A..D | verified |
 | 编辑 > 跳转到… | M-NAV-001..004 | verified |
 
-## Known blockers
+## Resolved: 手数(M) vs 落子评价标记
 
-### 手数(M) vs 落子评价标记
+The prior “rank is a leaf” conclusion was wrong. `addRankMarkMenu(null, moveRankMenu)` builds a real
+subtree in the helper method (`Menu.java:8472`), which the static tree parser cannot see.
 
-The current CSV still carries entries from the old mistaken split:
+Corrected rows:
 
 ```text
-M-VIEW-061  最近一手        likely duplicate of M-VIEW-050
-M-VIEW-064  评价方式 > 自动  virtual container
-M-VIEW-065  评价方式 > 目差  virtual container
-M-VIEW-066  评价方式 > 胜率  virtual container
-M-VIEW-067  评价方式 > 综合  virtual container
-M-VIEW-068  在原位置显示      source has no such entry
+M-VIEW-061  落子评价标记 > 最后1手       rankLastMove
+M-VIEW-064  落子评价标记 > 评价方式 > 自动  rankModeAuto
+M-VIEW-065  落子评价标记 > 评价方式 > 目数  rankModeScore
+M-VIEW-066  落子评价标记 > 评价方式 > 胜率  rankModeWinrate
+M-VIEW-067  落子评价标记 > 评价方式 > 综合  rankModeCombined
+M-VIEW-068  落子评价标记 > 在原位置显示     showMoveRankInOrigin
+M-VIEW-091  落子评价标记 > 无              rankNoneMove
+M-VIEW-092  落子评价标记 > 评价方式         container
 ```
 
-`落子评价标记(Alt+M)` is a leaf switch. Its old “children” belong to `手数(M)` or
-`显示胜率/目数曲线`; the rows above must be removed or reclassified before Gate 1 closes.
+These 8 rows carry the narrow exemption `helper-method subtree (addRankMarkMenu L8472)`; the
+right-click popup reuses the same helper.
 
-### Omission queue
+Keep `M-VIEW-060/062/063` under `手数(M)`; they are different actions.
 
-119 omission records remain in `audit-closure.md`. They are deferred to construction-time
-verification (visible components are checked against the real screen), but they are still a
-documented Gate 1 risk.
+## Remaining risk
+
+119 omission records remain in `audit-closure.md`, deferred to construction-time verification.
 
 ## Verdict
 
-Children coverage is verified for the main groups, but the hand-number/rank structural cleanup is
-not done. Gate 1 cannot be declared closed yet.
+Children coverage is complete for the main groups, and the hand-number/rank structural error is
+resolved. The omission queue is a construction-time check, not a children blocker.

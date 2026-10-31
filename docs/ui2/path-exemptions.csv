@@ -13,7 +13,12 @@ M-GAME-011,棋局 > 试下,re-classified: toolbar bucket (customToolbarItem L483
 M-HELP-003,帮助 > 恢复自动保存的棋谱,no-entry
 M-HELP-004,帮助 > 棋盘识别工具,no-entry
 M-HELP-006,帮助 > 历史记录,no-entry
-M-VIEW-068,显示 > 落子评价标记 > 在原位置显示,no-entry
+M-VIEW-061,显示 > 落子评价标记 > 最后1手,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-064,显示 > 落子评价标记 > 评价方式 > 自动,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-065,显示 > 落子评价标记 > 评价方式 > 目数,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-066,显示 > 落子评价标记 > 评价方式 > 胜率,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-067,显示 > 落子评价标记 > 评价方式 > 综合,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-068,显示 > 落子评价标记 > 在原位置显示,helper-method subtree (addRankMarkMenu L8472)
 M-ENG-000,引擎 > 关闭引擎,D: dynamic/static-parser limitation
 M-ENG-009,引擎2（第二引擎） > 重启当前引擎,D: dynamic/static-parser limitation
 M-ENG-010,引擎2（第二引擎） > 关闭当前引擎,D: dynamic/static-parser limitation
@@ -24,3 +29,5 @@ M-GAME-016,棋局 > 干预引擎对局,no-entry
 M-ANA-015,分析 > 闪电分析(全局),no-entry
 M-SYNC-008,同步 > 棋盘同步工具(简易版),no-entry
 M-SET-009,设置 > 语言 > English,pure-ASCII literal not captured by parser
+M-VIEW-091,显示 > 落子评价标记 > 无,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-092,显示 > 落子评价标记 > 评价方式,helper-method subtree (addRankMarkMenu L8472)
