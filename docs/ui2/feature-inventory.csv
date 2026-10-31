@@ -152,7 +152,7 @@ M-NAV-001,menu,编辑 > 跳转到左分支,跳转到左分支(←),←/→,navig
 M-NAV-002,menu,编辑 > 跳转到右分,跳转到右分(→),Home/End,navigateFirstLast,Menu.java,enabled:always,,no,—,Windows/通用,未接,评审补录,,both,,
 M-HELP-003,menu,帮助 > 恢复自动保存的棋谱,恢复自动保存的棋谱,,restoreAutosave,Menu.java,enabled:always,,no,—,Windows/通用,no-entry,当前源码无菜单入口/上游遗留；IA 冻结下保留记录但不计入当前可见入口,,both,,
 M-ANA-014,menu,分析 > 清除Lizzie缓存(全局)(Shift+A),清除Lizzie缓存(全局)(Shift+A),Shift+A,clearAllCache,Menu.java,enabled:always,,no,—,Windows/通用,未接,评审补录,,both,,
-M-EDIT-014,menu,帮助 > 清除所有个人数据,清除所有个人数据,,clearAllPersonalData,Menu.java,enabled:always,,no,确认框,Windows/通用,未接,评审补录,,both,,source-verified manual: helpMenu.add(clearUserData) L5017; label is hard-coded
+M-EDIT-014,menu,帮助 > 清除所有个人数据,清除所有个人数据,,clearAllPersonalData,Menu.java,enabled:always,,no,确认框,Windows/通用,未接,评审补录,,both,,
 M-HELP-004,menu,帮助 > 棋盘识别工具,棋盘识别工具,Alt+O,openBoardRecognition,Menu.java,enabled:always,,no,识别工具,Windows/通用,no-entry,当前源码无菜单入口/上游遗留；IA 冻结下保留记录但不计入当前可见入口,,both,,
 M-HELP-005,menu,跑谱贡献,跑谱贡献,,openContribute,Menu.java,enabled:always,,no,ContributeView,Windows/通用,未接,源码 this.add(contributeMenu)，是顶级菜单；原清单误挂帮助 > 跑谱贡献,,both,,
 M-VIEW-047,menu,设置 > 语言,语言（简体/繁体/日文）,,switchLanguage,Menu.java,enabled:always,,no,—,Windows/通用,未接,评审补录,,both,,
@@ -231,12 +231,12 @@ M-SYNC-008,menu,同步 > 棋盘同步工具(简易版),棋盘同步工具(简易
 T-BOT-015,toolbar,底栏 > 闪电分析,闪电分析,,flashAnalyze,BottomToolbar.java,enabled:always,,yes,—,Windows/通用,未接,原版 741c301 有，当前清单补录,,upstream-741c301,,
 M-SET-005,menu,设置 > 语言,语言,,languageMenu,Menu.java,enabled:always,,no,—,Windows/通用,未接,资源键 menu.language；子菜单容器,,both,,
 M-SET-006,menu,设置 > 语言 > 跟随系统,跟随系统,,selectLanguage(SYSTEM),Menu.java,enabled:always,locale==SYSTEM,no,—,Windows/通用,未接,资源键 menu.language.default,,both,,
-M-SET-007,menu,设置 > 语言 > 简体中文,简体中文,,selectLanguage(SIMPLIFIED_CHINESE),Menu.java,enabled:always,locale==SIMPLIFIED_CHINESE,no,—,Windows/通用,未接,,,both,,source-verified manual: settings.add(language) L5129; parser merges duplicate labels
-M-SET-008,menu,设置 > 语言 > 繁體中文,繁體中文,,selectLanguage(TRADITIONAL_CHINESE),Menu.java,enabled:always,locale==TRADITIONAL_CHINESE,no,—,Windows/通用,未接,,,both,,source-verified manual: settings.add(language) L5129; parser merges duplicate labels
-M-SET-009,menu,设置 > 语言 > English,English,,selectLanguage(ENGLISH),Menu.java,enabled:always,locale==ENGLISH,no,—,Windows/通用,未接,,,both,,source-verified manual: settings.add(language) L5129; parser merges duplicate labels
-M-SET-010,menu,设置 > 语言 > 日本語,日本語,,selectLanguage(JAPANESE),Menu.java,enabled:always,locale==JAPANESE,no,—,Windows/通用,未接,,,both,,source-verified manual: settings.add(language) L5129; parser merges duplicate labels
-M-SET-011,menu,设置 > 语言 > 한국어,한국어,,selectLanguage(KOREAN),Menu.java,enabled:always,locale==KOREAN,no,—,Windows/通用,未接,,,both,,source-verified manual: settings.add(language) L5129; parser merges duplicate labels
-M-SET-012,menu,设置 > 语言 > ไทย,ไทย,,selectLanguage(THAI),Menu.java,enabled:always,locale==THAI,no,—,Windows/通用,未接,,,both,,source-verified manual: settings.add(language) L5129; parser merges duplicate labels
+M-SET-007,menu,设置 > 语言 > 简体中文,简体中文,,selectLanguage(SIMPLIFIED_CHINESE),Menu.java,enabled:always,locale==SIMPLIFIED_CHINESE,no,—,Windows/通用,未接,,,both,,
+M-SET-008,menu,设置 > 语言 > 繁體中文,繁體中文,,selectLanguage(TRADITIONAL_CHINESE),Menu.java,enabled:always,locale==TRADITIONAL_CHINESE,no,—,Windows/通用,未接,,,both,,
+M-SET-009,menu,设置 > 语言 > English,English,,selectLanguage(ENGLISH),Menu.java,enabled:always,locale==ENGLISH,no,—,Windows/通用,未接,,,both,,pure-ASCII literal not captured by parser
+M-SET-010,menu,设置 > 语言 > 日本語,日本語,,selectLanguage(JAPANESE),Menu.java,enabled:always,locale==JAPANESE,no,—,Windows/通用,未接,,,both,,
+M-SET-011,menu,设置 > 语言 > 한국어,한국어,,selectLanguage(KOREAN),Menu.java,enabled:always,locale==KOREAN,no,—,Windows/通用,未接,,,both,,
+M-SET-012,menu,设置 > 语言 > ไทย,ไทย,,selectLanguage(THAI),Menu.java,enabled:always,locale==THAI,no,—,Windows/通用,未接,,,both,,
 M-SET-013,menu,设置 > 界面字体大小,界面字体大小,,frameFontSizeMenu,Menu.java,enabled:always,,no,—,Windows/通用,未接,资源键 menu.frameFontSize；子菜单容器,,both,,
 M-SET-014,menu,设置 > 界面字体大小 > 小,小,,setFrameFontSize(0),Menu.java,enabled:always,frameFontSize==SMALL,no,—,Windows/通用,未接,,,both,,
 M-SET-015,menu,设置 > 界面字体大小 > 中,中,,setFrameFontSize(1),Menu.java,enabled:always,frameFontSize==MIDDLE,no,—,Windows/通用,未接,,,both,,
