@@ -93,6 +93,12 @@ public final class Ui2Snapshot {
         capture(child, path + "/" + segment, out, depth + 1);
       }
     }
+    // JMenu.add() puts items into an internal JPopupMenu, not into JMenu.getComponents().
+    // Capture that popup explicitly; otherwise the snapshot sees 12 empty top-level menus.
+    if (component instanceof JMenu) {
+      JMenu menu = (JMenu) component;
+      capture(menu.getPopupMenu(), path + "/popup", out, depth + 1);
+    }
   }
 
   private static String childSegment(Component component) {
