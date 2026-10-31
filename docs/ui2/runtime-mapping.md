@@ -4,11 +4,11 @@ Structural rows: **437 = 340 leaves + 47 separators + 50 popups**
 
 | Bucket | Count |
 |---|---:|
-| matched | 167 |
+| matched | 165 |
 | toolbar-mirror | 0 |
-| engine-dynamic | 0 |
-| config-hidden | 38 |
-| unmatched | 135 |
+| engine-dynamic | 48 |
+| config-hidden | 0 |
+| unmatched | 127 |
 | separator | 47 |
 | popup-glue | 50 |
 
@@ -191,11 +191,3 @@ Leaf total: **340**; five feature buckets sum: **340**
 - `ModelJMenuBar/JFontMenu#9/popup/JFontMenuItem`  text='可视化KataGo分布式训练'
 - `ModelJMenuBar/JFontMenu#9/popup/JFontMenuItem#1`  text='KataGo训练设置'
 - `ModelJMenuBar/JFontMenu#9/popup/JFontMenuItem#2`  text='KataGo官方网站'
-- `ModelJMenuBar/JFontMenu#10/popup/JFontMenuItem`  text='[1] v1.18.2 cuDNN9.24 b11c768 261030'
-- `ModelJMenuBar/JFontMenu#10/popup/JFontMenuItem#1`  text='[2] v1.18.2 cuDNN9.24 b10c512 261030'
-- `ModelJMenuBar/JFontMenu#10/popup/JFontMenuItem#21`  text='重启当前引擎'
-- `ModelJMenuBar/JFontMenu#10/popup/JFontMenu/popup/JFontMenuItem`  text='关闭当前引擎'
-- `ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem`  text='[1] v1.18.2 cuDNN9.24 b11c768 261030'
-- `ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem#1`  text='[2] v1.18.2 cuDNN9.24 b10c512 261030'
-- `ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem#21`  text='重启当前引擎'
-- `ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem#22`  text='关闭当前引擎'

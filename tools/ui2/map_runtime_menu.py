@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT / "tools/ui2"))
 from verify_paths import norm  # noqa: E402
 
 INV = ROOT / "docs/ui2/feature-inventory.csv"
-DUMP = ROOT / "docs/ui2/golden/smoke-zh_CN.txt"
+DUMP = ROOT / "docs/ui2/golden/samples/smoke-zh_CN.txt"
 OUT_CSV = ROOT / "docs/ui2/runtime-mapping.csv"
 OUT_MD = ROOT / "docs/ui2/runtime-mapping.md"
 
@@ -85,37 +85,55 @@ def main() -> None:
     separators = [r for r in runtime if r["class"] in {"Separator", "ToolbarSeparator"}]
     leaves = [r for r in runtime if r["class"] in LEAF_CLASSES]
 
+    path_text = {r["path"]: norm_text(r["text"]) for r in runtime}
+
+    def top_menu_text(path: str) -> str:
+        parts = path.split("/")
+        return path_text.get("/".join(parts[:2]), "")
+
     out = []
     counts = Counter()
     seen_inventory = set()
     for row in leaves:
         text = norm_text(row["text"])
         candidates = list(by_label.get(text, {}).values())
-        # Duplicate labels are disambiguated only by exact parent path text.
-        parent_text = norm_text(row["path"].split("/")[-3]) if row["path"].count("/") >= 3 else ""
+        parent_path = row["path"].rsplit("/", 1)[0]
+        parent_text = path_text.get(parent_path, "")
         exact = [c for c in candidates if norm_text(c["path"].split(">")[-2] if ">" in c["path"] else "") == parent_text]
+        conflict = len(exact) > 1
         chosen = exact[0] if len(exact) == 1 else (candidates[0] if len(candidates) == 1 else None)
-        if row["visible"].lower() == "false":
-            bucket = "config-hidden"
-        elif "引擎" in row["path"] or "未加载引擎" in row["text"] or "引擎2" in row["path"]:
+        if chosen is not None:
+            # Even hidden/dynamic rows count as inventory-seen; otherwise the reverse check lies.
+            seen_inventory.add(chosen["id"])
+        top_text = top_menu_text(row["path"])
+        top_segment = row["path"].split("/")[1] if "/" in row["path"] else ""
+        if top_text == "未加载引擎" or top_segment in {"JFontMenu#10", "JFontMenu#11"}:
             bucket = "engine-dynamic"
+        elif row["visible"].lower() == "false":
+            bucket = "config-hidden"
         elif chosen is not None:
             bucket = "matched"
-            seen_inventory.add(chosen["id"])
         else:
             bucket = "unmatched"
+        evidence = ""
+        if conflict:
+            evidence = "conflict: multiple inventory candidates"
+        elif chosen is not None:
+            evidence = "normalized label match"
+        if bucket == "engine-dynamic" and row["visible"].lower() == "false":
+            evidence = (evidence + "; " if evidence else "") + "engine subtree hidden"
         counts[bucket] += 1
         out.append(
             {
                 "path": row["path"],
-                "top_menu": top_menu(row["path"]),
+                "top_menu": top_text or top_menu(row["path"]),
                 "class": row["class"],
                 "text": row["text"],
                 "visible": row["visible"],
                 "enabled": row["enabled"],
                 "bucket": bucket,
                 "inventory_id": chosen["id"] if chosen is not None else "",
-                "evidence": "normalized label match" if chosen is not None else "",
+                "evidence": evidence,
             }
         )
 
