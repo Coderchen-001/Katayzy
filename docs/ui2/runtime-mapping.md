@@ -4,11 +4,11 @@ Structural rows: **437 = 340 leaves + 47 separators + 50 popups**
 
 | Bucket | Count |
 |---|---:|
-| matched | 180 |
+| matched | 186 |
 | toolbar-mirror | 0 |
 | engine-dynamic | 48 |
 | config-hidden | 0 |
-| unmatched | 112 |
+| unmatched | 106 |
 | separator | 47 |
 | popup-glue | 50 |
 
@@ -18,24 +18,12 @@ Leaf total: **340**; five feature buckets sum: **340**
 
 - `M-SET-002`
 - `M-SET-003`
-- `M-ENG-002`
-- `M-HELP-005`
-- `M-VIEW-047`
 - `M-GAME-014C`
 - `M-VIEW-049`
-- `M-VIEW-050`
 - `M-VIEW-053`
-- `M-VIEW-060`
-- `M-VIEW-062`
 - `M-VIEW-063`
 - `M-VIEW-071`
-- `M-VIEW-072`
-- `M-VIEW-073`
-- `M-VIEW-074`
 - `M-VIEW-087`
-- `M-SET-005`
-- `M-TOP-008`
-- `M-ENG-011`
 
 ## Unmatched runtime rows
 
@@ -72,9 +60,6 @@ Leaf total: **340**; five feature buckets sum: **340**
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#11`  text='继续分析'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#16`  text='删除'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#17`  text='落子评价'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem`  text='不显示'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#1`  text='最后1手'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#4`  text='全部'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem`  text='不显示'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#1`  text='显示最后一手'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#2`  text='显示最后多手:3'
@@ -102,9 +87,6 @@ Leaf total: **340**; five feature buckets sum: **340**
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#4`  text='显示评论/问题手面板顶部控制条'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#6`  text='显示清空棋盘提示对话框'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#7`  text='显示覆盖文件提示对话框'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='胜率'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='目数'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2`  text='全部'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenuItem`  text='设置初始目数差最大值'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='第一感热点图'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='计算后热点图'

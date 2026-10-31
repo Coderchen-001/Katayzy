@@ -38,7 +38,7 @@ ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#12,JFontMe
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#13,JFontMenu#1,显示,JFontCheckBoxMenuItem,独立选点列表(U),true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,独立显示,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,合并在菜单栏上,true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,不显示,true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,不显示,true,true,unmatched,,conflict: multiple inventory candidates
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#3,JFontMenu#1,显示,JFontCheckBoxMenuItem,自动换行(仅独立显示时),true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,独立/合并工具栏按钮,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,基本按钮(仅独立显示时),true,true,unmatched,,normalized label match
@@ -56,7 +56,7 @@ ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popu
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#13,JFontMenu#1,显示,JFontCheckBoxMenuItem,棋盘,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#14,JFontMenu#1,显示,JFontCheckBoxMenuItem,存档,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示,true,true,matched,M-TOP-002,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,不显示,true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,不显示,true,true,unmatched,,conflict: multiple inventory candidates
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,使用详细工具栏,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示拓展/隐藏详细工具栏按钮,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,设置模块顺序,true,true,unmatched,,normalized label match
@@ -84,18 +84,18 @@ ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#2/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,左移 ([),true,true,matched,M-VIEW-003,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#2/popup/JFontMenuItem#1,JFontMenu#1,显示,JFontMenuItem,右移 (]),true,true,matched,M-VIEW-004,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,坐标(C),true,true,matched,M-VIEW-005,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,不显示,true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,最后1手,true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,不显示,true,true,matched,M-VIEW-060,conflict: multiple inventory candidates
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,最后1手,true,true,matched,M-VIEW-050,conflict: multiple inventory candidates
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,最后5手,true,true,matched,M-VIEW-051,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#3,JFontMenu#1,显示,JFontCheckBoxMenuItem,最后10手,true,true,matched,M-VIEW-052,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#4,JFontMenu#1,显示,JFontCheckBoxMenuItem,全部,true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#4,JFontMenu#1,显示,JFontCheckBoxMenuItem,全部,true,true,matched,M-VIEW-062,conflict: multiple inventory candidates
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#5,JFontMenu#1,显示,JFontCheckBoxMenuItem,自定义,true,true,matched,M-VIEW-054,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#6,JFontMenu#1,显示,JFontCheckBoxMenuItem,总是从1开始显示,true,true,matched,M-VIEW-055,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#7,JFontMenu#1,显示,JFontCheckBoxMenuItem,分支内从1开始显示,true,true,matched,M-VIEW-056,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#8,JFontMenu#1,显示,JFontCheckBoxMenuItem,分支内继续总手数,true,true,matched,M-VIEW-057,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#9,JFontMenu#1,显示,JFontCheckBoxMenuItem,分支内总是显示所有手数(Alt+M),true,true,matched,M-VIEW-058,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#10,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示分支面板上的手数,true,true,matched,M-VIEW-059,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,不显示,true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,不显示,true,true,unmatched,,conflict: multiple inventory candidates
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示最后一手,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示最后多手:3,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#3,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示所有,true,true,unmatched,,normalized label match
@@ -104,9 +104,9 @@ ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxM
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,仅目差,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,仅胜率,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem#3,JFontMenu#1,显示,JFontCheckBoxMenuItem,综合（更敏感）,true,true,matched,M-VIEW-067,parenthetical annotation prefix match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,胜率,true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,胜率,true,true,unmatched,,conflict: multiple inventory candidates
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,计算量,true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,目数,true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,目数,true,true,unmatched,,conflict: multiple inventory candidates
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#3,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示目数为差值,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,自定义顺序,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#4,JFontMenu#1,显示,JFontCheckBoxMenuItem,延迟显示,true,true,unmatched,,normalized label match
@@ -142,9 +142,9 @@ ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#6,JFontM
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#7,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示覆盖文件提示对话框,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,黑方视角,true,true,matched,M-VIEW-042,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,双方视角,true,true,matched,M-VIEW-090,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenu/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,胜率,true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,目数,true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,全部,true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenu/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,胜率,true,true,matched,M-VIEW-072,conflict: multiple inventory candidates
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,目数,true,true,matched,M-VIEW-073,conflict: multiple inventory candidates
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,全部,true,true,matched,M-VIEW-074,conflict: multiple inventory candidates
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示柱状失误条,true,true,matched,M-VIEW-075,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontCheckBoxMenuItem#3,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示鼠标悬停信息(仅限黑视角),true,true,matched,M-VIEW-076,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,设置初始目数差最大值,true,true,unmatched,,normalized label match
@@ -312,8 +312,8 @@ ModelJMenuBar/JFontMenu#10/popup/JFontMenuItem#17,JFontMenu#10,未加载引擎,J
 ModelJMenuBar/JFontMenu#10/popup/JFontMenuItem#18,JFontMenu#10,未加载引擎,JFontMenuItem,[19],false,true,engine-dynamic,,normalized label match; engine subtree hidden
 ModelJMenuBar/JFontMenu#10/popup/JFontMenuItem#19,JFontMenu#10,未加载引擎,JFontMenuItem,[20],false,true,engine-dynamic,,normalized label match; engine subtree hidden
 ModelJMenuBar/JFontMenu#10/popup/JFontMenuItem#20,JFontMenu#10,未加载引擎,JFontMenuItem,[21],false,true,engine-dynamic,,normalized label match; engine subtree hidden
-ModelJMenuBar/JFontMenu#10/popup/JFontMenuItem#21,JFontMenu#10,未加载引擎,JFontMenuItem,重启当前引擎,true,true,engine-dynamic,,normalized label match
-ModelJMenuBar/JFontMenu#10/popup/JFontMenu/popup/JFontMenuItem,JFontMenu#10,未加载引擎,JFontMenuItem,关闭当前引擎,true,true,engine-dynamic,,normalized label match
+ModelJMenuBar/JFontMenu#10/popup/JFontMenuItem#21,JFontMenu#10,未加载引擎,JFontMenuItem,重启当前引擎,true,true,engine-dynamic,,conflict: multiple inventory candidates
+ModelJMenuBar/JFontMenu#10/popup/JFontMenu/popup/JFontMenuItem,JFontMenu#10,未加载引擎,JFontMenuItem,关闭当前引擎,true,true,engine-dynamic,M-ENG-002,conflict: multiple inventory candidates
 ModelJMenuBar/JFontMenu#10/popup/JFontMenu/popup/JFontMenuItem#1,JFontMenu#10,未加载引擎,JFontMenuItem,关闭当前以外引擎,true,true,engine-dynamic,M-ENG-008,normalized label match
 ModelJMenuBar/JFontMenu#10/popup/JFontMenu/popup/JFontMenuItem#2,JFontMenu#10,未加载引擎,JFontMenuItem,关闭所有引擎,true,true,engine-dynamic,M-ENG-003,normalized label match
 ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem,JFontMenu#11,未加载引擎,JFontMenuItem,[1] v1.18.2 cuDNN9.24 b11c768 261030,true,true,engine-dynamic,,normalized label match
@@ -337,5 +337,5 @@ ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem#17,JFontMenu#11,未加载引擎,J
 ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem#18,JFontMenu#11,未加载引擎,JFontMenuItem,[19],false,true,engine-dynamic,,normalized label match; engine subtree hidden
 ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem#19,JFontMenu#11,未加载引擎,JFontMenuItem,[20],false,true,engine-dynamic,,normalized label match; engine subtree hidden
 ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem#20,JFontMenu#11,未加载引擎,JFontMenuItem,[21],false,true,engine-dynamic,,normalized label match; engine subtree hidden
-ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem#21,JFontMenu#11,未加载引擎,JFontMenuItem,重启当前引擎,true,true,engine-dynamic,,normalized label match
-ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem#22,JFontMenu#11,未加载引擎,JFontMenuItem,关闭当前引擎,true,true,engine-dynamic,,normalized label match
+ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem#21,JFontMenu#11,未加载引擎,JFontMenuItem,重启当前引擎,true,true,engine-dynamic,,conflict: multiple inventory candidates
+ModelJMenuBar/JFontMenu#11/popup/JFontMenuItem#22,JFontMenu#11,未加载引擎,JFontMenuItem,关闭当前引擎,true,true,engine-dynamic,,conflict: multiple inventory candidates

@@ -24,7 +24,7 @@ Findings:
 - the remaining risk is duplicate or missing submenu children, not top-level menus.
 
 Path verification against the real `Menu.java` mount tree found 83 mismatches out of 203
-multi-level paths. After A/C and rank-subtree fixes it is **174/174, 0 anomalies** (32 fixed
+multi-level paths. After A/C and rank-subtree fixes it is **173/173, 0 anomalies** (32 fixed
 exemptions: 14 `no-entry` + 8 D-class + 1 toolbar reclassification + 1 pure-ASCII parser limitation
 + 8 helper-method subtree rows). The earlier 7 “parser-verified” exemptions were removed after
 fixing the verifier's hard-coded-label bug. The path gate is closed; see

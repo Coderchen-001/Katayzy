@@ -73,6 +73,7 @@ def norm_text(value: str) -> str:
 def main() -> None:
     inventory = [r for r in csv.DictReader(INV.open(encoding="utf-8-sig"))]
     menu_rows = [r for r in inventory if r["entry_type"] == "menu"]
+    by_id = {r["id"]: r for r in menu_rows}
     by_label: dict[str, dict[str, dict[str, str]]] = {}
     for row in menu_rows:
         for key in {norm_text(row["label"]), norm_text(row["path"].split(">")[-1])}:
@@ -104,13 +105,17 @@ def main() -> None:
             if candidates:
                 evidence = "parenthetical annotation prefix match"
         parent_path = row["path"].rsplit("/", 1)[0]
+        if parent_path.endswith("/popup"):
+            # The popup row has empty text; the real container is its parent.
+            parent_path = parent_path.rsplit("/", 1)[0]
         parent_text = path_text.get(parent_path, "")
         exact = [
             c
             for c in candidates
             if norm_text(c["path"].split(">")[-2] if ">" in c["path"] else "") == parent_text
         ]
-        conflict = len({c["id"] for c in exact}) > 1
+        # Conflict is about the full candidate set, not the post-parent subset.
+        conflict = len({c["id"] for c in candidates}) > 1
         if len({c["id"] for c in exact}) == 1:
             return exact[0], conflict, evidence
         unique = {c["id"]: c for c in candidates}
@@ -125,11 +130,18 @@ def main() -> None:
     # Containers participate in the reverse check but not in the 340-leaf bucket accounting.
     for row in container_rows:
         chosen, _, _ = choose_inventory(row)
+        top_segment = row["path"].split("/")[1] if "/" in row["path"] else ""
+        if chosen is None and top_segment in {"JFontMenu#10", "JFontMenu#11"}:
+            chosen = by_id.get("M-ENG-001" if top_segment == "JFontMenu#10" else "M-ENG-011")
         if chosen is not None:
             seen_inventory.add(chosen["id"])
 
     for row in leaves:
         chosen, conflict, evidence = choose_inventory(row)
+        top_segment = row["path"].split("/")[1] if "/" in row["path"] else ""
+        if chosen is None and row["class"] == "JFontMenu" and top_segment in {"JFontMenu#10", "JFontMenu#11"}:
+            chosen = by_id.get("M-ENG-001" if top_segment == "JFontMenu#10" else "M-ENG-011")
+            evidence = "engine top-level position map"
         if chosen is not None:
             # Even hidden/dynamic rows count as inventory-seen; otherwise the reverse check lies.
             seen_inventory.add(chosen["id"])

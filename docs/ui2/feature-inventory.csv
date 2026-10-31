@@ -154,8 +154,6 @@ M-HELP-003,menu,帮助 > 恢复自动保存的棋谱,恢复自动保存的棋谱
 M-ANA-014,menu,分析 > 清除Lizzie缓存(全局)(Shift+A),清除Lizzie缓存(全局)(Shift+A),Shift+A,clearAllCache,Menu.java,enabled:always,,no,—,Windows/通用,未接,评审补录,,both,,
 M-EDIT-014,menu,帮助 > 清除所有个人数据,清除所有个人数据,,clearAllPersonalData,Menu.java,enabled:always,,no,确认框,Windows/通用,未接,评审补录,,both,,
 M-HELP-004,menu,帮助 > 棋盘识别工具,棋盘识别工具,Alt+O,openBoardRecognition,Menu.java,enabled:always,,no,识别工具,Windows/通用,no-entry,当前源码无菜单入口/上游遗留；IA 冻结下保留记录但不计入当前可见入口,,both,,
-M-HELP-005,menu,跑谱贡献,跑谱贡献,,openContribute,Menu.java,enabled:always,,no,ContributeView,Windows/通用,未接,源码 this.add(contributeMenu)，是顶级菜单；原清单误挂帮助 > 跑谱贡献,,both,,
-M-VIEW-047,menu,设置 > 语言,语言（简体/繁体/日文）,,switchLanguage,Menu.java,enabled:always,,no,—,Windows/通用,未接,评审补录,,both,,
 M-VIEW-048,menu,显示 > 主界面设置 > 总在最前,总在最前,Ctrl+Z,toggleAlwaysOnTop,Menu.java,enabled:always,,no,—,Windows/通用,未接,评审补录,,both,,
 M-FILE-018,menu,文件 > 存档与读档,存档与读档,,saveAndLoad,Menu.java,enabled:always,,no,—,Windows/通用,未接,评审补录,,both,,
 M-HELP-006,menu,帮助 > 历史记录,历史记录（本地）,,openHistory,Menu.java,enabled:always,,no,—,Windows/通用,no-entry,当前源码无菜单入口/上游遗留；IA 冻结下保留记录但不计入当前可见入口,,both,,
