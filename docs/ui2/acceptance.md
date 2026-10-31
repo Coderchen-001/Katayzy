@@ -52,7 +52,11 @@ represented here.
 - [ ] top bar/menu bar uses FlatLaf;
 - [ ] menu hierarchy, labels, shortcuts and entry points are unchanged (IA freeze);
 - [ ] `ui-surface-inventory.csv` reviewed: every visible frame/dialog/popup/custom-paint surface is
-  classified `保留 / 不可见 / 待替换` before any old renderer is removed.
+  classified `保留 / 不可见 / 待替换` before any old renderer is removed;
+- [ ] `surface-coverage.md` reviewed: every dialog reachable from the feature inventory has a
+  surface class or a documented manual mapping;
+- [ ] after the visual rewrite, `grep -rn "new Color(\|new Font(" ui2/` returns zero except the
+  documented self-painted whitelist (`BoardRenderer`, `WinrateGraph`, variation tree).
 - [ ] bottom bar uses FlatLaf and the normal/primary/danger role model;
 - [ ] left analysis column placeholder renders;
 - [ ] right variation column placeholder renders;

@@ -16,8 +16,14 @@ Mechanical duplicate check: `python tools/ui2/check_inventory_duplicates.py`.
 It fails on duplicate IDs, duplicate `path+action`, and empty required fields.
 
 Surface inventory: `python tools/ui2/inventory_ui_surfaces.py`.
-It scans all GUI classes for frame/dialog/popup/custom-paint signals. A surface may be
-`保留/不可见/待替换`; it must be explicitly classified before rendering replacement starts.
+It scans all GUI classes for frame/dialog/popup/custom-paint signals and records hard-coded style
+counts (`new Color`, `new Font`, `setFont`, `setBorder`, `setOpaque`, `setBackground`,
+`setForeground`) plus a P0/P1/P2 priority. A surface may be `保留/不可见/待替换`; it must be
+explicitly classified before rendering replacement starts.
+
+Surface coverage: `python tools/ui2/check_surface_coverage.py`.
+It joins feature-inventory dialog references to surface classes and lists descriptive names that
+need manual mapping in `surface-coverage.md`.
 
 ## Status
 

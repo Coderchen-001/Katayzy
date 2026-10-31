@@ -21,6 +21,26 @@ PATTERNS = {
     "frame": re.compile(r"\bextends\s+JFrame\b|\bnew\s+JFrame\s*\("),
     "graphics2d": re.compile(r"\bGraphics2D\b"),
 }
+STYLE_PATTERNS = {
+    "newColor": re.compile(r"\bnew\s+Color\s*\("),
+    "newFont": re.compile(r"\bnew\s+Font\s*\("),
+    "setFont": re.compile(r"\.setFont\s*\("),
+    "setBorder": re.compile(r"\.setBorder\s*\("),
+    "setOpaque": re.compile(r"\.setOpaque\s*\("),
+    "setBackground": re.compile(r"\.setBackground\s*\("),
+    "setForeground": re.compile(r"\.setForeground\s*\("),
+}
+P0 = {
+    "LizzieFrame.java", "BottomToolbar.java", "TopHeaderPanel.java",
+    "SidebarPanel.java", "SidebarHeaderPanel.java", "SidebarStatusPanel.java",
+    "WindowMenuStrip.java", "ConfigDialog2.java",
+}
+P1 = {
+    "StartAnaDialog.java", "NewGameDialog.java", "NewEngineGameDialog.java",
+    "NewAnaGameDialog.java", "AnalysisTable.java", "SyncDiagnosticsDialog.java",
+    "GameInfoDialog.java", "PlayerStrengthEstimate.java", "MovenumberDialog.java",
+    "SetAiTimes.java", "ChooseMoreEngine.java", "SetBoardSize.java",
+}
 
 
 def main() -> None:
@@ -41,6 +61,12 @@ def main() -> None:
             (k for k in ("frame", "dialog", "popup", "custom-paint") if k in kinds),
             "panel",
         )
+        style_counts = {
+            name: len(pattern.findall(text)) for name, pattern in STYLE_PATTERNS.items()
+        }
+        style_hits = sum(style_counts.values())
+        style_detail = ",".join(f"{name}={count}" for name, count in style_counts.items() if count)
+        priority = "P0" if path.name in P0 else ("P1" if path.name in P1 else "P2")
         rows.append(
             {
                 "id": f"UI-{len(rows) + 1:03d}",
@@ -48,6 +74,9 @@ def main() -> None:
                 "surface_type": surface,
                 "all_signals": "+".join(kinds),
                 "evidence": ";".join(evidence),
+                "style_hits": str(style_hits),
+                "style_detail": style_detail,
+                "priority": priority,
                 "replacement": "",
                 "status": "未探查",
                 "notes": "先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染",
@@ -57,7 +86,10 @@ def main() -> None:
     with OUT.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
             handle,
-            fieldnames=["id", "class", "surface_type", "all_signals", "evidence", "replacement", "status", "notes"],
+            fieldnames=[
+                "id", "class", "surface_type", "all_signals", "evidence",
+                "style_hits", "style_detail", "priority", "replacement", "status", "notes",
+            ],
         )
         writer.writeheader()
         writer.writerows(rows)

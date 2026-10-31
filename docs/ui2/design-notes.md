@@ -248,6 +248,19 @@ Every row must be classified before old rendering is removed:
 A screen is not “done” because the main window looks new. If a dialog or popup is still hand-painted,
 the UI is still inconsistent.
 
+Workload is recorded objectively: `style_hits`/`style_detail` count hard-coded colors, fonts,
+borders and opacity calls per class. A dialog with zero style hits is mostly a FlatLaf reskin; a
+class with dozens of `new Color()` calls needs a real replacement pass.
+
+Priority is P0/P1/P2:
+
+- P0: main window, top/bottom bars, sidebar, settings, strength report, sync diagnostics, kifu import;
+- P1: common dialogs in the analysis workflow;
+- P2: long-tail dialogs covered by FlatLaf defaults unless they visibly break.
+
+`surface-coverage.md` joins feature dialog references to surface classes. Unmatched descriptive
+names are review items, not automatic omissions.
+
 ### Retire self-drawn UI skins, without changing the menu
 
 `Apple 风格界面` and `经典配色` are self-maintained Look-and-Feel paths. They conflict with the
