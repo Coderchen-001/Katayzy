@@ -32,19 +32,32 @@ public final class Ui2Snapshot {
   private Ui2Snapshot() {}
 
   public static String capture(JFrame frame) {
+    return capture(frame, frame == null ? null : frame.getJMenuBar());
+  }
+
+  public static String capture(JFrame frame, JMenuBar extraMenuBar) {
     if (frame == null) return "";
     StringBuilder out = new StringBuilder();
     JMenuBar menuBar = frame.getJMenuBar();
     if (menuBar != null) {
       capture(menuBar, "JMenuBar", out, 0);
     }
+    // Lizzie uses a WindowMenuStrip for painting, but the JMenuBar model still owns
+    // all 12 menus and their children. Capture it explicitly so menu regressions are visible.
+    if (extraMenuBar != null && extraMenuBar != menuBar) {
+      capture(extraMenuBar, "ModelJMenuBar", out, 0);
+    }
     capture(frame.getContentPane(), "content", out, 0);
     return out.toString();
   }
 
   public static void write(JFrame frame, Path path) throws IOException {
+    write(frame, frame == null ? null : frame.getJMenuBar(), path);
+  }
+
+  public static void write(JFrame frame, JMenuBar extraMenuBar, Path path) throws IOException {
     Files.createDirectories(path.toAbsolutePath().getParent());
-    Files.writeString(path, capture(frame), StandardCharsets.UTF_8);
+    Files.writeString(path, capture(frame, extraMenuBar), StandardCharsets.UTF_8);
   }
 
   private static void capture(Component component, String path, StringBuilder out, int depth) {

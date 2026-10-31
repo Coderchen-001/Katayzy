@@ -14,6 +14,7 @@ import featurecat.lizzie.gui.LoadEngine;
 import featurecat.lizzie.gui.web.WebBoardManager;
 import featurecat.lizzie.rules.Board;
 import featurecat.lizzie.rules.BoardHistoryNode;
+import featurecat.lizzie.ui2.Ui2Harness;
 import featurecat.lizzie.util.KataGoAutoSetupHelper;
 import featurecat.lizzie.util.KataGoAutoSetupHelper.SetupSnapshot;
 import featurecat.lizzie.util.KataGoRuntimeHelper;
@@ -97,7 +98,7 @@ public class Lizzie {
 
   /** Launches the game window, and runs the game. */
   public static void main(String[] args) throws IOException {
-    mainArgs = args;
+    mainArgs = Ui2Harness.filterArgs(args);
     // Must be set before any AWT/Swing class initializes. macOS always antialiases
     // text; on Windows/Linux these flags are what keep Swing text from rendering
     // jagged under the cross-platform look and feel.
@@ -641,6 +642,7 @@ public class Lizzie {
     frame.reSetLoc();
     frame.showMainPanel();
     frame.addResizeLis();
+    Ui2Harness.afterFrameReady(frame);
     // 引擎跟随控制器：试下期间让引擎跟随 displayNode 实时分析
     EngineCommandSink sink = new LeelazEngineCommandSink();
     engineFollowController = new EngineFollowController(sink);
