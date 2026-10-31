@@ -23,6 +23,18 @@ Findings:
 - descriptive dialog names are now mapped in `dialog-mapping.md`;
 - the remaining risk is duplicate or missing submenu children, not top-level menus.
 
+A first mechanical entry-closure run (`audit-closure.md`, scope 552 records):
+
+```text
+mapped       113
+non-entry    241
+comment       13
+unmapped     185
+```
+
+The 185 unmapped records include container labels, language switches and tooltip/copy keys; they
+are not all missing features. Gate 1 is still not closed until each is dispositioned.
+
 Action:
 
 - `check_inventory_duplicates.py` passes (`230` unique IDs / `path+action`);

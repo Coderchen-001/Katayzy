@@ -17,6 +17,7 @@ This directory is the acceptance record for the UI2 rewrite.
 | `backlog.md` | Deferred theme work, Gate 1 prerequisites and visual passes; the durable TODO list |
 | `gate1-self-audit.md` | Gate 1 five-section self-audit; currently not passing |
 | `katayzy-new-disposition.md` | Disposition of the 28 current-only features |
+| `audit-closure.md` | Entry-bearing audit disposition and unmapped list |
 
 Mechanical duplicate check: `python tools/ui2/check_inventory_duplicates.py`.
 It fails on duplicate IDs, duplicate `path+action`, and empty required fields.
