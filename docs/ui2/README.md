@@ -18,6 +18,8 @@ This directory is the acceptance record for the UI2 rewrite.
 | `gate1-self-audit.md` | Gate 1 five-section self-audit; currently not passing |
 | `katayzy-new-disposition.md` | Disposition of the 28 current-only features |
 | `audit-closure.md` | Entry-bearing audit disposition and unmapped list |
+| `path-mismatch-triage.md` | Manual triage of 83 inventory paths that disagree with the source mount tree |
+| `real-menu-tree.txt` | Parsed real menu tree used by the path verifier |
 
 Mechanical duplicate check: `python tools/ui2/check_inventory_duplicates.py`.
 It fails on duplicate IDs, duplicate `path+action`, and empty required fields.
@@ -35,8 +37,8 @@ need manual mapping in `surface-coverage.md`.
 ## Status
 
 `feature-inventory.csv` is a **draft** generated from the current `Menu.java`,
-`BottomToolbar.java` and right-click menus. Current draft: **249 semantic rows**
-(211 menu, 15 toolbar, 17 context, 2 status, 4 dialog). It is not yet complete.
+`BottomToolbar.java` and right-click menus. Current draft: **251 semantic rows**
+(213 menu, 15 toolbar, 17 context, 2 status, 4 dialog). It is not yet complete.
 
 Before the vertical slice is accepted:
 
