@@ -11,7 +11,8 @@ This directory is the acceptance record for the UI2 rewrite.
 ## Status
 
 `feature-inventory.csv` is a **draft** generated from the current `Menu.java`,
-`BottomToolbar.java` and right-click menus. It is not yet complete.
+`BottomToolbar.java` and right-click menus. Current draft: **171 semantic rows**
+(134 menu, 14 toolbar, 17 context, 2 status, 4 dialog). It is not yet complete.
 
 Before the vertical slice is accepted:
 
@@ -21,7 +22,10 @@ Before the vertical slice is accepted:
 4. Mark each row `未接 -> 已接 -> 截图通过 -> 交互通过`.
 
 The CSV deliberately uses one row per semantic action. Dynamic menu items are expressed through
-`state_matrix` and `checked_condition` instead of duplicate rows.
+`state_matrix` and `checked_condition` instead of duplicate rows. Known gaps after the first review:
+engine menu variants, game submenu variants, save/clipboard shortcuts, board transforms, edit/branch
+navigation, submenu children, data recovery and some special tools. These are being filled in before
+Gate 1 can pass.
 
 ## Git
 
