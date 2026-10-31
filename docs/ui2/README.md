@@ -12,6 +12,7 @@ This directory is the acceptance record for the UI2 rewrite.
 | `upstream-cross-check.md` | Human-readable summary of the two-way cross-check |
 | `ui-surface-inventory.csv` | Every frame/dialog/popup/custom-paint surface that must be visually accounted for |
 | `theme-catalog.md` | Board-theme supplement and duplicate audit against the upstream five themes |
+| `backlog.md` | Deferred theme work, Gate 1 prerequisites and visual passes; the durable TODO list |
 
 Mechanical duplicate check: `python tools/ui2/check_inventory_duplicates.py`.
 It fails on duplicate IDs, duplicate `path+action`, and empty required fields.
