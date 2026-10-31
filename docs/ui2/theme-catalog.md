@@ -72,6 +72,33 @@ asset-driven and can be curated later.
 6. The theme picker can group `Modern` and `Classic`; this is a theme-list change, not a menu
    hierarchy change. `Theme` config keys and the Sabaki loader stay compatible.
 
+## Theme picker contract
+
+The theme picker must be **directory-scan driven**:
+
+- enumerate `theme/*/theme.txt`;
+- load each candidate through the existing `Theme` loader;
+- show a preview generated from the actual board renderer, not a hard-coded image list;
+- never hard-code theme IDs in UI code;
+- an invalid or incomplete theme is skipped with a readable error, not a crash.
+
+This keeps the Classic pack, user-added themes and future themes zero-code additions.
+
+## Smoke test and preview
+
+One test should cover both compatibility and preview:
+
+1. scan every `theme/*/theme.txt`;
+2. load it through the current `Theme` implementation;
+3. verify referenced board/black/white/background files exist and are readable;
+4. render a fixed-size mini board through the existing `BoardRenderer`;
+5. save the image as the picker preview;
+6. fail only for that theme, never abort the whole scan.
+
+A headless loader/asset check can run in CI; the rendered preview can reuse the same offscreen
+renderer as the theme picker. Do not bake preview PNGs into the app when they can be generated from
+the directory scan.
+
 ## Open questions
 
 - Are the five old themes still wanted, or are they only historical?
