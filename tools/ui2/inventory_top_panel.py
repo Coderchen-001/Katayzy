@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MENU = ROOT / "src/main/java/featurecat/lizzie/gui/Menu.java"
 OUT = ROOT / "docs/ui2/top-panel-inventory.csv"
 ADD = "Lizzie.frame.topPanel.add("
+NESTED_ADD = re.compile(r"Lizzie\.frame\.topPanel\.(leftArea|rightArea)\.add\(\s*(\w+)\s*\)")
 LABEL_KEY_RE = re.compile(r'getString\(\s*"([^"]+)"')
 
 
@@ -102,6 +103,29 @@ def main() -> None:
                 "notes": notes,
             }
         )
+    direct_vars = {row["variable"] for row in rows}
+    for line_number, line in enumerate(lines, 1):
+        match = NESTED_ADD.search(strip_line_comment(line))
+        if not match:
+            continue
+        area, variable = match.group(1), match.group(2)
+        if variable in direct_vars:
+            continue
+        notes = f"嵌套在 topPanel.{area}；由 Menu.java 提取；不是菜单栏成员"
+        if variable == "btnRankMark":
+            notes += "；点击弹出 rankMarkPopup，复用 addRankMarkMenu L8472 子树"
+        rows.append(
+            {
+                "id": f"TP-{len(rows) + 1:03d}",
+                "variable": variable,
+                "source_line": str(line_number),
+                "group": "nested-controls",
+                "surface": f"LizzieFrame.topPanel.{area}",
+                "status": "待分类",
+                "notes": notes,
+            }
+        )
+
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with OUT.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(

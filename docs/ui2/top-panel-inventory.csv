@@ -42,3 +42,24 @@ TP-040,tsumeGo,9163,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 
 TP-041,setLzSaiParam,9167,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
 TP-042,setBoardSize,9171,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
 TP-043,saveLoad,9175,analysis-engine-controls,LizzieFrame.topPanel,待分类,由 Menu.java 的 topPanel.add 提取；不是菜单栏成员
+TP-044,btnNewFile,7925,nested-controls,LizzieFrame.topPanel.leftArea,待分类,嵌套在 topPanel.leftArea；由 Menu.java 提取；不是菜单栏成员
+TP-045,btnOpen,7926,nested-controls,LizzieFrame.topPanel.leftArea,待分类,嵌套在 topPanel.leftArea；由 Menu.java 提取；不是菜单栏成员
+TP-046,btnSave,7927,nested-controls,LizzieFrame.topPanel.leftArea,待分类,嵌套在 topPanel.leftArea；由 Menu.java 提取；不是菜单栏成员
+TP-047,btnFoxKifu,7928,nested-controls,LizzieFrame.topPanel.leftArea,待分类,嵌套在 topPanel.leftArea；由 Menu.java 提取；不是菜单栏成员
+TP-048,btnTencentKifu,7929,nested-controls,LizzieFrame.topPanel.leftArea,待分类,嵌套在 topPanel.leftArea；由 Menu.java 提取；不是菜单栏成员
+TP-049,btnPlayerStrengthEstimate,7930,nested-controls,LizzieFrame.topPanel.leftArea,待分类,嵌套在 topPanel.leftArea；由 Menu.java 提取；不是菜单栏成员
+TP-050,btnHawkeye,7933,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员
+TP-051,btnRankMark,7934,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员；点击弹出 rankMarkPopup，复用 addRankMarkMenu L8472 子树
+TP-052,btnChangeTurn,7935,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员
+TP-053,btnSetMain,7936,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员
+TP-054,btnBackMain,7937,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员
+TP-055,btnContrlPanel,7938,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员
+TP-056,btnMarkup,7939,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员
+TP-057,btnMarkupLabel,7941,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员
+TP-058,btnMarkupLabelNum,7942,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员
+TP-059,btnMarkupX,7943,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员
+TP-060,btnMarkupSquare,7944,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员
+TP-061,btnMarkupTri,7945,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员
+TP-062,btnMarkupEraser,7946,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员
+TP-063,btnMarkupClear,7947,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员
+TP-064,btnDrawPainting,7948,nested-controls,LizzieFrame.topPanel.rightArea,待分类,嵌套在 topPanel.rightArea；由 Menu.java 提取；不是菜单栏成员

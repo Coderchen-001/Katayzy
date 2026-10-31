@@ -232,12 +232,15 @@ Any menu consolidation is deferred to a separate full UI + product-logic refacto
 and component-level rewrite only.
 
 The menu bar is exactly **12 JMenu entries**. Top-bar controls are not members of the menu bar:
-43 widgets are added to `LizzieFrame.topPanel` from `Menu.java` (player stones, komi/PDA/WRN,
-select-allow/avoid, double-game controls, analysis and engine controls). Keep these two inventories
-separate:
+43 widgets are added directly to `LizzieFrame.topPanel` from `Menu.java` (player stones, komi/PDA/WRN,
+select-allow/avoid, double-game controls, analysis and engine controls), plus 21 nested
+`leftArea`/`rightArea` controls such as `btnRankMark`. Keep these two inventories separate:
 
 - `feature-inventory.csv` — menu/toolbar/context/status/dialog entries;
-- `top-panel-inventory.csv` — the 43 topPanel widgets, with source line evidence.
+- `top-panel-inventory.csv` — 64 topPanel widgets (43 direct + 21 nested), with source line evidence.
+
+`btnRankMark` is nested in `topPanel.rightArea` (L7934); its popup reuses the
+`addRankMarkMenu(L8472)` subtree, so its children are not duplicated as separate topPanel rows.
 
 Some widgets also have a `toolPanel` variant mount at `Menu.java:9278-9287`; this is the
 independent-toolbar layout, not a second topPanel. The inventory notes mark those variants.
