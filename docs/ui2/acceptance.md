@@ -21,6 +21,26 @@
 The inventory is the migration checklist. A vertical slice is not accepted if its actions are not
 represented here.
 
+### Gate 1 review rules
+
+- **Audit sampling:** filter `menu-label-audit.csv` to entry-bearing code (`Menu.java`,
+  `BottomToolbar.java`, `RightClickMenu*.java`) before sampling. The audit also contains dialog
+  copy, error text and config keys; sampling the unfiltered 2600+ rows produces false positives.
+- **Hard-coded labels:** review all 14 `kind=hard-coded` rows explicitly; labels without a
+  resource key are compared as written.
+- **Children completeness:** compare the six submenus (move numbers, move-rank marks, suggestions,
+  Kata estimate, win-rate settings, variation panel) by enumerating labels/actions in each code
+  block. Do not use line counts as proof of completeness.
+- **Shortcut conflicts:** for each `shortcut_conflict` row, verify the two `state_matrix` conditions
+  can actually overlap. If they can, add a resolution policy (context, priority, or disabled
+  fallback); “different menu context” is not a sufficient rule unless encoded in the state model.
+- **l10n consistency:** sample at least 20 resource-key rows and compare the inventory label with
+  the decoded `DisplayStrings_zh_CN.properties` value character by character.
+- **Upstream cross-check:** compare against the upstream commit recorded in the reference checkout,
+  not just the directory name; confirm current-only features are not mistaken for obsolete ones.
+- **Action vs entry:** one ActionRegistry implementation may serve multiple entries; the inventory
+  keeps one row per visible entry point.
+
 ## Gate 2 — Vertical slice
 
 - [ ] `MainWindow` opens with FlatLaf active;
