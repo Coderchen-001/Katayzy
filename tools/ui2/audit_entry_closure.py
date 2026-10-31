@@ -29,6 +29,13 @@ LOOP_RE = re.compile(r"\b(for|while)\s*\(")
 CONTAINER_RE = re.compile(r"new\s+JFontMenu\s*\(")
 
 
+def normalize(label: str) -> str:
+    value = (label or "").strip()
+    value = re.sub(r"\([^)]*\)\s*$", "", value).strip()
+    value = re.sub(r"（[^）]*）\s*$", "", value).strip()
+    return value.replace("...", "").replace("…", "").strip()
+
+
 def is_dynamic(lines: list[str], line_index: int, label: str, key: str) -> bool:
     text = f"{label} {key}".lower()
     if any(token in text for token in ("engine", "detailedbar", "detailed_bar")):
@@ -42,11 +49,11 @@ def is_dynamic(lines: list[str], line_index: int, label: str, key: str) -> bool:
 
 def main() -> None:
     features = list(csv.DictReader(FEATURES.open(encoding="utf-8")))
-    labels = {(r.get("label") or "").strip() for r in features if r.get("label")}
+    labels = {normalize(r.get("label") or "") for r in features if r.get("label")}
     notes = " ".join((r.get("notes") or "") for r in features)
     by_label: dict[str, dict[str, str]] = {}
     for feature in features:
-        by_label.setdefault((feature.get("label") or "").strip(), feature)
+        by_label.setdefault(normalize(feature.get("label") or ""), feature)
 
     audit = list(csv.DictReader(AUDIT.open(encoding="utf-8")))
     rows = []
@@ -83,7 +90,7 @@ def main() -> None:
             else:
                 disposition = "omission"
         elif ENTRY_RE.search(line):
-            if label and (label in labels or key and key in notes):
+            if label and (normalize(label) in labels or key and key in notes):
                 disposition = "mapped"
             elif is_dynamic(lines, line_number - 1, label, key):
                 disposition = "dynamic"

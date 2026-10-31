@@ -23,22 +23,22 @@ Findings:
 - descriptive dialog names are now mapped in `dialog-mapping.md`;
 - the remaining risk is duplicate or missing submenu children, not top-level menus.
 
-A mechanical six-bucket entry-closure run after adding the missing language/font-size group and
-container reverse-check (`audit-closure.md`, scope 552 records):
+A mechanical six-bucket entry-closure run after adding the missing language/font-size group,
+top-level menu containers and label normalization (`audit-closure.md`, scope 552 records):
 
 ```text
-mapped      110
-container    12
-dynamic      11
+mapped      155
+container    19
+dynamic       5
 non-entry   241
 comment      13
-omission    165
+omission    119
 ```
 
-`container` records are only accepted when their label matches a feature-inventory container row;
-all 12 container path checks pass. The 165 omission records are a review queue, not 165 confirmed
-missing features: exact-label matching misses renamed toolbar entries, top-level menu containers and
-old copy. Each must be mapped to an existing feature ID or added as a row.
+`container` records are only accepted when their normalized label matches a feature-inventory
+container row; all 19 container path checks pass. Label normalization strips shortcut suffixes
+(`自动分析(A)` -> `自动分析`), which removed a large class of false omissions. The remaining 119
+omissions are the next review batch; they are not all confirmed missing features.
 
 Action:
 
