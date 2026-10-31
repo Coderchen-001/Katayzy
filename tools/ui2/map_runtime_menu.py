@@ -91,17 +91,45 @@ def main() -> None:
         parts = path.split("/")
         return path_text.get("/".join(parts[:2]), "")
 
+    def choose_inventory(row: dict[str, str]) -> tuple[dict[str, str] | None, bool, str]:
+        text = norm_text(row["text"])
+        candidates = list(by_label.get(text, {}).values())
+        evidence = "normalized label match"
+        if not candidates:
+            # Controlled prefix fallback for Chinese annotations such as
+            # "经典配色（原版 lizzieyzy）". Never match a bare prefix without a parenthetical.
+            for key, ids in by_label.items():
+                if key and text.startswith(key) and text[len(key) :].startswith(("(", "（")):
+                    candidates.extend(ids.values())
+            if candidates:
+                evidence = "parenthetical annotation prefix match"
+        parent_path = row["path"].rsplit("/", 1)[0]
+        parent_text = path_text.get(parent_path, "")
+        exact = [
+            c
+            for c in candidates
+            if norm_text(c["path"].split(">")[-2] if ">" in c["path"] else "") == parent_text
+        ]
+        conflict = len({c["id"] for c in exact}) > 1
+        if len({c["id"] for c in exact}) == 1:
+            return exact[0], conflict, evidence
+        unique = {c["id"]: c for c in candidates}
+        if len(unique) == 1:
+            return next(iter(unique.values())), False, evidence
+        return None, conflict, evidence
+
     out = []
     counts = Counter()
     seen_inventory = set()
+    container_rows = [r for r in runtime if r["class"] in {"JMenu", "JFontMenu"}]
+    # Containers participate in the reverse check but not in the 340-leaf bucket accounting.
+    for row in container_rows:
+        chosen, _, _ = choose_inventory(row)
+        if chosen is not None:
+            seen_inventory.add(chosen["id"])
+
     for row in leaves:
-        text = norm_text(row["text"])
-        candidates = list(by_label.get(text, {}).values())
-        parent_path = row["path"].rsplit("/", 1)[0]
-        parent_text = path_text.get(parent_path, "")
-        exact = [c for c in candidates if norm_text(c["path"].split(">")[-2] if ">" in c["path"] else "") == parent_text]
-        conflict = len(exact) > 1
-        chosen = exact[0] if len(exact) == 1 else (candidates[0] if len(candidates) == 1 else None)
+        chosen, conflict, evidence = choose_inventory(row)
         if chosen is not None:
             # Even hidden/dynamic rows count as inventory-seen; otherwise the reverse check lies.
             seen_inventory.add(chosen["id"])
@@ -115,17 +143,15 @@ def main() -> None:
             bucket = "matched"
         else:
             bucket = "unmatched"
-        evidence = ""
         if conflict:
             evidence = "conflict: multiple inventory candidates"
-        elif chosen is not None:
-            evidence = "normalized label match"
         if bucket == "engine-dynamic" and row["visible"].lower() == "false":
             evidence = (evidence + "; " if evidence else "") + "engine subtree hidden"
         counts[bucket] += 1
         out.append(
             {
                 "path": row["path"],
+                "top_pos": top_segment,
                 "top_menu": top_text or top_menu(row["path"]),
                 "class": row["class"],
                 "text": row["text"],

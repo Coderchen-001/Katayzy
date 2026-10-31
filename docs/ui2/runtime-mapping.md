@@ -4,11 +4,11 @@ Structural rows: **437 = 340 leaves + 47 separators + 50 popups**
 
 | Bucket | Count |
 |---|---:|
-| matched | 165 |
+| matched | 180 |
 | toolbar-mirror | 0 |
 | engine-dynamic | 48 |
 | config-hidden | 0 |
-| unmatched | 127 |
+| unmatched | 112 |
 | separator | 47 |
 | popup-glue | 50 |
 
@@ -16,28 +16,11 @@ Leaf total: **340**; five feature buckets sum: **340**
 
 ## Unmapped inventory rows
 
-- `M-FILE-003`
-- `M-VIEW-001`
-- `M-VIEW-002`
-- `M-VIEW-006`
-- `M-VIEW-015`
-- `M-VIEW-017`
-- `M-VIEW-018`
-- `M-VIEW-019`
-- `M-GAME-001`
-- `M-GAME-002`
-- `M-GAME-006`
-- `M-GAME-008`
-- `M-ANA-001`
-- `M-SYNC-003`
 - `M-SET-002`
 - `M-SET-003`
 - `M-ENG-002`
-- `M-GAME-013`
 - `M-HELP-005`
 - `M-VIEW-047`
-- `M-GAME-014A`
-- `M-GAME-014B`
 - `M-GAME-014C`
 - `M-VIEW-049`
 - `M-VIEW-050`
@@ -50,24 +33,15 @@ Leaf total: **340**; five feature buckets sum: **340**
 - `M-VIEW-073`
 - `M-VIEW-074`
 - `M-VIEW-087`
-- `M-FILE-022`
 - `M-SET-005`
-- `M-SET-013`
-- `M-TOP-001`
-- `M-TOP-003`
-- `M-TOP-004`
-- `M-TOP-005`
-- `M-TOP-006`
 - `M-TOP-008`
 - `M-ENG-011`
-- `M-TOP-010`
 
 ## Unmatched runtime rows
 
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='超过宽度依然使用滚动条(超过部分将不显示)'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#8`  text='独立棋局控制面板'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontMenuItem`  text='可视化面板设置'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#10`  text='浮动主棋盘(保留原棋盘)'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#13`  text='独立选点列表(U)'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='独立显示'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='合并在菜单栏上'
@@ -109,7 +83,6 @@ Leaf total: **340**; five feature buckets sum: **340**
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='智能平衡（推荐）'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='仅目差'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2`  text='仅胜率'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem#3`  text='综合（更敏感）'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem`  text='胜率'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#1`  text='计算量'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#2`  text='目数'
@@ -124,7 +97,6 @@ Leaf total: **340**; five feature buckets sum: **340**
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem#1`  text='仅显示圈'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem#2`  text='圈+胜率/目数(此手非选点或选点计算量低时)'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontMenuItem`  text='设置低计算量阈值(当前:30)'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#7/popup/JFontCheckBoxMenuItem#1`  text='经典配色（原版 lizzieyzy）'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#2`  text='记录选点信息到评论中'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#3`  text='棋盘下方显示黑白名字'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#4`  text='显示评论/问题手面板顶部控制条'
@@ -141,8 +113,6 @@ Leaf total: **340**; five feature buckets sum: **340**
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontCheckBoxMenuItem#1`  text='仅棋盘棋子'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='计算贴目后目数差'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='盘面目数差'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#8`  text='以方块透明度表示占有率(不显示在活子上)'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2`  text='以方块透明度表示占有率(不显示在活子上)'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#11`  text='按选点显示评估(最低版本1.11.0)'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#12`  text='使用快捷键(大键盘点)'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#12/popup/JFontMenuItem`  text='默认模式(Alt+1)'
@@ -151,30 +121,20 @@ Leaf total: **340**; five feature buckets sum: **340**
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2/JFontLabel`  text='自定义布局1(Alt+8)'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3`  text=''
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3/JFontLabel`  text='自定义布局2(Alt+9)'
-- `ModelJMenuBar/JFontMenu#2/popup/JFontMenu/popup/JFontMenuItem`  text='人机对局(Genmove模式 N)'
-- `ModelJMenuBar/JFontMenu#2/popup/JFontMenu/popup/InfoMenuItem`  text='人机对局(分析模式 Alt+N)'
-- `ModelJMenuBar/JFontMenu#2/popup/JFontMenu#1/popup/JFontMenuItem`  text='续弈[AI执黑](Genmove模式)(回车)'
-- `ModelJMenuBar/JFontMenu#2/popup/JFontMenu#1/popup/JFontMenuItem#1`  text='续弈[AI执白](Genmove模式)(回车)'
-- `ModelJMenuBar/JFontMenu#2/popup/JFontMenu#1/popup/JFontMenuItem#3`  text='续弈[AI执白](分析模式)(Alt+回车)'
-- `ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#1`  text='终止人机对局(空格)'
-- `ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#4`  text='让AI落子最佳一手(逗号)'
 - `ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#6`  text='折叠已落棋子(不能撤销)'
 - `ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#7`  text='自动补完征子'
-- `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem`  text='开始/停止 分析(空格)'
 - `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#3`  text='抓取死活题(Shift+T)'
 - `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#5`  text='整盘精析（推荐）'
 - `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#10`  text='整盘速览（闪电）'
 - `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#11`  text='局部精析'
 - `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#12`  text='全部分支精析'
 - `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#13`  text='精析设置'
-- `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#16`  text='形势判断( / 或小键盘点)'
 - `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#19`  text='清除分析信息(全局)'
 - `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#20`  text='清除分析信息(此手)'
 - `ModelJMenuBar/JFontMenu#4/popup/JFontCheckBoxMenuItem#2`  text='启用点击棋子回看'
 - `ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#12`  text='撤销删除(可在右键菜单中操作)'
 - `ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#13`  text='恢复删除(可在右键菜单中操作)'
 - `ModelJMenuBar/JFontMenu#5/popup/JFontMenuItem#1`  text='打开弈客网页版'
-- `ModelJMenuBar/JFontMenu#5/popup/JFontMenuItem#3`  text='野狐棋谱(输入野狐昵称获取)'
 - `ModelJMenuBar/JFontMenu#5/popup/JFontMenu/popup/JFontMenuItem#1`  text='复制访问地址'
 - `ModelJMenuBar/JFontMenu#5/popup/JFontCheckBoxMenuItem`  text='允许弈客直播/大厅进入对局室'
 - `ModelJMenuBar/JFontMenu#5/popup/JFontCheckBoxMenuItem#1`  text='有新的一手时总是跳转到最新一手'
