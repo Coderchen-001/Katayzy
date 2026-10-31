@@ -11,11 +11,14 @@ This directory is the acceptance record for the UI2 rewrite.
 | `upstream-cross-check.csv` | Two-way key comparison against upstream `741c301` (`both` / `ref-only` / `current-only`) |
 | `upstream-cross-check.md` | Human-readable summary of the two-way cross-check |
 
+Mechanical duplicate check: `python tools/ui2/check_inventory_duplicates.py`.
+It fails on duplicate IDs, duplicate `path+action`, and empty required fields.
+
 ## Status
 
 `feature-inventory.csv` is a **draft** generated from the current `Menu.java`,
-`BottomToolbar.java` and right-click menus. Current draft: **231 semantic rows**
-(193 menu, 15 toolbar, 17 context, 2 status, 4 dialog). It is not yet complete.
+`BottomToolbar.java` and right-click menus. Current draft: **230 semantic rows**
+(192 menu, 15 toolbar, 17 context, 2 status, 4 dialog). It is not yet complete.
 
 Before the vertical slice is accepted:
 

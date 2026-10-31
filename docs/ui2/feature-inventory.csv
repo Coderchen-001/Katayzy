@@ -84,7 +84,7 @@ M-SYNC-005,menu,同步 > 棋盘同步工具,棋盘同步工具,,openBoardSync,Me
 M-SYNC-006,menu,同步 > 同步诊断,同步诊断,,openSyncDiagnostics,Menu.java,enabled:always,,optional,SyncDiagnosticsDialog,Windows,未接,,,katayzy-new
 M-SYNC-007,menu,同步 > 启动Web旁现,启动Web旁观,,toggleWebBoard,Menu.java,enabled:always,checked:webBoardManager.isRunning,no,浏览器,Windows/通用,未接,,,katayzy-new
 M-HELP-001,menu,帮助 > 使用说明,使用说明,,openManual,Menu.java,enabled:always,,no,浏览器/PDF,Windows/通用,未接,,,both
-M-HELP-002,menu,帮助 > 检查更新,检查更新,,checkVersion,Menu.java,enabled:always,,no,对话框,Windows/通用,未接,,,both
+M-HELP-002,menu,帮助 > 检查更新,检查更新,,checkVersion,Menu.java,enabled:always,,no,对话框,Windows/通用,未接,资源键 Menu.checkVersion；上游同功能键为 Menu.checkUpdate，已合并为一行,,both
 M-SET-001,menu,设置 > 综合设置,综合设置,Shift+X,openConfig,Menu.java,enabled:always,,no,ConfigDialog2,Windows/通用,未接,后续拆 SettingsDialog,,both
 M-SET-002,menu,设置 > 主题外观,主题外观,,openThemeSettings,Menu.java,enabled:always,,no,ConfigDialog2,Windows/通用,未接,,,both
 M-SET-003,menu,设置 > 引擎设置,引擎设置,,openEngineSettings,Menu.java,enabled:always,,no,ConfigDialog2/引擎对话框,Windows/通用,未接,,,both
@@ -223,7 +223,6 @@ M-VIEW-090,menu,显示 > 胜率图设置 > 双方视角,双方视角,,setWinrate
 C-RC-018,context,棋子右键 > 跳到此步,跳到此步,,findStone,RightClickMenu2.java,enabled:always;visible:editing,,no,—,Windows/通用,未接,资源键 RightClickMenu2.findStone,,both
 C-RC-019,context,棋子右键 > 回看,回看,,review,RightClickMenu2.java,enabled:always;visible:editing,,no,—,Windows/通用,未接,资源键 RightClickMenu2.review,,both
 M-HELP-007,menu,帮助 > 关于,关于,,showAbout,Menu.java,enabled:always,,no,—,Windows/通用,未接,原版 741c301 有，当前清单补录；需确认新版是否保留,,upstream-741c301
-M-HELP-008,menu,帮助 > 检查更新,检查更新,,checkUpdate,Menu.java,enabled:always,,no,—,Windows/通用,未接,原版 741c301 有，当前清单补录,,upstream-741c301
 M-HELP-009,menu,帮助 > 简介,简介,,showIntroduction,Menu.java,enabled:always,,no,—,Windows/通用,未接,原版 741c301 有，当前清单补录,,upstream-741c301
 M-GAME-015,menu,棋局 > 修改多盘引擎对局数,修改多盘引擎对局数,,changeEngineGameNumbers,Menu.java,enabled:always,,yes,引擎对局,Windows/通用,未接,原版 741c301 有，当前清单补录,,upstream-741c301
 M-GAME-016,menu,棋局 > 干预引擎对局,干预引擎对局,,interveneEngineGame,Menu.java,enabled:always,,yes,—,Windows/通用,未接,原版 741c301 有，当前清单补录,,upstream-741c301

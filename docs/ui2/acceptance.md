@@ -40,6 +40,9 @@ represented here.
   not just the directory name; confirm current-only features are not mistaken for obsolete ones.
 - **Action vs entry:** one ActionRegistry implementation may serve multiple entries; the inventory
   keeps one row per visible entry point.
+- **Mechanical duplicate scan:** run `python tools/ui2/check_inventory_duplicates.py`; it must
+  report `OK` before Gate 1 review. Different paths may share an Action, but the same
+  `path+action` may not.
 
 ## Gate 2 — Vertical slice
 
