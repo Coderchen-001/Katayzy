@@ -57,7 +57,10 @@ represented here.
   surface class or a documented manual mapping;
 - [ ] after the visual rewrite, `grep -rn "new Color(\|new Font(" ui2/` returns zero except the
   whitelist generated from `status=保留` in `ui-surface-inventory.csv`; do not pre-write the
-  whitelist by hand.
+  whitelist by hand;
+- [ ] the whitelist contains **renderer classes only** (BoardRenderer, SubBoardRenderer,
+  WinrateGraph, VariationTree, etc.); host windows such as FloatBoard / IndependentMainBoard /
+  IndependentSubBoard are shells and are **not** exempt.
 - [ ] bottom bar uses FlatLaf and the normal/primary/danger role model;
 - [ ] left analysis column placeholder renders;
 - [ ] right variation column placeholder renders;
