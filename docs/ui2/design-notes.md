@@ -155,6 +155,15 @@ A resource key is not automatically an action. For example,
 `Menu.continueGenmoveGameAsWhite/Black` and `Menu.continueAnalyzeGameAsWhite/Black` are four
 separate continuation actions. Deduplicate by action, not by label.
 
+Keep the distinction between an **Action implementation** and an **entry point**:
+
+- menu and toolbar entries may share one `ActionRegistry` ID (for example both `openAutoAnalyze`
+  entries);
+- the inventory keeps one row per visible entry point;
+- ActionRegistry registers the action once.
+
+So “deduplicate by action” means one implementation, not one UI row.
+
 Rules:
 
 - one row per semantic action, not per visual occurrence;
