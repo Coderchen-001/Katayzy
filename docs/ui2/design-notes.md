@@ -252,11 +252,27 @@ Workload is recorded objectively: `style_hits`/`style_detail` count hard-coded c
 borders and opacity calls per class. A dialog with zero style hits is mostly a FlatLaf reskin; a
 class with dozens of `new Color()` calls needs a real replacement pass.
 
+A `custom-paint` signal does **not** automatically mean “keep”. Classify by role:
+
+- keep: board, sub-board, win-rate graph, variation tree — core visual assets;
+- replace: `BlunderListPanel`, `DrawPainting`, `EstimateResults`, and other information panels
+  drawn by hand but replaceable with Card/Badge/FlatLaf;
+- retire: `AppleStyleSupport` (legacy LAF), after FlatLaf covers the screens that still use it.
+
+The `保留` whitelist is generated from the final classification, not written in advance. Do not
+hard-code only three classes; `SubBoardRenderer`, glass effects and floating-board renderers may also
+belong there.
+
 Priority is P0/P1/P2:
 
-- P0: main window, top/bottom bars, sidebar, settings, strength report, sync diagnostics, kifu import;
+- P0: main window, menu bar, top/bottom bars, sidebar, settings, strength report, sync diagnostics,
+  kifu import;
 - P1: common dialogs in the analysis workflow;
 - P2: long-tail dialogs covered by FlatLaf defaults unless they visibly break.
+
+`Menu.java` is part of the P0 shell because the main menu is always visible, even though its actions
+are frozen. `AppleStyleSupport` remains in the compatibility path until the FlatLaf screens that
+still depend on it are verified.
 
 `surface-coverage.md` joins feature dialog references to surface classes. Unmatched descriptive
 names are review items, not automatic omissions.

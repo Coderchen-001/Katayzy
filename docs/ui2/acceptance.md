@@ -56,7 +56,8 @@ represented here.
 - [ ] `surface-coverage.md` reviewed: every dialog reachable from the feature inventory has a
   surface class or a documented manual mapping;
 - [ ] after the visual rewrite, `grep -rn "new Color(\|new Font(" ui2/` returns zero except the
-  documented self-painted whitelist (`BoardRenderer`, `WinrateGraph`, variation tree).
+  whitelist generated from `status=保留` in `ui-surface-inventory.csv`; do not pre-write the
+  whitelist by hand.
 - [ ] bottom bar uses FlatLaf and the normal/primary/danger role model;
 - [ ] left analysis column placeholder renders;
 - [ ] right variation column placeholder renders;

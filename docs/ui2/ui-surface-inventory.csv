@@ -49,7 +49,7 @@ UI-047,JPaintTextPane.java,popup,custom-paint+popup+graphics2d,custom-paint@119;
 UI-048,LizzieFrame.java,frame,custom-paint+dialog+popup+frame+graphics2d,custom-paint@780;dialog@14703;popup@1306;frame@107;graphics2d@833,411,"newColor=196,newFont=49,setFont=50,setBorder=17,setOpaque=34,setBackground=45,setForeground=20",P0,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
 UI-049,LoadEngine.java,dialog,dialog,dialog@537,9,"newFont=2,setFont=4,setOpaque=3",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
 UI-050,Loggin.java,dialog,dialog,dialog@19,0,,P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
-UI-051,Menu.java,popup,custom-paint+popup+graphics2d,custom-paint@9989;popup@7115;graphics2d@22,83,"newColor=5,newFont=12,setFont=30,setBorder=2,setBackground=20,setForeground=14",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
+UI-051,Menu.java,popup,custom-paint+popup+graphics2d,custom-paint@9989;popup@7115;graphics2d@22,83,"newColor=5,newFont=12,setFont=30,setBorder=2,setBackground=20,setForeground=14",P0,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
 UI-052,Message.java,dialog,dialog,dialog@17,4,"newFont=1,setFont=1,setBorder=1,setBackground=1",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
 UI-053,MoreEngines.java,dialog,dialog,dialog@1338,25,"newFont=4,setFont=6,setBorder=3,setOpaque=1,setBackground=3,setForeground=8",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染
 UI-054,MoveListFrame.java,frame,custom-paint+popup+frame+graphics2d,custom-paint@376;popup@1453;frame@57;graphics2d@377,157,"newColor=76,newFont=29,setFont=31,setOpaque=1,setBackground=20",P2,,未探查,先确认实际可见状态，再决定 FlatLaf/MigLayout/保留渲染

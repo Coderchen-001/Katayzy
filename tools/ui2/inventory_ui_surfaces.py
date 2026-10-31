@@ -2,6 +2,10 @@
 
 The feature inventory answers "what actions exist". This inventory answers "which screens and
 custom paint sites must be reskinned" so no old-looking surface is left behind.
+
+`style_hits` counts raw pattern occurrences, including comments/dead code, using the fixed
+STYLE_PATTERNS set below. It is a workload signal, not a clean-code metric; do not compare it with a
+different grep pattern set without adjusting this definition.
 """
 
 from __future__ import annotations
@@ -31,7 +35,7 @@ STYLE_PATTERNS = {
     "setForeground": re.compile(r"\.setForeground\s*\("),
 }
 P0 = {
-    "LizzieFrame.java", "BottomToolbar.java", "TopHeaderPanel.java",
+    "LizzieFrame.java", "Menu.java", "BottomToolbar.java", "TopHeaderPanel.java",
     "SidebarPanel.java", "SidebarHeaderPanel.java", "SidebarStatusPanel.java",
     "WindowMenuStrip.java", "ConfigDialog2.java",
 }
