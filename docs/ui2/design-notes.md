@@ -263,8 +263,13 @@ Implementation notes:
 - FlatLaf resolves property file names against the LAF class: `FlatLaf.properties` is loaded for all
   themes, while `FlatDarkLaf.properties` is loaded only for `FlatDarkLaf`;
 - three arbitrary files named `Graphite.properties`/`Warm.properties`/`Slate.properties` are **not**
-  automatically picked up. Use custom `FlatLaf` subclasses (one per preset) with matching property
-  file names, or `FlatPropertiesLaf`, or apply a controlled `UIManager` update after setup;
+  automatically picked up;
+- preferred implementation: `GraphiteLaf extends FlatDarkLaf` + `GraphiteLaf.properties` (same for
+  warm/slate). This inherits the complete dark base and only overrides the shell tokens;
+- `FlatPropertiesLaf` is in `flatlaf-core` (not extras), but it extends `FlatLaf` and has no dark
+  base, so it is not a good fit for these dark variants;
+- do not apply ad-hoc `UIManager` updates after setup; that bypasses FlatLaf's defaults management,
+  component reapplication and theme-switch behavior;
 - `AppShellTheme` keeps only glass-overlay tokens; solid popup/dialog/menu colors move into the
   FlatLaf properties;
 - the five primitives (`Card`, `StatusDot`, `Badge`, `EmptyState`, `ProgressRow`) are the first
