@@ -3,6 +3,7 @@
 日期：2026-10-31
 方法：`tools/ui2/verify_paths.py` 从 Menu.java 解析真实挂载边（变量名 → l10n key / 硬编码字面量 → 中文标签），与 feature-inventory.csv 的 path 逐边比对。
 结果：校验 203 条多级 path，通过 120，异常 83。83 条经源码逐一归因，分四类。
+顶级菜单最终为 **12 个**：文件/显示/棋局/分析/编辑/同步/帮助/快速启动/设置/跑谱贡献/引擎/引擎2。`live`(同步) 与 `quickLinks`(快速启动) 之前漏记，现已补 `M-TOP-009/010`。
 
 **权威产物**
 - `docs/ui2/path-mismatch.csv` — 83 条异常机读清单（id / csv_path / broken_edge / real_parents_in_source）

@@ -250,3 +250,5 @@ M-TOP-006,menu,帮助,帮助,,helpMenu,Menu.java,enabled:always,,no,—,Windows/
 M-TOP-007,menu,设置,设置,,settingsMenu,Menu.java,enabled:always,,no,—,Windows/通用,未接,顶级菜单容器,,both,
 M-TOP-008,menu,跑谱贡献,跑谱贡献,,contributeMenu,Menu.java,enabled:always,,no,—,Windows/通用,未接,顶级菜单容器；源码 this.add(contributeMenu),,both,
 M-ENG-011,menu,引擎2（第二引擎）,引擎2（第二引擎）,,engineMenu2,Menu.java,visible:isDoubleEngineMode(),,yes,—,Windows/通用,未接,第二引擎顶级菜单容器；标题动态替换为 [序号] 引擎名,,both,
+M-TOP-009,menu,同步,同步,,liveMenu,Menu.java,enabled:always,,no,—,Windows/通用,未接,顶级菜单容器；源码 live = new JFontMenu(Menu.sync) + this.add(live),,both,
+M-TOP-010,menu,快速启动,快速启动,,quickLinksMenu,Menu.java,visible:showQuickLinks,,no,—,Windows/通用,未接,顶级菜单容器；updateFastLinks() 在配置关闭时 setVisible(false),,both,

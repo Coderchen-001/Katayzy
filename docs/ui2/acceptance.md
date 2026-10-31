@@ -49,7 +49,8 @@ represented here.
   `path+action` may not.
 - **Path verification:** run `python tools/ui2/verify_paths.py`; every `path-mismatch.csv` row must
   be triaged in `path-mismatch-triage.md` as a CSV correction, an upstream-only ghost, a label
-  rewrite, or a non-error. The current 120/203 pass rate is not enough.
+  rewrite, or a non-error. Gate 1 requires **203/203 pass** for the real source tree, with the
+  documented D-class exceptions recorded explicitly; the current 120/203 pass rate is not enough.
 
 ## Gate 2 — Vertical slice
 
