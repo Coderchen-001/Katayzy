@@ -156,6 +156,9 @@ def label_of(var, var_key, props):
     k = var_key.get(var)
     if k is None:
         return None
+    if k.startswith("#"):
+        # 硬编码字面量标签（var_key 中以 # 标记），如 new JFontMenuItem("清除所有个人数据")
+        return k[1:]
     if k in props:
         return unescape(props[k])
     return "«" + k + "»"
