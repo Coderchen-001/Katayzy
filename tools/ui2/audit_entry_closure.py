@@ -37,13 +37,17 @@ def main() -> None:
         stripped = line.strip()
         if stripped.startswith("//") or stripped.startswith("*"):
             disposition = "comment"
+        elif "new JFontMenu" in line or "new JMenu" in line:
+            disposition = "container"
         elif ENTRY_RE.search(line):
             label = (record.get("label") or "").strip()
             key = (record.get("key") or "").strip()
             if label and (label in labels or key and key in notes):
                 disposition = "mapped"
+            elif "for (" in line or "while (" in line:
+                disposition = "dynamic"
             else:
-                disposition = "unmapped"
+                disposition = "omission"
         else:
             disposition = "non-entry"
         rows.append(
@@ -66,14 +70,16 @@ def main() -> None:
     counts: dict[str, int] = {}
     for row in rows:
         counts[row["disposition"]] = counts.get(row["disposition"], 0) + 1
-    unmatched = [r for r in rows if r["disposition"] == "unmapped"]
+    unmatched = [r for r in rows if r["disposition"] == "omission"]
     with OUT_MD.open("w", encoding="utf-8") as f:
         f.write("# Entry Audit Closure\n\n")
         f.write("Scope: Menu.java, BottomToolbar.java, RightClickMenu*.java.\n\n")
+        f.write("Buckets: mapped / container / dynamic / non-entry / comment / omission. "
+                "Every entry-bearing record must land in one bucket.\n\n")
         f.write("| Disposition | Count |\n|---|---:|\n")
         for key, count in sorted(counts.items()):
             f.write(f"| {key} | {count} |\n")
-        f.write("\n## Unmapped entry records\n\n")
+        f.write("\n## Omission entry records\n\n")
         if unmatched:
             f.write("| Source | Line | Key/label |\n|---|---:|---|\n")
             for r in unmatched:
