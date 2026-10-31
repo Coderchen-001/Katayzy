@@ -127,6 +127,13 @@ public final class Ui2Snapshot {
 
   private static String quote(String value) {
     if (value == null) return "\"\"";
-    return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+    return "\""
+        + value
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace("\t", "\\t")
+        + "\"";
   }
 }
