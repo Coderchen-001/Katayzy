@@ -89,6 +89,9 @@ a patched prototype jar or source inspection.
 Record the artifact hash and the JDK/OS/DPI/window size next to the golden files. The build output is
 authoritative over a source reading.
 
+Formatting is explicit and isolated: `pom.xml` no longer binds `fmt:format` to `package`. Run
+`mvn fmt:format` only in a formatting-only commit; never let a normal build rewrite the worktree.
+
 ### L3 — startup smoke
 
 - launch with the harness;
