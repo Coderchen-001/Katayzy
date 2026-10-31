@@ -44,7 +44,8 @@ A missing key in any locale is a failure. This catches keys that render literall
 
 Use a fixed harness:
 
-- `FakeEngineStatus` in each of the five states;
+- **no engine** for the current UI baseline; `FakeEngineStatus` is for the future shell and must not
+  be injected into the old UI;
 - fixed test SGF;
 - fixed config profiles;
 - fixed window size and theme;
@@ -53,6 +54,8 @@ Use a fixed harness:
 Dump recursively:
 
 - menu bar and its 12 top-level menus;
+- **each `JMenu`'s internal `JPopupMenu`** (`JMenu.add()` puts items there, not in
+  `JMenu.getComponents()`);
 - `TopHeaderPanel.contentPanel` including left/center/right groups (65 widgets);
 - sidebar and right-panel常驻 components;
 - for each component: normalized path, class, label, mnemonic, accelerator, visible, enabled.
@@ -69,6 +72,22 @@ Baseline matrix:
 - all-visible config;
 - analysis / game / double-engine scenarios;
 - zh_CN and en_US (WrapLayout reflows with text length).
+
+#### Build evidence rule
+
+The baseline evidence must come from a clean build of the exact commit that will be tagged, not from
+a patched prototype jar or source inspection.
+
+```text
+1. clean worktree, checkout the candidate commit
+2. mvn package from that commit
+3. run 12 dumps from that artifact
+4. cross-check counts against the inventory
+5. tag ui2-golden-baseline on the same commit
+```
+
+Record the artifact hash and the JDK/OS/DPI/window size next to the golden files. The build output is
+authoritative over a source reading.
 
 ### L3 — startup smoke
 
