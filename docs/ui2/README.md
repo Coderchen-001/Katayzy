@@ -12,8 +12,8 @@ This directory is the acceptance record for the UI2 rewrite.
 ## Status
 
 `feature-inventory.csv` is a **draft** generated from the current `Menu.java`,
-`BottomToolbar.java` and right-click menus. Current draft: **171 semantic rows**
-(134 menu, 14 toolbar, 17 context, 2 status, 4 dialog). It is not yet complete.
+`BottomToolbar.java` and right-click menus. Current draft: **174 semantic rows**
+(137 menu, 14 toolbar, 17 context, 2 status, 4 dialog). It is not yet complete.
 
 Before the vertical slice is accepted:
 

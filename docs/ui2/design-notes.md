@@ -150,6 +150,11 @@ Required:
 
 `docs/ui2/feature-inventory.csv` is the migration checklist.
 
+A resource key is not automatically an action. For example,
+`BottomToolbar.detail.continueGame` is a label in the engine PK detail panel, while
+`Menu.continueGenmoveGameAsWhite/Black` and `Menu.continueAnalyzeGameAsWhite/Black` are four
+separate continuation actions. Deduplicate by action, not by label.
+
 Rules:
 
 - one row per semantic action, not per visual occurrence;
