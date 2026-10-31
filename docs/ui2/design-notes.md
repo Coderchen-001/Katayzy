@@ -231,6 +231,17 @@ During UI2:
 Any menu consolidation is deferred to a separate full UI + product-logic refactor. UI2 is a visual
 and component-level rewrite only.
 
+The menu bar is exactly **12 JMenu entries**. Top-bar controls are not members of the menu bar:
+46 widgets are added to `LizzieFrame.topPanel` from `Menu.java` (player stones, komi/PDA/WRN,
+select-allow/avoid, double-game controls, analysis and engine controls). Keep these two inventories
+separate:
+
+- `feature-inventory.csv` — menu/toolbar/context/status/dialog entries;
+- `top-panel-inventory.csv` — the 46 topPanel widgets, with source line evidence.
+
+`live` (同步) is a top-level **menu**, not a topPanel widget. `shareKifu` is constructed but its
+`this.add(shareKifu)` is commented out; record it as inactive, not as a visible share menu.
+
 **Rendering-layer extraction is allowed.** Moving an inner dashboard out of `LizzieFrame` into a
 component (for example the strength report) is not an information-architecture change as long as
 the menu entry, dialog entry and user-visible behavior stay identical. `LizzieFrame` is both the

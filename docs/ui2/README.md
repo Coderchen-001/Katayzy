@@ -11,6 +11,8 @@ This directory is the acceptance record for the UI2 rewrite.
 | `upstream-cross-check.csv` | Two-way key comparison against upstream `741c301` (`both` / `ref-only` / `current-only`) |
 | `upstream-cross-check.md` | Human-readable summary of the two-way cross-check |
 | `ui-surface-inventory.csv` | Every frame/dialog/popup/custom-paint surface that must be visually accounted for |
+| `top-panel-inventory.csv` | 46 widgets actually added to `LizzieFrame.topPanel`, separate from the 12 menus |
+| `inactive-entries.md` | Constructed-but-unmounted and no-current-entry records (shareKifu, ghosts) |
 | `surface-coverage.md` | Dialog-reference to surface-class coverage report |
 | `dialog-mapping.md` | Manual mapping for descriptive dialog references |
 | `theme-catalog.md` | Board-theme supplement and duplicate audit against the upstream five themes |
