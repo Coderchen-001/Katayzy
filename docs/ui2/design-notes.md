@@ -164,6 +164,11 @@ Keep the distinction between an **Action implementation** and an **entry point**
 
 So “deduplicate by action” means one implementation, not one UI row.
 
+Dynamic labels: the `label` column stores the baseline label. If the label changes with state,
+record the rule in `notes` and the visibility condition in `state_matrix`. The second-engine menu
+is the first example: visible only in double-engine mode, and its title becomes `[n] engine-name`
+after loading.
+
 Rules:
 
 - one row per semantic action, not per visual occurrence;
