@@ -233,14 +233,20 @@ and component-level rewrite only.
 
 The menu bar is exactly **12 JMenu entries**. Top-bar controls are not members of the menu bar:
 43 widgets are added directly to `LizzieFrame.topPanel` from `Menu.java` (player stones, komi/PDA/WRN,
-select-allow/avoid, double-game controls, analysis and engine controls), plus 21 nested
-`leftArea`/`rightArea` controls such as `btnRankMark`. Keep these two inventories separate:
+select-allow/avoid, double-game controls, analysis and engine controls), plus 22 nested
+`leftArea`/`centerArea`/`rightArea` controls such as `btnRankMark` and `btnFlashAnalyze`. Keep these
+two inventories separate:
 
 - `feature-inventory.csv` — menu/toolbar/context/status/dialog entries;
-- `top-panel-inventory.csv` — 64 topPanel widgets (43 direct + 21 nested), with source line evidence.
+- `top-panel-inventory.csv` — 65 topPanel widgets (43 direct + 22 nested), with source line evidence.
 
-`btnRankMark` is nested in `topPanel.rightArea` (L7934); its popup reuses the
-`addRankMarkMenu(L8472)` subtree, so its children are not duplicated as separate topPanel rows.
+The actual panel class is `TopHeaderPanel`: a `contentPanel` with `WrapLayout` and
+`leftGroup`/`centerGroup`/`rightGroup` plus separators. `btnRankMark` is nested in
+`topPanel.rightArea` (L7934); `btnFlashAnalyze` is in `centerArea` (L7931). Their popups reuse the
+`addRankMarkMenu(L8472)` subtree and are not duplicated as separate topPanel rows.
+
+L1 l10n key checks must cover all **8** bundles:
+`DisplayStrings.properties`, `_en_US`, `_ja_JP`, `_ko`, `_th_TH`, `_zh_CN`, `_zh_HK`, `_zh_TW`.
 
 Some widgets also have a `toolPanel` variant mount at `Menu.java:9278-9287`; this is the
 independent-toolbar layout, not a second topPanel. The inventory notes mark those variants.

@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MENU = ROOT / "src/main/java/featurecat/lizzie/gui/Menu.java"
 OUT = ROOT / "docs/ui2/top-panel-inventory.csv"
 ADD = "Lizzie.frame.topPanel.add("
-NESTED_ADD = re.compile(r"Lizzie\.frame\.topPanel\.(leftArea|rightArea)\.add\(\s*(\w+)\s*\)")
+NESTED_ADD = re.compile(r"Lizzie\.frame\.topPanel\.(leftArea|centerArea|rightArea)\.add\(\s*(\w+)\s*\)")
 LABEL_KEY_RE = re.compile(r'getString\(\s*"([^"]+)"')
 
 
