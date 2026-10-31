@@ -11,8 +11,10 @@ M-ENG-004,引擎 > 重启当前引擎,D: dynamic/static-parser limitation
 M-ENG-007,引擎 > 更多引擎,D: dynamic/static-parser limitation
 M-GAME-011,棋局 > 试下,re-classified: toolbar bucket (customToolbarItem L4839)
 M-HELP-003,帮助 > 恢复自动保存的棋谱,no-entry
+M-EDIT-014,帮助 > 清除所有个人数据,source-verified manual: helpMenu.add(clearUserData) L5017; label is hard-coded
 M-HELP-004,帮助 > 棋盘识别工具,no-entry
 M-HELP-006,帮助 > 历史记录,no-entry
+M-VIEW-068,显示 > 落子评价标记 > 在原位置显示,no-entry
 M-ENG-000,引擎 > 关闭引擎,D: dynamic/static-parser limitation
 M-ENG-009,引擎2（第二引擎） > 重启当前引擎,D: dynamic/static-parser limitation
 M-ENG-010,引擎2（第二引擎） > 关闭当前引擎,D: dynamic/static-parser limitation
@@ -22,3 +24,9 @@ M-GAME-015,棋局 > 修改多盘引擎对局数,no-entry
 M-GAME-016,棋局 > 干预引擎对局,no-entry
 M-ANA-015,分析 > 闪电分析(全局),no-entry
 M-SYNC-008,同步 > 棋盘同步工具(简易版),no-entry
+M-SET-007,设置 > 语言 > 简体中文,source-verified manual: settings.add(language) L5129; parser merges duplicate labels
+M-SET-008,设置 > 语言 > 繁體中文,source-verified manual: settings.add(language) L5129; parser merges duplicate labels
+M-SET-009,设置 > 语言 > English,source-verified manual: settings.add(language) L5129; parser merges duplicate labels
+M-SET-010,设置 > 语言 > 日本語,source-verified manual: settings.add(language) L5129; parser merges duplicate labels
+M-SET-011,设置 > 语言 > 한국어,source-verified manual: settings.add(language) L5129; parser merges duplicate labels
+M-SET-012,设置 > 语言 > ไทย,source-verified manual: settings.add(language) L5129; parser merges duplicate labels
