@@ -29,6 +29,37 @@ Partial overlaps with the shipped modern themes:
 Partial overlap is not enough to call a theme duplicate: a theme is board + stones + background +
 palette. Add a theme only if the complete visual set is unique.
 
+## Loading contract (unchanged)
+
+UI2 does **not** replace the board-theme loader.
+
+Keep:
+
+```text
+theme/<theme-id>/theme.txt
+theme/<theme-id>/board.*
+theme/<theme-id>/black.*
+theme/<theme-id>/white.*
+theme/<theme-id>/background.*
+```
+
+Keep the existing `Theme` class, `Theme.board()` / fallback behavior, custom board-image handling,
+and the `theme` key in `config.txt` / `uiConfig`.
+
+Rules:
+
+- themes stay as filesystem directories, not bundled into a jar or downloaded online;
+- users can still drop in a theme folder;
+- the theme picker may be reskinned, but it reads the same directory list and applies through the
+  same loader;
+- Classic themes are just additional directories in the same `theme/` root;
+- do not rename existing theme IDs; preserve user config and favorites;
+- a Classic theme with the same ID as a shipped theme must be skipped or given a new ID, never
+  overwrite silently.
+
+Board themes are not “modern vs old” in the UI2 sense. UI chrome follows FlatLaf; board themes stay
+asset-driven and can be curated later.
+
 ## Recommendation
 
 1. Keep the current 15-theme modern pack as the primary catalog.
