@@ -16,7 +16,10 @@
 - [ ] dynamic states represented with `state_matrix` / `checked_condition`;
 - [ ] upstream `D:\temp\lizzieyzy` cross-check completed;
 - [ ] no missing top-level entry point;
-- [ ] every existing dialog and toolbar action has a row.
+- [ ] every existing dialog and toolbar action has a row;
+- [ ] every entry-bearing audit record has a disposition (mapped, duplicate, non-entry copy/config
+  key); zero unexplained differences in the filtered audit;
+- [ ] `katayzy-new-disposition.md` records the decision for every current-only feature.
 
 The inventory is the migration checklist. A vertical slice is not accepted if its actions are not
 represented here.
@@ -32,8 +35,9 @@ represented here.
   Kata estimate, win-rate settings, variation panel) by enumerating labels/actions in each code
   block. Do not use line counts as proof of completeness.
 - **Shortcut conflicts:** for each `shortcut_conflict` row, verify the two `state_matrix` conditions
-  can actually overlap. If they can, add a resolution policy (context, priority, or disabled
-  fallback); “different menu context” is not a sufficient rule unless encoded in the state model.
+  can actually overlap. Gate 1 requires a documented resolution policy (context, priority, or
+  disabled fallback) in `shortcut_resolution`; the `UiState` implementation is a Gate 2 item, not a
+  Gate 1 prerequisite.
 - **l10n consistency:** sample at least 20 resource-key rows and compare the inventory label with
   the decoded `DisplayStrings_zh_CN.properties` value character by character.
 - **Upstream cross-check:** compare against the upstream commit recorded in the reference checkout,
@@ -51,6 +55,8 @@ represented here.
 - [ ] existing board input (click, drag, keyboard) still works;
 - [ ] top bar/menu bar uses FlatLaf;
 - [ ] menu hierarchy, labels, shortcuts and entry points are unchanged (IA freeze);
+- [ ] shortcut conflict `shortcut_resolution` policies are implemented in `UiState` and verified
+  by interaction tests;
 - [ ] `ui-surface-inventory.csv` reviewed: every visible frame/dialog/popup/custom-paint surface is
   classified `保留 / 不可见 / 待替换` before any old renderer is removed;
 - [ ] `surface-coverage.md` reviewed: every dialog reachable from the feature inventory has a

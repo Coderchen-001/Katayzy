@@ -2,6 +2,10 @@
 
 Status: **not passing yet**. This is the self-audit report, not a request to waive the gate.
 
+Gate 1 closure is defined as: every entry-bearing audit record has a disposition, every duplicate
+is explained, and the filtered audit has zero unexplained differences. “100% complete” is not a
+provable condition and is not the gate.
+
 ## 1. Bidirectional coverage
 
 Checked:
@@ -13,7 +17,8 @@ Checked:
 
 Findings:
 
-- the inventory is no longer a 119-row skeleton, but it is still not proven 100% complete;
+- the inventory is no longer a 119-row skeleton, but the filtered audit is not fully dispositioned
+  yet;
 - the label audit is a lookup table, not a feature list;
 - descriptive dialog names are now mapped in `dialog-mapping.md`;
 - the remaining risk is duplicate or missing submenu children, not top-level menus.
@@ -50,9 +55,9 @@ M-GAME-012  Alt+T  pause engine game / comment panel
 M-EDIT-012  T      return to main branch / hawk-eye
 ```
 
-`shortcut_resolution` now records the intended context rule for each. This is documentation only;
-the `UiState`/`ActionRegistry` implementation is still pending. Gate 2 must verify the encoded
-context, not just the CSV text.
+`shortcut_resolution` now records the intended context rule for each. Gate 1 only requires this
+documented policy. The `UiState`/`ActionRegistry` implementation is a Gate 2 item and must be
+verified by interaction tests; it is not a Gate 1 blocker.
 
 ## 4. l10n consistency
 
@@ -75,11 +80,13 @@ Reference: `D:\temp\lizzieyzy` at `741c301`.
 - 8 ref-only feature entries added (`about`, `checkUpdate`, `introduction`, engine-game controls,
   flash analysis, legacy board sync);
 - current-only entries are marked for product decision, not silently deleted;
-- `checkUpdate` was merged into `checkVersion`.
+- `checkUpdate` was merged into `checkVersion`;
+- dispositions are recorded in `katayzy-new-disposition.md`: UI copy, keep, and the two
+  entry-kept/rendering-retired legacy UI items.
 
 Still open:
 
-- finalize the `katayzy-new` keep/drop list;
+- only the final `katayzy-new` disposition table review;
 - confirm that `origin: upstream-741c301` entries are still supported by the current build.
 
 ## P0 confirmation
@@ -113,9 +120,11 @@ that still reference it.
 Gate 1 is **not ready to pass**. The remaining blockers are:
 
 1. complete the final child-by-child inventory pass;
-2. finish the `katayzy-new` product decisions;
-3. encode the shortcut conflict resolutions in `UiState`;
+2. disposition the filtered entry-bearing audit with zero unexplained differences;
+3. review `katayzy-new-disposition.md` (only the two legacy UI entries still need a later decision);
 4. record the final l10n sample after the audit regeneration.
+
+`UiState`/shortcut implementation is explicitly a Gate 2 item, not a Gate 1 blocker.
 
 P0 is confirmed; surface classification and dialog mapping are complete enough to proceed to the
 Gate 1 review, but not enough to start `ui2/widgets` yet.
