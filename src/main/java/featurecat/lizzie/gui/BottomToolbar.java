@@ -633,7 +633,7 @@ public class BottomToolbar extends JPanel {
     setMain.setToolTipText(null);
     batchOpen =
         new JFontButton(Lizzie.resourceBundle.getString("BottomToolbar.batchOpen")); // ("批量分析");
-    AppleStyleSupport.markPrimary(batchOpen);
+
     batchOpen
         .getAccessibleContext()
         .setAccessibleDescription(resourceBundle.getString("BottomToolbar.autoAnalyzeTip"));
@@ -1301,12 +1301,7 @@ public class BottomToolbar extends JPanel {
     liveButton.addActionListener(
         new ActionListener() {
           public void actionPerformed(ActionEvent e) {
-            int popupW = yike.getPreferredSize().width;
-            int anchorCenter = liveButton.getX() + liveButton.getWidth() / 2;
-            int maxX = Math.max(0, buttonPane.getWidth() - popupW);
-            int popupX = Math.max(0, Math.min(anchorCenter - popupW / 2, maxX));
-            int popupY = Math.max(0, liveButton.getY() - yike.getPreferredSize().height - 6);
-            yike.show(buttonPane, popupX, popupY);
+            ToolbarPopupSupport.showAbove(yike, liveButton);
           }
         });
 

@@ -85,12 +85,14 @@ final class AutoAnalyzeMenu {
   }
 
   static void showAbove(JPopupMenu popup, JComponent invoker) {
-    popup.show(invoker, 0, -popup.getPreferredSize().height);
+    ToolbarPopupSupport.showAbove(popup, invoker);
   }
 
   private static JFontMenuItem item(
       ResourceBundle resources, String key, String actionId, Runnable action) {
     JFontMenuItem item = new JFontMenuItem(resources.getString(key));
+    item.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+    item.setIconTextGap(0);
     item.putClientProperty(ACTION_PROPERTY, actionId);
     item.addActionListener(e -> action.run());
     return item;

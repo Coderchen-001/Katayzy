@@ -347,6 +347,11 @@ public final class AppleStyleSupport {
     menuItem.setForeground(controlTextColor());
     menuItem.setFocusPainted(false);
     menuItem.setBorder(new EmptyBorder(5, 10, 5, 10));
+    if (menuItem instanceof javax.swing.JMenuItem) {
+      ((javax.swing.JMenuItem) menuItem)
+          .setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+      menuItem.setIconTextGap(0);
+    }
   }
 
   public static void styleLabel(JLabel label) {
@@ -454,7 +459,10 @@ public final class AppleStyleSupport {
 
   private static Color buttonTextColor(AbstractButton button) {
     String role = buttonRole(button);
-    if (ROLE_PRIMARY.equals(role) || ROLE_DANGER.equals(role)) {
+    if (ROLE_DANGER.equals(role)) {
+      return new Color(255, 128, 128);
+    }
+    if (ROLE_PRIMARY.equals(role)) {
       // Classic mode uses flat light fills instead of saturated accent colors,
       // so black text reads better than white.
       if (isClassicEnabled() && !isAppleStyleEnabled()) {
@@ -485,7 +493,9 @@ public final class AppleStyleSupport {
             ? new Color(245, 205, 205)
             : hover ? new Color(250, 220, 220) : new Color(252, 232, 232);
       }
-      return pressed ? new Color(210, 62, 62, 230) : new Color(210, 62, 62, hover ? 210 : 185);
+      // Keep the same neutral glass material as normal buttons; only the text/border
+      // carries the danger color.
+      return new Color(255, 255, 255, pressed ? 70 : hover ? 48 : 16);
     }
     if (isAppleStyleEnabled()) {
       return new Color(255, 255, 255, pressed ? 70 : hover ? 48 : 16);

@@ -7646,7 +7646,7 @@ public class Menu extends JMenuBar {
       JFontButton btnFoxKifu = new JFontButton(resourceBundle.getString("Menu.foxKifuButton"));
       btnFoxKifu.setFocusable(false);
       btnFoxKifu.setMargin(new Insets(0, 10, 0, 10));
-      AppleStyleSupport.markPrimary(btnFoxKifu);
+      // Mode buttons use the neutral glass role; selection is shown by their own state.
       btnFoxKifu.setPreferredSize(
           new Dimension(
               Lizzie.config.isChinese ? Config.menuHeight * 4 : Config.menuHeight * 6,
@@ -7662,7 +7662,7 @@ public class Menu extends JMenuBar {
           new JFontButton(resourceBundle.getString("Menu.tencentKifuButton"));
       btnTencentKifu.setFocusable(false);
       btnTencentKifu.setMargin(new Insets(0, 10, 0, 10));
-      AppleStyleSupport.markPrimary(btnTencentKifu);
+  
       btnTencentKifu.setPreferredSize(
           new Dimension(
               Lizzie.config.isChinese ? Config.menuHeight * 4 : Config.menuHeight * 7,
@@ -7678,7 +7678,7 @@ public class Menu extends JMenuBar {
           new JFontButton(resourceBundle.getString("Menu.playerStrengthEstimateButton"));
       btnPlayerStrengthEstimate.setFocusable(false);
       btnPlayerStrengthEstimate.setMargin(new Insets(0, 10, 0, 10));
-      AppleStyleSupport.markPrimary(btnPlayerStrengthEstimate);
+  
       btnPlayerStrengthEstimate.setPreferredSize(
           new Dimension(
               Math.max(
