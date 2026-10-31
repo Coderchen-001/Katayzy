@@ -231,7 +231,43 @@ Decision:
 Mature references (Windows 11, macOS, IntelliJ, VS Code) provide more visual range than the old
 home-grown skins.
 
-## 12. Visual references
+## 12. Shared UI patterns
+
+The seven retained product features should keep their behavior and be re-skinned with one set of
+primitives. Do not design each screen independently.
+
+Required primitives:
+
+- card / section container;
+- status dot;
+- badge (success / warning / danger / info);
+- empty state;
+- progress row.
+
+References:
+
+| Feature | Reference | What to borrow |
+|---|---|---|
+| Board themes | Sabaki + VS Code theme picker | card grid with live preview |
+| Shell presets | JetBrains themes + Windows 11 accent | FlatLaf theme properties, not hand-written color overrides |
+| Appearance settings | Windows 11 personalization + IntelliJ Appearance | left categories, right preview, immediate apply |
+| Strength report | Lichess game report + AI Sensei | accuracy cards, mistake badges, clickable problem moves, phase split |
+| Sync diagnostics | VS Code Remote/Output panel | status list, step progress, copy-log action |
+| Fox/Tencent kifu | GitHub Desktop clone flow | paste URL, validate, progress, preview |
+| Web spectator | VS Code Simple Browser / port forwarding panel | URL + status + copy-link shell around JCEF |
+
+Rules:
+
+- use one icon family; prefer `FlatSVGIcon` over adding more icon libraries until coverage is proven
+  insufficient;
+- semantic colors come from `UiTokens`, not per-screen constants;
+- use MigLayout and the shared card primitive; do not use dated `JXTaskPane` styling as the visual
+  target;
+- shell presets become FlatLaf theme property files; glass/alpha tokens remain only for chrome over
+  the board;
+- a feature redesign must not change its Action or config keys.
+
+## 13. Visual references
 
 - Windows 11: menus, settings cards, toggles, focus rings;
 - macOS: sidebar spacing, grouped settings, typography;
