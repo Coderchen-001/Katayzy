@@ -7,13 +7,19 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.swing.AbstractButton;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JRadioButtonMenuItem;
+import javax.swing.JToggleButton;
+import javax.swing.KeyStroke;
 
 /**
  * Deterministic component-tree snapshot for the UI2 golden baseline.
@@ -50,27 +56,61 @@ public final class Ui2Snapshot {
         .append(component.getClass().getSimpleName())
         .append(" | text=")
         .append(quote(textOf(component)))
+        .append(" | mnemonic=")
+        .append(mnemonicOf(component))
+        .append(" | accelerator=")
+        .append(acceleratorOf(component))
+        .append(" | selected=")
+        .append(selectedOf(component))
         .append(" | visible=")
         .append(component.isVisible())
         .append(" | enabled=")
         .append(component.isEnabled())
-        .append(" | bounds=")
-        .append(component.getX())
-        .append(',')
-        .append(component.getY())
-        .append(',')
-        .append(component.getWidth())
-        .append(',')
-        .append(component.getHeight())
         .append('\n');
     if (component instanceof Container) {
       Container container = (Container) component;
       List<Component> children = new ArrayList<>();
       for (Component child : container.getComponents()) children.add(child);
-      for (int i = 0; i < children.size(); i++) {
-        capture(children.get(i), path + "/" + i, out, depth + 1);
+      Map<String, Integer> used = new HashMap<>();
+      for (Component child : children) {
+        String base = childSegment(child);
+        int count = used.getOrDefault(base, 0);
+        used.put(base, count + 1);
+        String segment = count == 0 ? base : base + "#" + count;
+        capture(child, path + "/" + segment, out, depth + 1);
       }
     }
+  }
+
+  private static String childSegment(Component component) {
+    String name = component.getName();
+    if (name != null && !name.isBlank()) {
+      return name.replace('/', '_').replace('\\', '_');
+    }
+    return component.getClass().getSimpleName();
+  }
+
+  private static String mnemonicOf(Component component) {
+    if (!(component instanceof AbstractButton)) return "";
+    int mnemonic = ((AbstractButton) component).getMnemonic();
+    if (mnemonic <= 0) return "";
+    return String.valueOf((char) mnemonic);
+  }
+
+  private static String acceleratorOf(Component component) {
+    if (!(component instanceof JMenuItem)) return "";
+    KeyStroke accelerator = ((JMenuItem) component).getAccelerator();
+    return accelerator == null ? "" : accelerator.toString();
+  }
+
+  private static String selectedOf(Component component) {
+    if (!(component instanceof AbstractButton)) return "";
+    AbstractButton button = (AbstractButton) component;
+    boolean toggle =
+        button instanceof JCheckBoxMenuItem
+            || button instanceof JRadioButtonMenuItem
+            || button instanceof JToggleButton;
+    return toggle ? String.valueOf(button.isSelected()) : "";
   }
 
   private static String textOf(Component component) {
