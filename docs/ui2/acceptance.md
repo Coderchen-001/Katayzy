@@ -16,6 +16,7 @@
 - [ ] dynamic states represented with `state_matrix` / `checked_condition`;
 - [ ] upstream `D:\temp\lizzieyzy` cross-check completed;
 - [ ] no missing top-level entry point;
+- [ ] `children-check.md` structural cleanup completed (hand-number/rank rows);
 - [ ] every existing dialog and toolbar action has a row;
 - [ ] every entry-bearing audit record has a disposition (mapped, duplicate, non-entry copy/config
   key); zero unexplained differences in the filtered audit;
@@ -39,7 +40,8 @@ represented here.
   disabled fallback) in `shortcut_resolution`; the `UiState` implementation is a Gate 2 item, not a
   Gate 1 prerequisite.
 - **l10n consistency:** sample at least 20 resource-key rows and compare the inventory label with
-  the decoded `DisplayStrings_zh_CN.properties` value character by character.
+  the decoded `DisplayStrings_zh_CN.properties` value character by character. The current sample is
+  `l10n-sample.md`.
 - **Upstream cross-check:** compare against the upstream commit recorded in the reference checkout,
   not just the directory name; confirm current-only features are not mistaken for obsolete ones.
 - **Action vs entry:** one ActionRegistry implementation may serve multiple entries; the inventory

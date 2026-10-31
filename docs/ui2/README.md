@@ -17,6 +17,8 @@ This directory is the acceptance record for the UI2 rewrite.
 | `dialog-mapping.md` | Manual mapping for descriptive dialog references |
 | `theme-catalog.md` | Board-theme supplement and duplicate audit against the upstream five themes |
 | `backlog.md` | Deferred theme work, Gate 1 prerequisites and visual passes; the durable TODO list |
+| `children-check.md` | Child coverage and remaining hand-number/rank structural blockers |
+| `l10n-sample.md` | 20-row decoded label sample for the final l10n check |
 | `gate1-self-audit.md` | Gate 1 five-section self-audit; currently not passing |
 | `katayzy-new-disposition.md` | Disposition of the 28 current-only features |
 | `audit-closure.md` | Entry-bearing audit disposition and unmapped list |
