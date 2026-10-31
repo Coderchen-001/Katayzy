@@ -124,7 +124,7 @@ M-ENG-004,menu,引擎 > 重启当前引擎,重启当前引擎,,restartCurrentEng
 M-ENG-005,menu,设置 > 引擎参数,引擎参数(Alt+D),Alt+D,editEngineParameters,Menu.java,enabled:engineLoaded,,yes,引擎参数对话框,Windows/通用,未接,资源键 Menu.engineParameters；源码注释写的“实时修改”是旧文案,,both,,
 M-ENG-006,menu,设置 > 引擎规则,引擎规则(KataGo)(Shift+D),Shift+D,editEngineRules,Menu.java,enabled:engineLoaded,,yes,引擎规则对话框,Windows/通用,未接,资源键 Menu.engineRules；源码注释里的 (D) 是旧文案，properties 权威为 Shift+D,,both,,
 M-ENG-007,menu,引擎 > 更多引擎,更多引擎...,,openMoreEngines,Menu.java,enabled:engineLoaded,,yes,ChooseMoreEngine,Windows/通用,未接,评审补录,,both,,D: dynamic/static-parser limitation
-M-GAME-011,menu,棋局 > 试下,试下,,tryPlay,Menu.java,enabled:always,,yes,—,Windows/通用,未接,评审补录,,both,,D: dynamic/static-parser limitation
+M-GAME-011,menu,棋局 > 试下,试下,,tryPlay,Menu.java,enabled:always,,yes,—,Windows/通用,未接,评审补录,,both,,re-classified: toolbar bucket (customToolbarItem L4839)
 M-GAME-012,menu,棋局 > 暂停/继续引擎对局,暂停/继续引擎对局,Alt+T,pauseEngineGame,Menu.java,enabled:always,,yes,—,Windows/通用,未接,评审补录,Alt+T 与评论面板冲突,both,engine-game context: Alt+T pauses/resumes; comment panel shortcut is focus-gated,
 M-GAME-013,menu,棋局 > 人机对局(Genmove),人机对局(Genmove),Alt+N,startGenmoveGame,Menu.java,enabled:always,,yes,新对局对话框,Windows/通用,未接,评审补录,,both,,
 M-FILE-013,menu,文件 > 更多保存 > 保存纯净棋谱,保存纯净棋谱(Ctrl+Shift+S),Ctrl+Shift+S,saveRaw,Menu.java,enabled:always,,no,—,Windows/通用,未接,资源键 Menu.saveRaw；l10n 已修正为 Ctrl,,both,,

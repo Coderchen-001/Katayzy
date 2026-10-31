@@ -9,7 +9,7 @@ M-HELP-002,帮助 > 检查更新,no-entry
 M-SET-004,设置 > 快捷键,no-entry
 M-ENG-004,引擎 > 重启当前引擎,D: dynamic/static-parser limitation
 M-ENG-007,引擎 > 更多引擎,D: dynamic/static-parser limitation
-M-GAME-011,棋局 > 试下,D: dynamic/static-parser limitation
+M-GAME-011,棋局 > 试下,re-classified: toolbar bucket (customToolbarItem L4839)
 M-HELP-003,帮助 > 恢复自动保存的棋谱,no-entry
 M-HELP-004,帮助 > 棋盘识别工具,no-entry
 M-HELP-006,帮助 > 历史记录,no-entry
