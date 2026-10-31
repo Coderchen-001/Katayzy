@@ -256,6 +256,20 @@ References:
 | Fox/Tencent kifu | GitHub Desktop clone flow | paste URL, validate, progress, preview |
 | Web spectator | VS Code Simple Browser / port forwarding panel | URL + status + copy-link shell around JCEF |
 
+Implementation notes:
+
+- shell presets are loaded with `FlatLaf.registerCustomDefaultsSource("featurecat.lizzie.ui2.themes")`
+  **before** `FlatLaf.setup()`;
+- FlatLaf resolves property file names against the LAF class: `FlatLaf.properties` is loaded for all
+  themes, while `FlatDarkLaf.properties` is loaded only for `FlatDarkLaf`;
+- three arbitrary files named `Graphite.properties`/`Warm.properties`/`Slate.properties` are **not**
+  automatically picked up. Use custom `FlatLaf` subclasses (one per preset) with matching property
+  file names, or `FlatPropertiesLaf`, or apply a controlled `UIManager` update after setup;
+- `AppShellTheme` keeps only glass-overlay tokens; solid popup/dialog/menu colors move into the
+  FlatLaf properties;
+- the five primitives (`Card`, `StatusDot`, `Badge`, `EmptyState`, `ProgressRow`) are the first
+  `ui2/widgets/` commit, before the main window shell.
+
 Rules:
 
 - use one icon family; prefer `FlatSVGIcon` over adding more icon libraries until coverage is proven
