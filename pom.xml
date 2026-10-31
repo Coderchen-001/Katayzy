@@ -71,6 +71,9 @@
 				<version>2.29</version>
 				<executions>
 					<execution>
+						<!-- Do not rewrite source during `package`; UI2 baseline evidence must come from a
+						     clean worktree. Run `mvn fmt:format` explicitly for a formatting-only commit. -->
+						<phase>none</phase>
 						<goals>
 							<goal>format</goal>
 						</goals>
