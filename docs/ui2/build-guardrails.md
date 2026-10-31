@@ -144,6 +144,17 @@ stay under their original licenses; theme assets keep their notices.
    regressions.
 7. Then widgets/MainWindow migration.
 
+**Diagram correction:** the flowchart's “widgets → FlatLaf” order is wrong. FlatLaf must come
+before widgets, because LAF defaults, fonts and colors affect every primitive. Build and test the
+widgets under the target LAF; otherwise they will be built against the old look and reworked.
+
+### Gate scope
+
+- L0/L2/L3: every **UI migration commit**;
+- L4 screenshots: each visual milestone, and every modal/dialog surface;
+- L5 clipping scan: each locale/font milestone;
+- documentation-only commits do not run the full gate.
+
 ## 5. Known limitations
 
 - L2 cannot see modal dialogs; L4 covers them.
