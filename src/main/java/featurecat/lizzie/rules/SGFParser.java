@@ -1858,7 +1858,6 @@ public class SGFParser {
     //    node.getData().commented = true;
     BoardData data = node.getData();
     String engine = node.getData().engineName;
-    engine = engine.replaceAll(" ", "");
     String playouts = Utils.getPlayoutsString(data.getPlayouts());
 
     // Last winrate
@@ -2103,7 +2102,6 @@ public class SGFParser {
 
     BoardData data = node.getData();
     String engine = node.getData().engineName;
-    engine = engine.replaceAll(" ", "");
     String playouts = Utils.getPlayoutsString(data.getPlayouts());
 
     // Last winrate
@@ -2286,7 +2284,6 @@ public class SGFParser {
     if (!EngineManager.isSaveingEngineSGF && !node.previous().isPresent()) return "";
     BoardData data = node.getData();
     String engine = node.getData().engineName;
-    engine = engine.replaceAll(" ", "");
     String playouts = Utils.getPlayoutsString(data.getPlayouts());
     // Last winrate
     Optional<BoardData> lastNode;
@@ -2498,7 +2495,6 @@ public class SGFParser {
     //    node.getData().commented2 = true;
     BoardData data = node.getData();
     String engine = node.getData().engineName2;
-    engine = engine.replaceAll(" ", "");
     String playouts = Utils.getPlayoutsString(data.getPlayouts2());
 
     Optional<BoardData> lastNode = node.previous().flatMap(n -> Optional.of(n.getData()));

@@ -517,7 +517,7 @@ public class Leelaz {
     Pattern p = Pattern.compile(regEx);
     Matcher m = p.matcher(currentEnginename);
     currentEnginename = m.replaceAll(aa).trim();
-    bestMovesEnginename = currentEnginename.replaceAll(" ", "");
+    bestMovesEnginename = oriEnginename;
     return currentEnginename;
   }
 
@@ -2231,11 +2231,11 @@ public class Leelaz {
               && !Lizzie.frame.isAnaPlayingAgainstLeelaz
               && !EngineManager.isEngineGame
               && !Lizzie.config.isAutoAna) {
-            if (!outOfPlayoutsLimit
-                && ((Lizzie.config.limitPlayout
-                        && getBestMovesPlayouts() > Lizzie.config.limitPlayouts)
-                    || (Lizzie.config.stopAtEmptyBoard
-                        && Lizzie.board.getHistory().noStoneBoard()))) {
+            if ((Lizzie.config.stopAtEmptyBoard
+                    && Lizzie.board.getHistory().noStoneBoard())
+                || (!outOfPlayoutsLimit
+                    && Lizzie.config.limitPlayout
+                    && getBestMovesPlayouts() > Lizzie.config.limitPlayouts)) {
               stopByLimit = true;
               stopByPlayouts = true;
               isPondering = !isPondering;
@@ -9821,11 +9821,6 @@ public class Leelaz {
 
   public void ponder(boolean addPlayer, boolean blackToPlay) {
     if (noAnalyze) return;
-    // 每次开始 pondering 前清除"按访问量停止"的粘性锁存（outOfPlayoutsLimit）。
-    // 棋谱自动分析等路径直接调用 ponder()（不经 togglePonder），若上次分析达到
-    // visits 限制后残留 stopByPlayouts，本次会被 L9837 锁存成 outOfPlayoutsLimit=true，
-    // 导致当前手达到 1500 visits 也无法自动停止。此处统一清除，覆盖所有调用者。
-    clearPonderLimit();
     YikeSyncDebugLog.log(
         "Leelaz ponder request addPlayer="
             + addPlayer
@@ -9945,10 +9940,6 @@ public class Leelaz {
   }
 
   public void togglePonder() {
-    // 每次切换 pondering 前清除"按访问量停止"的粘性锁存（outOfPlayoutsLimit）。
-    // 该锁存只在 clearAfterMove（真正落子/进退棋谱）时清除；续弈切回棋谱分析等
-    // 不改变局面的路径会残留它，导致当前手达到 visits 限制也无法自动停止。
-    clearPonderLimit();
     YikeSyncDebugLog.log(
         "Leelaz togglePonder before isPondering="
             + isPondering
