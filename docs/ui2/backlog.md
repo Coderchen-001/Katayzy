@@ -29,7 +29,8 @@ Use this file for items explicitly deferred. Do not rely on chat memory.
 - [x] Initial v0.1 classification of all 107 `ui-surface-inventory.csv` rows:
   `8 保留 / 97 待替换 / 2 废弃 / 0 不可见`;
 - [ ] revisit `不可见` candidates with reference-chain evidence (none marked yet);
-- [ ] map the 16 descriptive dialog references in `surface-coverage.md`;
+- [x] map the 16 descriptive dialog references in `surface-coverage.md`; see
+  `dialog-mapping.md` (two are native `ReadBoard` flows, not Swing surfaces);
 - [ ] confirm the P0 list (currently 9 classes, including `Menu.java`);
 - [ ] run `check_inventory_duplicates.py` and record `OK`;
 - [ ] complete the Gate 1 self-audit before starting `ui2/widgets`.
