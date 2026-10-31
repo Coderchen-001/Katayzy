@@ -10,9 +10,14 @@ This directory is the acceptance record for the UI2 rewrite.
 | `menu-label-audit.csv` | Generated label audit: resource keys **and** hard-coded labels, resolved through `l10n/DisplayStrings_zh_CN.properties` |
 | `upstream-cross-check.csv` | Two-way key comparison against upstream `741c301` (`both` / `ref-only` / `current-only`) |
 | `upstream-cross-check.md` | Human-readable summary of the two-way cross-check |
+| `ui-surface-inventory.csv` | Every frame/dialog/popup/custom-paint surface that must be visually accounted for |
 
 Mechanical duplicate check: `python tools/ui2/check_inventory_duplicates.py`.
 It fails on duplicate IDs, duplicate `path+action`, and empty required fields.
+
+Surface inventory: `python tools/ui2/inventory_ui_surfaces.py`.
+It scans all GUI classes for frame/dialog/popup/custom-paint signals. A surface may be
+`保留/不可见/待替换`; it must be explicitly classified before rendering replacement starts.
 
 ## Status
 

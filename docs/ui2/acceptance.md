@@ -51,6 +51,8 @@ represented here.
 - [ ] existing board input (click, drag, keyboard) still works;
 - [ ] top bar/menu bar uses FlatLaf;
 - [ ] menu hierarchy, labels, shortcuts and entry points are unchanged (IA freeze);
+- [ ] `ui-surface-inventory.csv` reviewed: every visible frame/dialog/popup/custom-paint surface is
+  classified `保留 / 不可见 / 待替换` before any old renderer is removed.
 - [ ] bottom bar uses FlatLaf and the normal/primary/danger role model;
 - [ ] left analysis column placeholder renders;
 - [ ] right variation column placeholder renders;
