@@ -23,22 +23,21 @@ Findings:
 - descriptive dialog names are now mapped in `dialog-mapping.md`;
 - the remaining risk is duplicate or missing submenu children, not top-level menus.
 
-A mechanical six-bucket entry-closure run after adding the missing language/font-size group
-(`audit-closure.md`, scope 552 records):
+A mechanical six-bucket entry-closure run after adding the missing language/font-size group and
+container reverse-check (`audit-closure.md`, scope 552 records):
 
 ```text
 mapped       47
-container   188
+container    70
 non-entry   241
 comment      13
-omission     63
+omission    181
 ```
 
-The language group was a real omission found by the audit: `设置 > 语言` and its seven options now
-have inventory rows (`M-SET-005`..`M-SET-012`), plus the interface-font-size group
-(`M-SET-013`..`M-SET-016`). The 63 “omission” records are a review queue, not 63 confirmed missing
-features: exact-label matching misses container labels and renamed toolbar entries. Each must be
-mapped to an existing feature ID or added as a row.
+`container` records are only accepted when their label matches a feature-inventory container row;
+otherwise they fall into `omission`. The 181 omission records are a review queue, not 181 confirmed
+missing features: exact-label matching misses renamed toolbar entries, top-level menu containers and
+old copy. Each must be mapped to an existing feature ID or added as a row.
 
 Action:
 

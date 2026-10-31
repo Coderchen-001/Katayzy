@@ -22,6 +22,9 @@ def main() -> None:
     features = list(csv.DictReader(FEATURES.open(encoding="utf-8")))
     labels = {(r.get("label") or "").strip() for r in features if r.get("label")}
     notes = " ".join((r.get("notes") or "") for r in features)
+    label_to_id = {}
+    for feature in features:
+        label_to_id.setdefault((feature.get("label") or "").strip(), feature.get("id", ""))
     audit = list(csv.DictReader(AUDIT.open(encoding="utf-8")))
     rows = []
     for record in audit:
@@ -38,7 +41,12 @@ def main() -> None:
         if stripped.startswith("//") or stripped.startswith("*"):
             disposition = "comment"
         elif "new JFontMenu" in line or "new JMenu" in line:
-            disposition = "container"
+            container_label = (record.get("label") or "").strip()
+            if container_label in label_to_id:
+                disposition = "container"
+            else:
+                # A container without a matching feature row is an omission, not a valid bucket.
+                disposition = "omission"
         elif ENTRY_RE.search(line):
             label = (record.get("label") or "").strip()
             key = (record.get("key") or "").strip()
