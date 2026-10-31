@@ -47,7 +47,8 @@ public class BlunderListPanel extends JPanel implements Scrollable {
           }
 
           @Override
-          public void mouseClicked(MouseEvent e) {
+          public void mousePressed(MouseEvent e) {
+            if (!SwingUtilities.isLeftMouseButton(e)) return;
             ProblemMoveEntry clicked = getEntryAt(e.getX(), e.getY());
             if (clicked != null) {
               Lizzie.frame.jumpToProblemMove(clicked);
@@ -207,25 +208,62 @@ public class BlunderListPanel extends JPanel implements Scrollable {
     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
     g2.setFont(new Font(Lizzie.config.uiFontName, Font.PLAIN, 14));
     String text =
-        currentSnapshot != null && currentSnapshot.analysisRunning ? "⏳ 正在整理问题手..." : "当前无问题手";
-    FontMetrics fm = g2.getFontMetrics();
-    // Both styles use a dark sidebar surface, so the boxed empty state works for both.
-    int boxW = Math.min(getWidth() - 24, 220);
-    int boxH = 86;
+        currentSnapshot != null && currentSnapshot.analysisRunning
+            ? "⏳ 正在整理问题手..."
+            : "当前无问题手";
+    FontMetrics titleFm = g2.getFontMetrics();
+
+    String sub = "全盘分析后，这里会列出胜率损失较多的问题手";
+    Font subFont = new Font(Lizzie.config.uiFontName, Font.PLAIN, 12);
+    g2.setFont(subFont);
+    FontMetrics subFm = g2.getFontMetrics();
+    int maxTextWidth = Math.max(120, Math.min(getWidth() - 48, 280));
+    List<String> subLines = wrapEmptyStateText(sub, subFm, maxTextWidth);
+
+    int boxW = Math.min(getWidth() - 24, Math.max(220, maxTextWidth + 32));
+    int lineHeight = 18;
+    int boxH = 52 + subLines.size() * lineHeight;
     int boxX = Math.max(12, (getWidth() - boxW) / 2);
     int boxY = Math.max(12, (getHeight() - boxH) / 2 - 12);
+
     g2.setColor(new Color(255, 255, 255, 14));
     g2.fillRoundRect(boxX, boxY, boxW, boxH, 18, 18);
     g2.setColor(new Color(255, 255, 255, 24));
     g2.drawRoundRect(boxX, boxY, boxW - 1, boxH - 1, 18, 18);
+
+    g2.setFont(new Font(Lizzie.config.uiFontName, Font.PLAIN, 14));
     g2.setColor(TEXT_PRIMARY);
-    g2.drawString(text, boxX + (boxW - fm.stringWidth(text)) / 2, boxY + 34);
+    g2.drawString(text, boxX + (boxW - titleFm.stringWidth(text)) / 2, boxY + 30);
+
+    g2.setFont(subFont);
     g2.setColor(TEXT_SECONDARY);
-    String sub = "全盘分析后，这里会列出掉胜率较多的问题手";
-    g2.setFont(new Font(Lizzie.config.uiFontName, Font.PLAIN, 12));
-    FontMetrics subFm = g2.getFontMetrics();
-    g2.drawString(sub, boxX + (boxW - subFm.stringWidth(sub)) / 2, boxY + 58);
+    int lineY = boxY + 52;
+    for (String line : subLines) {
+      g2.drawString(line, boxX + (boxW - subFm.stringWidth(line)) / 2, lineY);
+      lineY += lineHeight;
+    }
     g2.dispose();
+  }
+
+  private List<String> wrapEmptyStateText(String text, FontMetrics fm, int maxWidth) {
+    List<String> lines = new ArrayList<>();
+    StringBuilder line = new StringBuilder();
+    for (int i = 0; i < text.length(); i++) {
+      char ch = text.charAt(i);
+      String candidate = line.toString() + ch;
+      if (line.length() > 0 && fm.stringWidth(candidate) > maxWidth) {
+        lines.add(line.toString());
+        line.setLength(0);
+      }
+      line.append(ch);
+    }
+    if (line.length() > 0) {
+      lines.add(line.toString());
+    }
+    if (lines.isEmpty()) {
+      lines.add(text);
+    }
+    return lines;
   }
 
   private Color getCardBgNormal(boolean isBlack) {

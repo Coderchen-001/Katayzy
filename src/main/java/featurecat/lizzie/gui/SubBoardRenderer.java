@@ -160,6 +160,10 @@ public class SubBoardRenderer {
   }
 
   public void reDrawGobanAnyway() {
+    // The decoded board texture is cached separately from the composited background.
+    // Clearing only the dimensions leaves the previous theme's board image visible.
+    cachedBoardImage = emptyImage;
+    cachedBackgroundImage = emptyImage;
     cachedBoardWidth = -1;
   }
 
@@ -1274,9 +1278,13 @@ public class SubBoardRenderer {
     } else {
       // fancy version
       if (cachedBoardImage == emptyImage) {
-        cachedBoardImage = Lizzie.config.theme.defaultBoard();
+        cachedBoardImage = Lizzie.config.theme.board();
       }
       drawTextureImage(g, cachedBoardImage, 0, 0, boardWidth, boardHeight);
+      if (Lizzie.config.showBoardLightGradient) {
+        GlassEffectRenderer.drawBoardLightGradient(g, boardWidth, boardHeight);
+        GlassEffectRenderer.drawBoardInnerShadow(g, boardWidth, boardHeight);
+      }
 
       g.setStroke(new BasicStroke(1));
     }

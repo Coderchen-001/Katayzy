@@ -17,6 +17,7 @@ public class SidebarPanel extends JPanel {
   private final LizzieFrame parentFrame;
   private final JScrollPane commentScrollPane;
   private final JScrollPane commentEditPane;
+  private SidebarStatusPanel statusPanel;
   private static final String COMMENT_VIEW_CARD = "COMMENT_VIEW";
   private static final String COMMENT_EDIT_CARD = "COMMENT_EDIT";
 
@@ -67,6 +68,8 @@ public class SidebarPanel extends JPanel {
     cardPanel.add(blunderScrollPane, "BLUNDERS");
 
     add(cardPanel, BorderLayout.CENTER);
+    statusPanel = new SidebarStatusPanel();
+    add(statusPanel, BorderLayout.SOUTH);
 
     snapshotListener =
         snapshot -> {

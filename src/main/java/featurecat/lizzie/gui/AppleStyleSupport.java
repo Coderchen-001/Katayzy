@@ -2,6 +2,7 @@ package featurecat.lizzie.gui;
 
 import featurecat.lizzie.Config;
 import featurecat.lizzie.Lizzie;
+import featurecat.lizzie.theme.AppShellTheme;
 import featurecat.lizzie.theme.MorandiPalette;
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -116,6 +117,15 @@ public final class AppleStyleSupport {
     UIManager.put("Label.foreground", controlTextColor());
     UIManager.put("RadioButton.foreground", controlTextColor());
     UIManager.put("CheckBox.foreground", controlTextColor());
+  }
+
+  /** Repaint shell surfaces without resetting button/text-field component styles. */
+  public static void refreshShellColors() {
+    if (Lizzie.frame == null) return;
+    if (Lizzie.frame.topPanel != null) Lizzie.frame.topPanel.repaint();
+    if (LizzieFrame.toolbar != null) LizzieFrame.toolbar.repaint();
+    if (Lizzie.frame.sidebarPanel != null) Lizzie.frame.sidebarPanel.repaint();
+    Lizzie.frame.repaint();
   }
 
   public static void refreshMainChrome() {
@@ -503,23 +513,29 @@ public final class AppleStyleSupport {
   }
 
   private static Color topStripColor() {
-    if (isAppleStyleEnabled()) return new Color(24, 26, 31, 232);
+    if (isAppleStyleEnabled()) return AppShellTheme.toolbarBackground(shellTheme());
     return isClassicEnabled() ? new Color(244, 245, 247) : MorandiPalette.TOOLBAR_BG;
   }
 
   private static Color bottomStripColor() {
-    if (isAppleStyleEnabled()) return new Color(24, 26, 31, 232);
+    if (isAppleStyleEnabled()) return AppShellTheme.toolbarBackground(shellTheme());
     return isClassicEnabled() ? new Color(244, 245, 247) : MorandiPalette.TOOLBAR_BG;
   }
 
   private static Color dialogSurfaceColor() {
-    if (isAppleStyleEnabled()) return new Color(30, 33, 38);
+    if (isAppleStyleEnabled()) return AppShellTheme.dialogBackground(shellTheme());
     return isClassicEnabled() ? new Color(246, 247, 249) : MorandiPalette.CREAM_WHITE;
   }
 
   private static Color popupSurfaceColor() {
-    if (isAppleStyleEnabled()) return new Color(38, 41, 47);
+    if (isAppleStyleEnabled()) return AppShellTheme.popupBackground(shellTheme());
     return isClassicEnabled() ? Color.WHITE : MorandiPalette.CREAM_WHITE;
+  }
+
+  private static String shellTheme() {
+    return Lizzie.config == null || Lizzie.config.appShellTheme == null
+        ? AppShellTheme.GRAPHITE
+        : Lizzie.config.appShellTheme;
   }
 
   private static Color popupSelectionColor() {
@@ -562,7 +578,7 @@ public final class AppleStyleSupport {
   }
 
   private static Color controlTextColor() {
-    if (isAppleStyleEnabled()) return new Color(244, 247, 251);
+    if (isAppleStyleEnabled()) return AppShellTheme.toolbarText(shellTheme());
     return isClassicEnabled() ? Color.BLACK : MorandiPalette.MENU_ITEM_TEXT;
   }
 

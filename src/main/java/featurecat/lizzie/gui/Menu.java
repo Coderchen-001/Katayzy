@@ -8,6 +8,7 @@ import featurecat.lizzie.analysis.FastLink;
 import featurecat.lizzie.analysis.GameInfo;
 import featurecat.lizzie.analysis.Leelaz;
 import featurecat.lizzie.analysis.MoveRankEvaluationMode;
+import featurecat.lizzie.theme.AppShellTheme;
 import featurecat.lizzie.theme.MorandiPalette;
 import featurecat.lizzie.theme.Theme;
 import featurecat.lizzie.util.Utils;
@@ -549,6 +550,28 @@ public class Menu extends JMenuBar {
     boardStyleMenu.add(boardStyleJapanese);
     boardStyleMenu.add(boardStyleChineseClassic);
     appearanceMenu.add(boardStyleMenu);
+
+    final JFontMenu shellThemeMenu = new JFontMenu("外壳配色");
+    final JFontCheckBoxMenuItem shellGraphite =
+        new JFontCheckBoxMenuItem(AppShellTheme.label(AppShellTheme.GRAPHITE));
+    final JFontCheckBoxMenuItem shellWarm =
+        new JFontCheckBoxMenuItem(AppShellTheme.label(AppShellTheme.WARM));
+    final JFontCheckBoxMenuItem shellSlate =
+        new JFontCheckBoxMenuItem(AppShellTheme.label(AppShellTheme.SLATE));
+    shellGraphite.addActionListener(
+        e -> applyShellTheme(AppShellTheme.GRAPHITE, shellGraphite, shellWarm, shellSlate));
+    shellWarm.addActionListener(
+        e -> applyShellTheme(AppShellTheme.WARM, shellGraphite, shellWarm, shellSlate));
+    shellSlate.addActionListener(
+        e -> applyShellTheme(AppShellTheme.SLATE, shellGraphite, shellWarm, shellSlate));
+    shellThemeMenu.add(shellGraphite);
+    shellThemeMenu.add(shellWarm);
+    shellThemeMenu.add(shellSlate);
+    String currentShell = AppShellTheme.normalize(Lizzie.config.appShellTheme);
+    shellGraphite.setSelected(AppShellTheme.GRAPHITE.equals(currentShell));
+    shellWarm.setSelected(AppShellTheme.WARM.equals(currentShell));
+    shellSlate.setSelected(AppShellTheme.SLATE.equals(currentShell));
+    appearanceMenu.add(shellThemeMenu);
 
     final JFontMenu moveMenu =
         new JFontMenu(resourceBundle.getString("Menu.moveMenu")); // ("手数(M)");
@@ -6403,6 +6426,20 @@ public class Menu extends JMenuBar {
             ? selectedBundle.getString("Lizzie.hint.restart")
             : Lizzie.resourceBundle.getString("Lizzie.hint.restart");
     Utils.showMsg(restartMessage);
+  }
+
+  private void applyShellTheme(
+      String theme, JFontCheckBoxMenuItem graphite, JFontCheckBoxMenuItem warm, JFontCheckBoxMenuItem slate) {
+    Lizzie.config.setAppShellTheme(theme);
+    graphite.setSelected(AppShellTheme.GRAPHITE.equals(Lizzie.config.appShellTheme));
+    warm.setSelected(AppShellTheme.WARM.equals(Lizzie.config.appShellTheme));
+    slate.setSelected(AppShellTheme.SLATE.equals(Lizzie.config.appShellTheme));
+    persistUiSettings();
+    AppleStyleSupport.refreshShellColors();
+    if (Lizzie.frame != null) {
+      Lizzie.frame.refreshPanelColors();
+      Lizzie.frame.repaint();
+    }
   }
 
   private void persistUiSettings() {

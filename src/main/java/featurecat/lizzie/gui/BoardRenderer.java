@@ -892,12 +892,19 @@ public class BoardRenderer {
   }
 
   public void reDrawStoneAnyway() {
+    cachedStonesImage = emptyImage;
+    cachedStonesShadowImage = emptyImage;
     cachedIsBigMargin = !cachedIsBigMargin;
   }
 
   public void reCreateStoneImageAnyway() {
     cachedBlackStoneImage = emptyImage;
     cachedWhiteStoneImage = emptyImage;
+    // The whole-board stone bitmap is cached separately from the individual stone images.
+    // Without clearing it, a theme switch only updates the board and leaves the old stones
+    // visible until the next move changes the zobrist key.
+    cachedStonesImage = emptyImage;
+    cachedStonesShadowImage = emptyImage;
     cachedIsBigMargin = !cachedIsBigMargin;
   }
 

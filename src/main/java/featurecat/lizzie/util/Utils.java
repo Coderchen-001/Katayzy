@@ -95,24 +95,17 @@ public class Utils {
   }
 
   public static void loadFonts(String uiFontName, String playoutFontName, String winrateFontName) {
-    try {
-      LizzieFrame.uiFont = new Font(Config.sysDefaultFontName, Font.PLAIN, 12);
-      LizzieFrame.playoutsFont = new Font(Config.sysDefaultFontName, Font.PLAIN, 12);
-      LizzieFrame.winrateFont =
-          Font.createFont(
-              Font.TRUETYPE_FONT,
-              Thread.currentThread()
-                  .getContextClassLoader()
-                  .getResourceAsStream("fonts/OpenSans-Semibold.ttf"));
-    } catch (IOException | FontFormatException e) {
-      e.printStackTrace();
-    }
+    LizzieFrame.uiFont = new Font(Config.sysDefaultFontName, Font.PLAIN, 12);
+    LizzieFrame.playoutsFont = new Font(Config.monoFontName, Font.PLAIN, 12);
+    LizzieFrame.winrateFont = new Font(Config.monoFontName, Font.BOLD, 12);
     if (uiFontName != null
         && (!(uiFontName.equals("Lizzie默认") || uiFontName.equals("Lizzie Default")))) {
       LizzieFrame.uiFont = new Font(uiFontName, Font.PLAIN, 12);
     }
-    if (playoutFontName != null)
+    if (playoutFontName != null
+        && (!(playoutFontName.equals("Lizzie默认") || playoutFontName.equals("Lizzie Default")))) {
       LizzieFrame.playoutsFont = new Font(playoutFontName, Font.PLAIN, 12);
+    }
     if (winrateFontName != null
         && (!(winrateFontName.equals("Lizzie默认") || winrateFontName.equals("Lizzie Default")))) {
       LizzieFrame.winrateFont = new Font(winrateFontName, Font.BOLD, 12);

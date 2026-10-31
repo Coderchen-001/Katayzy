@@ -1301,7 +1301,12 @@ public class BottomToolbar extends JPanel {
     liveButton.addActionListener(
         new ActionListener() {
           public void actionPerformed(ActionEvent e) {
-            yike.show(buttonPane, yike.getX(), yike.getY() - yike.getHeight());
+            int popupW = yike.getPreferredSize().width;
+            int anchorCenter = liveButton.getX() + liveButton.getWidth() / 2;
+            int maxX = Math.max(0, buttonPane.getWidth() - popupW);
+            int popupX = Math.max(0, Math.min(anchorCenter - popupW / 2, maxX));
+            int popupY = Math.max(0, liveButton.getY() - yike.getPreferredSize().height - 6);
+            yike.show(buttonPane, popupX, popupY);
           }
         });
 
@@ -4939,6 +4944,10 @@ public class BottomToolbar extends JPanel {
   }
 
   public void reSetButtonLocation() {
+    if (!javax.swing.SwingUtilities.isEventDispatchThread()) {
+      javax.swing.SwingUtilities.invokeLater(this::reSetButtonLocation);
+      return;
+    }
     setButtonVisiable();
     int w = Math.max(getWidth(), Lizzie.frame.getWidth());
     if (Lizzie.leelaz == null || !Lizzie.leelaz.isKatago) {

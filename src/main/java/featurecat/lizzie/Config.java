@@ -3,6 +3,7 @@ package featurecat.lizzie;
 import featurecat.lizzie.analysis.EngineManager;
 import featurecat.lizzie.analysis.MoveRankEvaluationMode;
 import featurecat.lizzie.gui.LizzieFrame;
+import featurecat.lizzie.theme.AppShellTheme;
 import featurecat.lizzie.theme.Theme;
 import featurecat.lizzie.util.AnalysisEngineCommandHelper;
 import featurecat.lizzie.util.KataGoAutoSetupHelper;
@@ -11,6 +12,7 @@ import featurecat.lizzie.util.NetworkProxy;
 import featurecat.lizzie.util.Utils;
 import java.awt.Color;
 import java.awt.Frame;
+import java.awt.GraphicsEnvironment;
 import java.awt.Toolkit;
 import java.io.*;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -70,6 +72,7 @@ public class Config {
   public boolean showStatus = true;
   public boolean isClassicMode = false;
   public boolean isAppleStyle = false;
+  public String appShellTheme = AppShellTheme.GRAPHITE;
   // public boolean changedStatus = false;
   public boolean showBranch = true;
   public boolean showBestMoves = true;
@@ -113,7 +116,7 @@ public class Config {
   public boolean useMorandiColors = false;
   public int glassEffectLevel = 1;
   public boolean showStoneHighlight = true;
-  public boolean showBoardLightGradient = true;
+  public boolean showBoardLightGradient = false;
   public boolean showHoverGlow = true;
   // public double matchAiTemperature = 1;
   public boolean showMoveListGraph = true;
@@ -176,7 +179,12 @@ public class Config {
   public int leelaversion = 17;
   public int minimumBlunderBarWidth = 1;
   public int shadowSize = 75;
-  public static String sysDefaultFontName = "Dialog.plain";
+  // UI font is intentionally fixed. A board theme should not change the app's typography.
+  public static String uiFontFamily =
+      pickAvailableFont("Microsoft YaHei", "Microsoft YaHei UI", "SansSerif", "Dialog");
+  public static String sysDefaultFontName = uiFontFamily;
+  public static String monoFontName =
+      pickAvailableFont("Consolas", "Cascadia Mono", "Courier New", "Monospaced");
   public String fontName = null;
   public String uiFontName = null;
   public String winrateFontName = null;
@@ -1276,6 +1284,20 @@ public class Config {
     this.newProfile = !new File(this.configFilename).isFile();
   }
 
+  private static String pickAvailableFont(String... candidates) {
+    Set<String> available = new HashSet<>();
+    for (String family :
+        GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames()) {
+      available.add(family.toLowerCase(Locale.ROOT));
+    }
+    for (String candidate : candidates) {
+      if (available.contains(candidate.toLowerCase(Locale.ROOT))) {
+        return candidate;
+      }
+    }
+    return "Dialog";
+  }
+
   public Config() throws IOException {
     this.runtimeWorkDirectoryOverride = null;
     this.newProfile = !new File(configFilename).isFile();
@@ -1331,6 +1353,9 @@ public class Config {
     newMoveNumberInBranch = uiConfig.optBoolean("new-move-number-in-branch", true);
     isClassicMode = uiConfig.optBoolean("is-classic-mode", false);
     isAppleStyle = uiConfig.optBoolean("is-apple-style", false);
+    appShellTheme =
+        AppShellTheme.normalize(
+            uiConfig.optString("app-shell-theme", AppShellTheme.GRAPHITE));
     showStatus = isClassicMode ? false : uiConfig.getBoolean("show-status");
     // changedStatus = uiConfig.optBoolean("changed-status", false);
     showBranch = uiConfig.getBoolean("show-leelaz-variation");
@@ -1541,7 +1566,7 @@ public class Config {
     useMorandiColors = uiConfig.optBoolean("use-morandi-colors", false);
     glassEffectLevel = uiConfig.optInt("glass-effect-level", 1);
     showStoneHighlight = uiConfig.optBoolean("show-stone-highlight", true);
-    showBoardLightGradient = uiConfig.optBoolean("show-board-light-gradient", true);
+    showBoardLightGradient = uiConfig.optBoolean("show-board-light-gradient", false);
     showHoverGlow = uiConfig.optBoolean("show-hover-glow", true);
     boardStyle = normalizeBoardStyle(uiConfig.optString("board-style", BOARD_STYLE_JAPANESE));
     uiConfig.put("board-style", boardStyle);
@@ -1955,14 +1980,21 @@ public class Config {
     Lizzie.config.uiConfig.put("recent-file-paths", filePaths);
   }
 
+  public void setAppShellTheme(String theme) {
+    appShellTheme = AppShellTheme.normalize(theme);
+    uiConfig.put("app-shell-theme", appShellTheme);
+  }
+
   public void readThemeVaule(boolean first) {
     if (!first) {
       theme = new Theme();
       theme.getTheme(uiConfig);
     }
-    if (theme.fontName() != null) fontName = theme.fontName();
-    if (theme.uiFontName() != null) uiFontName = theme.uiFontName();
-    if (theme.winrateFontName() != null) winrateFontName = theme.winrateFontName();
+    // Typography is app-level, not theme-level. Switching a board theme must not change
+    // the UI font of tabs, menus or dialogs.
+    fontName = Config.uiFontFamily;
+    uiFontName = Config.uiFontFamily;
+    winrateFontName = Config.monoFontName;
     Locale appLocale = AppLocale.fromConfigValue(useLanguage).locale();
     fontName =
         LocaleFontSupport.resolveConfiguredFontName(fontName, appLocale, Config.sysDefaultFontName);

@@ -186,8 +186,10 @@ public class Lizzie {
           LocaleFontSupport.resolveDefaultFontName(
               resourceBundle.getString("Lizzie.defaultFontName"), appLocale);
     }
-    if (config.theme.uiFontName() != null) config.uiFontName = config.theme.uiFontName();
-    if (config.theme.fontName() != null) config.fontName = config.theme.fontName();
+    // Typography is fixed at app level; theme files must not override it at startup.
+    config.uiFontName = Config.uiFontFamily;
+    config.fontName = Config.uiFontFamily;
+    config.winrateFontName = Config.monoFontName;
     config.uiFontName =
         LocaleFontSupport.resolveConfiguredFontName(
             config.uiFontName, appLocale, Config.sysDefaultFontName);

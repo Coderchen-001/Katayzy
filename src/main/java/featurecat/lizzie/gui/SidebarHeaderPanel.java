@@ -10,6 +10,7 @@ import javax.swing.*;
 public class SidebarHeaderPanel extends JPanel {
   private final SidebarPanel parentPanel;
   private ProblemListSnapshot currentSnapshot;
+  private boolean showFocusRing;
 
   private static final Color TEXT_NORMAL = new Color(255, 255, 255, 128);
   private static final Color TEXT_SELECTED = new Color(255, 255, 255, 255);
@@ -57,19 +58,34 @@ public class SidebarHeaderPanel extends JPanel {
         new FocusAdapter() {
           @Override
           public void focusGained(FocusEvent event) {
+            showFocusRing = isKeyboardFocusCause(event.getCause());
             repaint();
           }
 
           @Override
           public void focusLost(FocusEvent event) {
+            showFocusRing = false;
             repaint();
+          }
+        });
+    addKeyListener(
+        new KeyAdapter() {
+          @Override
+          public void keyPressed(KeyEvent event) {
+            if (!showFocusRing) {
+              showFocusRing = true;
+              repaint();
+            }
           }
         });
 
     addMouseListener(
         new MouseAdapter() {
           @Override
-          public void mouseClicked(MouseEvent e) {
+          public void mousePressed(MouseEvent e) {
+            if (!SwingUtilities.isLeftMouseButton(e)) return;
+            showFocusRing = false;
+            requestFocusInWindow();
             Point point = e.getPoint();
             FontMetrics metrics = getFontMetrics(headerFont());
 
@@ -482,8 +498,16 @@ public class SidebarHeaderPanel extends JPanel {
             });
   }
 
+  private static boolean isKeyboardFocusCause(FocusEvent.Cause cause) {
+    return cause == FocusEvent.Cause.TRAVERSAL
+        || cause == FocusEvent.Cause.TRAVERSAL_FORWARD
+        || cause == FocusEvent.Cause.TRAVERSAL_BACKWARD
+        || cause == FocusEvent.Cause.TRAVERSAL_UP
+        || cause == FocusEvent.Cause.TRAVERSAL_DOWN;
+  }
+
   private void paintKeyboardFocus(Graphics2D graphics) {
-    if (!isFocusOwner()) {
+    if (!isFocusOwner() || !showFocusRing) {
       return;
     }
     graphics.setColor(withAlpha(glassAccentColor(), 230));

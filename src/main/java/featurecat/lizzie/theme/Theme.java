@@ -2,6 +2,7 @@ package featurecat.lizzie.theme;
 
 import static java.io.File.separator;
 
+import featurecat.lizzie.Config;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.util.Utils;
 import java.awt.Color;
@@ -60,7 +61,33 @@ public class Theme {
         e.printStackTrace();
       }
     }
+    applyBaseDefaults();
     return canReadFile;
+  }
+
+  /**
+   * Sabaki-derived themes only carry board/stone/background keys. Fill the rest from the
+   * complete default theme so switching themes cannot inherit values from the previously
+   * active theme/UI state.
+   */
+  private void applyBaseDefaults() {
+    if (config == null) config = new JSONObject();
+    String basePath = Theme.pathPrefix + "default" + separator + configFile;
+    File currentFile = new File(this.path + configFile);
+    File baseFile = new File(basePath);
+    try {
+      if (currentFile.getCanonicalFile().equals(baseFile.getCanonicalFile())) return;
+    } catch (IOException ignored) {
+    }
+    if (!baseFile.canRead()) return;
+    try (FileInputStream fp = new FileInputStream(baseFile)) {
+      JSONObject base = new JSONObject(new JSONTokener(fp));
+      for (String key : base.keySet()) {
+        if (!config.has(key)) config.put(key, base.get(key));
+      }
+    } catch (IOException | JSONException e) {
+      e.printStackTrace();
+    }
   }
 
   private String getImagePathByKey(String key) {
@@ -111,6 +138,7 @@ public class Theme {
         e.printStackTrace();
       }
     }
+    applyBaseDefaults();
   }
 
   public String boardImageString() {
@@ -215,10 +243,8 @@ public class Theme {
   public String uiFontName() {
     String key = "ui-font-name";
     String name = config.optString(key, uiConfig.optString(key, "Lizzie Default")); // 微软雅黑
-    if (Lizzie.config != null
-        && Lizzie.config.isChinese
-        && (name.equals("Lizzie默认") || name.equals("Lizzie Default")))
-      name = "Microsoft YaHei"; // 微软雅黑
+    if (name.equals("Lizzie默认") || name.equals("Lizzie Default"))
+      name = Config.sysDefaultFontName;
     return name;
   }
 
@@ -482,7 +508,7 @@ public class Theme {
   private BufferedImage readConfiguredImage(String configuredPath, String basePath)
       throws IOException {
     File file = resolveConfiguredFile(configuredPath, basePath);
-    if (!file.canRead()) {
+    if (file == null || !file.isFile() || !file.canRead()) {
       return null;
     }
     return ImageIO.read(file);
@@ -490,7 +516,9 @@ public class Theme {
 
   private File resolveConfiguredFile(String configuredPath, String basePath) {
     if (configuredPath == null || configuredPath.trim().isEmpty()) {
-      return new File("");
+      // new File("").canRead() is true for the current directory. Treat an unset
+      // override as "no override" instead of accidentally enabling custom-image mode.
+      return null;
     }
     File file = new File(configuredPath);
     if (!file.isAbsolute()) {
@@ -501,7 +529,7 @@ public class Theme {
 
   private boolean hasReadableConfiguredImage(String configuredPath, String basePath) {
     File file = resolveConfiguredFile(configuredPath, basePath);
-    return file.canRead();
+    return file != null && file.isFile() && file.canRead();
   }
 
   private BufferedImage createSolidFallbackImage(int width, int height, Color color) {
@@ -648,22 +676,32 @@ public class Theme {
   }
 
   public Color glassPanelOverlayColor() {
+    if (Lizzie.config != null && Lizzie.config.appShellTheme != null)
+      return AppShellTheme.overlay(Lizzie.config.appShellTheme);
     return getColorByKey("glass-panel-overlay-color", new Color(24, 24, 26, 102));
   }
 
   public Color glassPanelBorderColor() {
+    if (Lizzie.config != null && Lizzie.config.appShellTheme != null)
+      return AppShellTheme.border(Lizzie.config.appShellTheme);
     return getColorByKey("glass-panel-border-color", new Color(255, 255, 255, 26));
   }
 
   public Color glassPanelHighlightColor() {
+    if (Lizzie.config != null && Lizzie.config.appShellTheme != null)
+      return AppShellTheme.highlight(Lizzie.config.appShellTheme);
     return getColorByKey("glass-panel-highlight-color", new Color(255, 255, 255, 77));
   }
 
   public Color glassPanelShadowColor() {
+    if (Lizzie.config != null && Lizzie.config.appShellTheme != null)
+      return AppShellTheme.shadow(Lizzie.config.appShellTheme);
     return getColorByKey("glass-panel-shadow-color", new Color(0, 0, 0, 64));
   }
 
   public Color glassAccentColor() {
+    if (Lizzie.config != null && Lizzie.config.appShellTheme != null)
+      return AppShellTheme.accent(Lizzie.config.appShellTheme);
     return getColorByKey("glass-accent-color", new Color(96, 165, 250));
   }
 

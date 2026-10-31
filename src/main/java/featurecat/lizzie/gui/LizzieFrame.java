@@ -395,6 +395,12 @@ public class LizzieFrame extends JFrame {
   private ProblemListSnapshot problemListSnapshot;
   private final List<Consumer<ProblemListSnapshot>> problemListListeners = new ArrayList<>();
   private boolean problemSidebarRefreshPending = false;
+  private static final long PROBLEM_LIST_RETENTION_MS = 3000L;
+  private final Map<String, ProblemMoveEntry> problemListRetainedEntries = new LinkedHashMap<>();
+  private final Map<String, Long> problemListRetentionDeadline = new HashMap<>();
+  private BoardHistoryNode problemListRetentionRoot;
+  private final javax.swing.Timer problemSidebarRefreshTimer =
+      createProblemSidebarRefreshTimer();
   private final java.util.concurrent.atomic.AtomicBoolean analysisRepaintRequested =
       new java.util.concurrent.atomic.AtomicBoolean(false);
   private final SwingRefreshCoalescer analysisRefreshCoalescer =
@@ -706,6 +712,8 @@ public class LizzieFrame extends JFrame {
 
   public boolean allowPlaceStone = true;
   private Process processClockHelper;
+  private final java.util.List<Process> clockHelperProcesses = new java.util.ArrayList<>();
+  private boolean clockHelperShutdownHookInstalled;
 
   public ContributeEngine contributeEngine;
   public boolean isContributing = false;
@@ -874,12 +882,12 @@ public class LizzieFrame extends JFrame {
     // varTreeScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
     commentEditTextPane = new JIMSendTextPane(true);
     commentEditTextPane.setBorder(BorderFactory.createEmptyBorder());
-    commentEditTextPane.setBackground(Color.LIGHT_GRAY);
-    commentEditTextPane.setForeground(Color.WHITE);
+    commentEditTextPane.setOpaque(true);
     commentEditPane = new JScrollPane(commentEditTextPane);
     commentEditPane.setBorder(BorderFactory.createEmptyBorder());
     commentEditPane.getVerticalScrollBar().setUI(new DemoScrollBarUI());
     commentEditPane.setVisible(false);
+    applyCommentEditorColors();
     varTreePane.addMouseListener(
         new MouseAdapter() {
           public void mouseClicked(MouseEvent e) {
@@ -2356,25 +2364,32 @@ public class LizzieFrame extends JFrame {
     }
   }
 
+  private javax.swing.Timer createProblemSidebarRefreshTimer() {
+    javax.swing.Timer timer =
+        new javax.swing.Timer(
+            250,
+            e -> {
+              problemSidebarRefreshPending = false;
+              refreshProblemListSnapshot();
+            });
+    timer.setRepeats(false);
+    return timer;
+  }
+
   public void requestProblemListRefresh() {
     if (Lizzie.frame != null
         && (Lizzie.frame.isPlayingAgainstLeelaz || Lizzie.frame.isAnaPlayingAgainstLeelaz)) {
       // 人机对局/分析对局中不刷新问题手侧栏
       return;
     }
-    if (!shouldRefreshProblemListSnapshot() || problemSidebarRefreshPending) {
+    if (!shouldRefreshProblemListSnapshot()) {
       return;
     }
-    if (SwingUtilities.isEventDispatchThread()) {
-      refreshProblemListSnapshot();
-      return;
-    }
+    // Coalesce the frequent foreground-engine analysis callbacks. Rebuilding the
+    // whole problem list on every KataGo update makes the sidebar compete with
+    // mouse events on the EDT and causes the "click does not follow" feeling.
     problemSidebarRefreshPending = true;
-    SwingUtilities.invokeLater(
-        () -> {
-          problemSidebarRefreshPending = false;
-          refreshProblemListSnapshot();
-        });
+    problemSidebarRefreshTimer.restart();
   }
 
   private boolean shouldRefreshProblemListSnapshot() {
@@ -2384,10 +2399,17 @@ public class LizzieFrame extends JFrame {
   }
 
   public void refreshProblemListSnapshot() {
+    problemSidebarRefreshPending = false;
     ProblemListMetric metric = ProblemListMetric.WINRATE_LOSS;
     ArrayList<ProblemMoveEntry> blackEntries = new ArrayList<>();
     ArrayList<ProblemMoveEntry> whiteEntries = new ArrayList<>();
-    BoardHistoryNode node = Lizzie.board.getHistory().getStart();
+    BoardHistoryNode historyRoot = Lizzie.board.getHistory().getStart();
+    if (problemListRetentionRoot != historyRoot) {
+      problemListRetainedEntries.clear();
+      problemListRetentionDeadline.clear();
+      problemListRetentionRoot = historyRoot;
+    }
+    BoardHistoryNode node = historyRoot;
     int analyzedMoves = 0;
     int totalMoves = 0;
     while (node != null) {
@@ -2412,6 +2434,8 @@ public class LizzieFrame extends JFrame {
       node = nextNode.orElse(null);
     }
 
+    applyProblemListRetention(blackEntries, whiteEntries);
+
     Comparator<ProblemMoveEntry> comparator =
         Comparator.comparingDouble((ProblemMoveEntry entry) -> entry.winrateLossAbs)
             .reversed()
@@ -2424,6 +2448,54 @@ public class LizzieFrame extends JFrame {
         new ProblemListSnapshot(
             metric, blackEntries, whiteEntries, analyzedMoves, totalMoves, analysisRunning);
     notifyProblemListListeners();
+  }
+
+  private static String problemListEntryKey(ProblemMoveEntry entry) {
+    return (entry.isBlack ? "B" : "W") + ":" + entry.moveNumber;
+  }
+
+  /**
+   * Keep entries that disappeared from the current snapshot for a short grace period. b11c768
+   * continuously refines winrate loss; a problem move can briefly fall below threshold and would
+   * otherwise flicker out while the user is clicking through the list.
+   */
+  private void applyProblemListRetention(
+      ArrayList<ProblemMoveEntry> blackEntries, ArrayList<ProblemMoveEntry> whiteEntries) {
+    long now = System.currentTimeMillis();
+    Map<String, ProblemMoveEntry> current = new LinkedHashMap<>();
+    for (ProblemMoveEntry entry : blackEntries) {
+      current.put(problemListEntryKey(entry), entry);
+    }
+    for (ProblemMoveEntry entry : whiteEntries) {
+      current.put(problemListEntryKey(entry), entry);
+    }
+
+    problemListRetentionDeadline.keySet().removeIf(current::containsKey);
+
+    for (Map.Entry<String, ProblemMoveEntry> old : problemListRetainedEntries.entrySet()) {
+      String key = old.getKey();
+      if (current.containsKey(key)) {
+        continue;
+      }
+      Long deadline = problemListRetentionDeadline.get(key);
+      if (deadline == null) {
+        deadline = now + PROBLEM_LIST_RETENTION_MS;
+        problemListRetentionDeadline.put(key, deadline);
+      }
+      if (now < deadline.longValue()) {
+        ProblemMoveEntry retained = old.getValue();
+        current.put(key, retained);
+        if (retained.isBlack) {
+          blackEntries.add(retained);
+        } else {
+          whiteEntries.add(retained);
+        }
+      }
+    }
+
+    problemListRetainedEntries.clear();
+    problemListRetainedEntries.putAll(current);
+    problemListRetentionDeadline.keySet().removeIf(key -> !current.containsKey(key));
   }
 
   private boolean isProblemListEvaluationMove(BoardHistoryNode node) {
@@ -2496,9 +2568,28 @@ public class LizzieFrame extends JFrame {
       return;
     }
     try {
-      int[] coords = Board.convertNameToCoordinates(entry.coords);
-      Lizzie.board.goToMoveNumber(entry.moveNumber - 1);
-      clickbadmove = coords;
+      int targetMove = Math.max(0, entry.moveNumber - 1);
+      BoardHistoryNode target = Lizzie.board.getHistory().getStart();
+      while (target != null && target.getData().moveNumber < targetMove) {
+        Optional<BoardHistoryNode> next = target.next();
+        if (!next.isPresent()) {
+          target = null;
+          break;
+        }
+        target = next.get();
+      }
+      if (target != null && target.getData().moveNumber == targetMove) {
+        Lizzie.board.moveToAnyPosition(target);
+      } else {
+        // Problem entries are built from the main trunk; fall back to a main-trunk jump
+        // instead of walking only the currently displayed branch.
+        Lizzie.board.goToMoveNumberBeyondBranch(targetMove);
+      }
+      try {
+        clickbadmove = Board.convertNameToCoordinates(entry.coords);
+      } catch (Exception ignored) {
+        clickbadmove = outOfBoundCoordinate;
+      }
       refresh();
     } catch (Exception ex) {
       ex.printStackTrace();
@@ -6463,7 +6554,10 @@ public class LizzieFrame extends JFrame {
     if (minScrollpaneWhite != null)
       minScrollpaneWhite.setBackground(
           useMorandi ? MorandiPalette.COOL_GRAY : new Color(158, 158, 158));
-    if (commentEditTextPane != null) commentEditTextPane.setForeground(Color.WHITE);
+    if (commentEditTextPane != null) {
+      commentEditTextPane.setForeground(Color.WHITE);
+      applyCommentEditorColors();
+    }
     if (windowMenuStrip != null) {
       windowMenuStrip.refreshColors();
       windowMenuStrip.repaint();
@@ -6587,7 +6681,7 @@ public class LizzieFrame extends JFrame {
 
   private void drawPonderingState(
       Graphics2D g, String text1, String text2, int x, int statusAreaTop) {
-    if (Lizzie.readMode) {
+    if (Lizzie.readMode || statusDrawnInSidebar()) {
       return;
     }
     int lineCount = Lizzie.config.userKnownX ? 2 : 3;
@@ -6645,8 +6739,8 @@ public class LizzieFrame extends JFrame {
   }
 
   private String statusEngineName(Leelaz engine) {
-    if (engine == null) {
-      return "";
+    if (engine == null || !engine.isLoaded()) {
+      return Lizzie.resourceBundle.getString("LizzieFrame.noEngineText");
     }
     return engine.oriEnginename;
   }
@@ -6684,7 +6778,7 @@ public class LizzieFrame extends JFrame {
   }
 
   private void drawPonderingState(Graphics2D g, String text, int x, int statusAreaTop) {
-    if (Lizzie.readMode) {
+    if (Lizzie.readMode || statusDrawnInSidebar()) {
       return;
     }
     int lineCount = Lizzie.config.userKnownX ? 1 : 3;
@@ -6813,7 +6907,11 @@ public class LizzieFrame extends JFrame {
     String text = value == null ? "" : value;
     int maxWidth = statusTextMaxWidth(requestedX);
     int lineHeight = Math.max(1, bounds[1]);
-    int requestedFontSize = Math.max(1, primary ? lineHeight : lineHeight * 9 / 10);
+    // Keep the status strip visually stable between the 2-line and 3-line layouts.
+    // Previously the primary line requested the full available line height, so hiding the
+    // hint line made the engine name jump to a much larger size.
+    int cappedSize = boundedStatusFontSize(primary ? 22 : 14, Config.frameFontSize, primary);
+    int requestedFontSize = Math.max(1, Math.min(lineHeight, cappedSize));
     Font font =
         fitStatusFontInBox(
             graphics,
@@ -6830,15 +6928,16 @@ public class LizzieFrame extends JFrame {
     }
     int width = Math.min(maxWidth, Math.max(stringWidth, 1));
     int x = Math.max(0, Math.min(requestedX, mainPanel.getWidth() - width));
-    int y = Math.max(0, bounds[0]);
+    int boxHeight = Math.min(lineHeight, Math.max(1, metrics.getHeight() + 6));
+    int y = bounds[0] + Math.max(0, (lineHeight - boxHeight) / 2);
 
     graphics.setColor(new Color(0, 0, 0, 130));
-    graphics.fillRect(x, y, width, lineHeight);
-    graphics.drawRect(x, y, width, lineHeight);
+    graphics.fillRect(x, y, width, boxHeight);
+    graphics.drawRect(x, y, width, boxHeight);
     graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
     graphics.setColor(Color.WHITE);
     graphics.setFont(font);
-    int baseline = y + (lineHeight - metrics.getHeight()) / 2 + metrics.getAscent();
+    int baseline = y + (boxHeight - metrics.getHeight()) / 2 + metrics.getAscent();
     graphics.drawString(text, x + (width - stringWidth) / 2, baseline);
   }
 
@@ -7014,7 +7113,12 @@ public class LizzieFrame extends JFrame {
 
   // private boolean userAlreadyKnowsAboutCommandString = false;
 
+  private boolean statusDrawnInSidebar() {
+    return Lizzie.config != null && Lizzie.config.showComment && sidebarPanel != null && sidebarPanel.isVisible();
+  }
+
   private void drawCommandString(Graphics2D g, int statusAreaTop) {
+    if (statusDrawnInSidebar()) return;
     String commandString = Lizzie.resourceBundle.getString("LizzieFrame.prompt.showControlsHint");
     int[][] lines = statusLineBounds(statusAreaTop, currentStatusAreaBottom(), 3);
     drawStatusTextInBounds(g, commandString, mainPanel.getInsets().left, lines[2], false);
@@ -7398,31 +7502,12 @@ public class LizzieFrame extends JFrame {
         posY - strokeRadius + height);
     g.setColor(Color.white);
 
-    // Draw black and white "stone"
-    int diam = min(width / 2, height) / 3;
-    int smallDiam = diam / 2;
-    int bdiam = diam, wdiam = diam;
-    if (isCounting) {
-      // do nothing
-      bdiam = smallDiam * 5 / 4;
-      wdiam = smallDiam * 5 / 4;
-    }
-
-    // } else {
-
-    // }
-    else if (Lizzie.board.getHistory().isBlacksTurn()) {
-      wdiam = smallDiam;
-      bdiam = smallDiam * 3 / 2;
-    } else {
-      bdiam = smallDiam;
-      wdiam = smallDiam * 3 / 2;
-    }
+    // Draw black and white "stone". Keep both stones the same size; the previous
+    // turn-dependent 1x/1.5x sizing made the header look unbalanced.
+    int diam = min(width / 2, height) / 3 * 3 / 2;
+    int bdiam = diam;
+    int wdiam = diam;
     g.setColor(Color.black);
-    // if (isSmallCap) {
-    diam = diam * 3 / 2;
-    bdiam = bdiam * 3 / 2;
-    wdiam = wdiam * 3 / 2;
     g.fillOval(posX + width / 4 - bdiam / 2, posY + (diam - bdiam) / 2, bdiam, bdiam);
 
     g.setColor(Color.WHITE);
@@ -9292,6 +9377,30 @@ public class LizzieFrame extends JFrame {
         });
   }
 
+  private Color commentEditorBackgroundColor() {
+    Color configured = Lizzie.config.commentBackgroundColor;
+    if (configured == null || configured.getAlpha() < 80) {
+      return new Color(30, 33, 38);
+    }
+    return new Color(configured.getRed(), configured.getGreen(), configured.getBlue());
+  }
+
+  private void applyCommentEditorColors() {
+    if (commentEditTextPane == null) return;
+    Color background = commentEditorBackgroundColor();
+    commentEditTextPane.setOpaque(true);
+    commentEditTextPane.setBackground(background);
+    commentEditTextPane.setForeground(Lizzie.config.commentFontColor);
+    commentEditTextPane.setCaretColor(Lizzie.config.commentFontColor);
+    if (commentEditPane != null) {
+      commentEditPane.setBackground(background);
+      if (commentEditPane.getViewport() != null) {
+        commentEditPane.getViewport().setBackground(background);
+        commentEditPane.getViewport().setOpaque(true);
+      }
+    }
+  }
+
   public void resetCommentComponent() {
     commentTextPane.setForeground(Lizzie.config.commentFontColor);
     commentTextPane.setBackground(Lizzie.config.commentBackgroundColor);
@@ -9325,6 +9434,7 @@ public class LizzieFrame extends JFrame {
     commentScrollPane.setBackground(Lizzie.config.commentBackgroundColor);
     commentScrollPane.setOpaque(false);
     commentScrollPane.getViewport().setOpaque(false);
+    applyCommentEditorColors();
     sidebarPanel.repaint();
   }
 
@@ -11724,11 +11834,6 @@ public class LizzieFrame extends JFrame {
       Lizzie.leelaz.setGameStatus(false);
       if (Lizzie.config.autoSavePlayedGame) autoSavePlayedGame();
       Lizzie.frame.isAnaPlayingAgainstLeelaz = false;
-      // 对局结束/切回分析时清除按访问量停止的粘性锁存（outOfPlayoutsLimit），
-      // 否则续弈切回棋谱分析后当前手达到 visits 限制也无法自动停止。
-      if (Lizzie.leelaz != null) {
-        Lizzie.leelaz.clearPonderLimit();
-      }
       LizzieFrame.toolbar.chkAutoPlay.setSelected(false);
       LizzieFrame.toolbar.isAutoPlay = false;
       LizzieFrame.toolbar.chkAutoPlayBlack.setSelected(false);
@@ -18459,9 +18564,6 @@ public class LizzieFrame extends JFrame {
       return false;
     }
     if (!Lizzie.leelaz.isPondering()) {
-      // 自动分析路径直接 ponder()（不经 togglePonder）：先清除按访问量停止的粘性锁存，
-      // 避免上一手达到 visits 限制后残留的 stopByPlayouts 使当前手无法自动停止。
-      Lizzie.leelaz.clearPonderLimit();
       Lizzie.leelaz.ponder();
     }
     refresh();
@@ -19057,6 +19159,17 @@ public class LizzieFrame extends JFrame {
           return;
         }
         processClockHelper = Utils.startJavaJar(clockHelperJar, null, null);
+        clockHelperProcesses.add(processClockHelper);
+        if (!clockHelperShutdownHookInstalled) {
+          clockHelperShutdownHookInstalled = true;
+          try {
+            Runtime.getRuntime()
+                .addShutdownHook(
+                    new Thread(this::shutdownClockHelper, "katayzy-clock-helper-shutdown"));
+          } catch (IllegalStateException ignored) {
+            // JVM is already shutting down.
+          }
+        }
       } catch (Exception e) {
         System.out.println("Clock helper skipped: " + e.getLocalizedMessage());
         e.printStackTrace();
@@ -19065,7 +19178,24 @@ public class LizzieFrame extends JFrame {
   }
 
   public void shutdownClockHelper() {
-    if (processClockHelper != null) processClockHelper.destroy();
+    // destroy() is not guaranteed to terminate the child on Windows, and an older
+    // frame instance may have overwritten processClockHelper. Kill every helper we
+    // started so it cannot keep runtime DLLs/files locked after the GUI exits.
+    for (Process process : clockHelperProcesses) {
+      if (process == null) continue;
+      try {
+        if (process.isAlive()) process.destroyForcibly();
+      } catch (Exception ignored) {
+      }
+    }
+    clockHelperProcesses.clear();
+    if (processClockHelper != null) {
+      try {
+        if (processClockHelper.isAlive()) processClockHelper.destroyForcibly();
+      } catch (Exception ignored) {
+      }
+      processClockHelper = null;
+    }
   }
 
   public void flattenBoard() {

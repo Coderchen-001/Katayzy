@@ -9,6 +9,7 @@ import featurecat.lizzie.Config;
 import featurecat.lizzie.Lizzie;
 import featurecat.lizzie.gui.LizzieFrame.HtmlKit;
 import featurecat.lizzie.rules.Board;
+import featurecat.lizzie.theme.AppShellTheme;
 import featurecat.lizzie.theme.Theme;
 import featurecat.lizzie.util.DigitOnlyFilter;
 import featurecat.lizzie.util.NetworkProxy;
@@ -238,6 +239,7 @@ public class ConfigDialog2 extends JDialog {
   // Theme Tab
   // private boolean isLoadedTheme = false;
   private JComboBox<String> cmbThemes;
+  private JComboBox<String> cmbAppShellTheme;
   private JSpinner spnWinrateStrokeWidth;
   private JSpinner spnScoreLeadStrokeWidth;
   private JSpinner spnMinimumBlunderBarWidth;
@@ -2895,22 +2897,59 @@ public class ConfigDialog2 extends JDialog {
             configText(
                 "ConfigDialog2.modern.theme.subtitle", "选择主题，并实时预览棋盘、棋子和背景效果。"));
     addComponentRow(profile, configText("ConfigDialog2.modern.theme.current", "当前主题"), configText("ConfigDialog2.modern.theme.currentSub", "切换或管理主题方案"), rowOf(cmbThemes, btnAddTheme, btnDeleteTheme));
+    if (cmbAppShellTheme == null) {
+      cmbAppShellTheme =
+          new JComboBox<String>(
+              new String[] {
+                AppShellTheme.label(AppShellTheme.GRAPHITE),
+                AppShellTheme.label(AppShellTheme.WARM),
+                AppShellTheme.label(AppShellTheme.SLATE)
+              });
+      cmbAppShellTheme.setSelectedItem(AppShellTheme.label(Lizzie.config.appShellTheme));
+      cmbAppShellTheme.addItemListener(
+          event -> {
+            if (event.getStateChange() != java.awt.event.ItemEvent.SELECTED) return;
+            Lizzie.config.setAppShellTheme(shellThemeId((String) event.getItem()));
+            AppleStyleSupport.refreshShellColors();
+            if (Lizzie.frame != null) {
+              Lizzie.frame.refreshPanelColors();
+              Lizzie.frame.repaint();
+            }
+          });
+    }
+    addComponentRow(
+        profile,
+        "外壳配色",
+        "侧栏、面板和强调色；棋盘主题单独选择",
+        cmbAppShellTheme);
     pnlBoardPreview.setPreferredSize(new Dimension(220, 180));
     pnlBoardPreview.setMinimumSize(new Dimension(220, 180));
     addLargeComponentRow(profile, configText("ConfigDialog2.modern.theme.preview", "棋盘预览"), configText("ConfigDialog2.modern.theme.previewSub", "检查背景、棋盘和棋子纹理"), detachComponent(pnlBoardPreview), 208);
     content.add(profile);
-    content.add(javax.swing.Box.createVerticalStrut(12));
+    content.add(javax.swing.Box.createVerticalStrut(8));
 
-    JPanel strokes = createDesignSettingsCard(configText("ConfigDialog2.modern.theme.lines", "线条与字体"), configText("ConfigDialog2.modern.theme.linesSub", "调整胜率曲线、目数曲线、阴影和界面字体。"));
+    JCheckBox chkAdvancedTheme =
+        new JCheckBox(configText("ConfigDialog2.modern.theme.advanced", "显示高级外观参数"));
+    chkAdvancedTheme.setOpaque(false);
+    chkAdvancedTheme.setForeground(Lizzie.config.uiFontName == null
+        ? Color.DARK_GRAY
+        : new Color(110, 116, 126));
+    chkAdvancedTheme.setFont(new Font(Lizzie.config.uiFontName, Font.PLAIN, 12));
+    content.add(chkAdvancedTheme);
+    content.add(javax.swing.Box.createVerticalStrut(8));
+
+    JPanel advancedPanel = new JPanel();
+    advancedPanel.setOpaque(false);
+    advancedPanel.setLayout(new javax.swing.BoxLayout(advancedPanel, javax.swing.BoxLayout.Y_AXIS));
+    advancedPanel.setVisible(false);
+
+    JPanel strokes = createDesignSettingsCard(configText("ConfigDialog2.modern.theme.lines", "线条与显示"), configText("ConfigDialog2.modern.theme.linesSub", "调整胜率曲线、目数曲线和棋子阴影；字体由程序统一固定。"));
     addComponentRow(
         strokes, configText("ConfigDialog2.modern.theme.winrateWidth", "胜率曲线宽度"), configText("ConfigDialog2.modern.theme.winrateWidthSub", "控制胜率曲线线条粗细"), rowOf(spnWinrateStrokeWidth, spnScoreLeadStrokeWidth));
     addComponentRow(strokes, configText("ConfigDialog2.modern.theme.blunderWidth", "柱状失误条最小宽度"), configText("ConfigDialog2.modern.theme.blunderWidthSub", "让失误条在不同窗口尺寸下更清晰"), spnMinimumBlunderBarWidth);
     addToggleInputRow(strokes, configText("ConfigDialog2.modern.theme.shadow", "棋子阴影大小"), configText("ConfigDialog2.modern.theme.shadowSub", "开启后调整棋子阴影强度"), chkShowStoneShaow, spnShadowSize);
-    addComponentRow(strokes, configText("ConfigDialog2.modern.theme.infoFont", "计算量及其他字体"), configText("ConfigDialog2.modern.theme.infoFontSub", "棋盘外信息与分析面板字体"), cmbFontName);
-    addComponentRow(strokes, configText("ConfigDialog2.modern.theme.uiFont", "UI 字体"), configText("ConfigDialog2.modern.theme.uiFontSub", "菜单、按钮和设置窗口字体"), cmbUiFontName);
-    addComponentRow(strokes, configText("ConfigDialog2.modern.theme.winrateFont", "胜率目数字体"), configText("ConfigDialog2.modern.theme.winrateFontSub", "胜率条和目差显示字体"), cmbWinrateFontName);
-    content.add(strokes);
-    content.add(javax.swing.Box.createVerticalStrut(12));
+    advancedPanel.add(strokes);
+    advancedPanel.add(javax.swing.Box.createVerticalStrut(12));
 
     JPanel assets = createDesignSettingsCard(configText("ConfigDialog2.modern.theme.assets", "图片与材质"), configText("ConfigDialog2.modern.theme.assetsSub", "配置背景、棋盘、黑子和白子的图片资源。"));
     addAssetRow(
@@ -2924,8 +2963,8 @@ public class ConfigDialog2 extends JDialog {
     addAssetRow(assets, configText("ConfigDialog2.modern.theme.blackStoneImage", "黑子图片"), null, null, txtBlackStonePath, btnBlackStonePath);
     addAssetRow(assets, configText("ConfigDialog2.modern.theme.whiteStoneImage", "白子图片"), chkPureStone, null, txtWhiteStonePath, btnWhiteStonePath);
     addComponentRow(assets, configText("ConfigDialog2.modern.theme.blur", "面板背景模糊程度"), configText("ConfigDialog2.modern.theme.blurSub", "数值越大，背景越柔和"), txtBackgroundFilter);
-    content.add(assets);
-    content.add(javax.swing.Box.createVerticalStrut(12));
+    advancedPanel.add(assets);
+    advancedPanel.add(javax.swing.Box.createVerticalStrut(12));
 
     JPanel colors = createDesignSettingsCard(configText("ConfigDialog2.modern.theme.colors", "颜色与标记"), configText("ConfigDialog2.modern.theme.colorsSub", "设置胜率曲线、评论区域和棋子标记。"));
     addColorRow(colors, configText("ConfigDialog2.modern.theme.winrateColor", "胜率曲线颜色"), lblWinrateLineColor);
@@ -2947,8 +2986,8 @@ public class ConfigDialog2 extends JDialog {
             rdoStoneIndicatorNo));
     addToggleInputRow(
         colors, configText("ConfigDialog2.modern.theme.commentNode", "显示评论节点颜色"), configText("ConfigDialog2.modern.theme.commentNodeSub", "开启后使用自定义评论节点颜色"), chkShowCommentNodeColor, lblCommentNodeColor);
-    content.add(colors);
-    content.add(javax.swing.Box.createVerticalStrut(12));
+    advancedPanel.add(colors);
+    advancedPanel.add(javax.swing.Box.createVerticalStrut(12));
 
     JPanel trackingAppearance =
         createDesignSettingsCard(
@@ -2995,8 +3034,8 @@ public class ConfigDialog2 extends JDialog {
             "ConfigDialog2.modern.trackingAppearance.textColorSub", "关闭自动适配后使用此颜色"),
         pnlTrackingPointTextColor);
     syncTrackingPointTextColorControl();
-    content.add(trackingAppearance);
-    content.add(javax.swing.Box.createVerticalStrut(12));
+    advancedPanel.add(trackingAppearance);
+    advancedPanel.add(javax.swing.Box.createVerticalStrut(12));
 
     JPanel blunders = createDesignSettingsCard(configText("ConfigDialog2.modern.theme.blunders", "错误节点"), configText("ConfigDialog2.modern.theme.blundersSub", "管理胜率波动阈值和对应颜色。"));
     pnlScrollBlunderNodes.setPreferredSize(new Dimension(440, 116));
@@ -3008,13 +3047,28 @@ public class ConfigDialog2 extends JDialog {
         150);
     addToggleInputRow(
         blunders, configText("ConfigDialog2.modern.theme.scoreBlunders", "同时考虑胜率与目数"), configText("ConfigDialog2.modern.theme.scoreBlundersSub", "目数剧烈波动也标记为错误节点"), chkUseScoreDiff, txtPercentScoreDiff);
-    content.add(blunders);
+    advancedPanel.add(blunders);
+    content.add(advancedPanel);
+
+    chkAdvancedTheme.addActionListener(
+        e -> {
+          advancedPanel.setVisible(chkAdvancedTheme.isSelected());
+          themeTab.revalidate();
+          themeTab.repaint();
+        });
 
     Dimension contentSize = content.getPreferredSize();
     themeTab.setPreferredSize(new Dimension(900, contentSize.height + 28));
     themeTab.add(content, BorderLayout.NORTH);
     themeTab.revalidate();
     themeTab.repaint();
+  }
+
+  private static String shellThemeId(String label) {
+    if (label == null) return AppShellTheme.GRAPHITE;
+    if (label.equals(AppShellTheme.label(AppShellTheme.WARM))) return AppShellTheme.WARM;
+    if (label.equals(AppShellTheme.label(AppShellTheme.SLATE))) return AppShellTheme.SLATE;
+    return AppShellTheme.GRAPHITE;
   }
 
   private JPanel rowOf(Component... components) {
@@ -3487,6 +3541,15 @@ public class ConfigDialog2 extends JDialog {
             readThemeValues();
             if (cmbThemes.getSelectedIndex() == 0) btnDeleteTheme.setEnabled(false);
             else btnDeleteTheme.setEnabled(true);
+            if (e.getStateChange() == ItemEvent.SELECTED
+                && Lizzie.config != null
+                && Lizzie.frame != null
+                && cmbThemes.getSelectedItem() != null) {
+              Lizzie.config.uiConfig.put("theme", cmbThemes.getSelectedItem());
+              Lizzie.config.readThemeVaule(false);
+              Lizzie.frame.refreshPanelColors();
+              Lizzie.frame.repaint();
+            }
           }
         });
     cmbThemes.setBounds(175, 11, 199, 20);
@@ -5870,6 +5933,9 @@ public class ConfigDialog2 extends JDialog {
         Lizzie.config.uiConfig.put("theme", cmbThemes.getSelectedItem());
         writeThemeValues();
         Lizzie.config.readThemeVaule(false);
+      }
+      if (cmbAppShellTheme != null) {
+        Lizzie.config.setAppShellTheme(shellThemeId((String) cmbAppShellTheme.getSelectedItem()));
       }
       Lizzie.config.save();
     } catch (IOException e) {
