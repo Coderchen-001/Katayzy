@@ -211,8 +211,14 @@ def main():
 
     # CSV 内部: path 中间段 → 出现过的 label 候选（辅助父级匹配）
     seg_labels = defaultdict(set)
-    rows = [r for r in csv.DictReader(open(INV, encoding="utf-8-sig"))
-            if r["entry_type"] == "menu"]
+    all_rows = list(csv.DictReader(open(INV, encoding="utf-8-sig")))
+    rows = [r for r in all_rows if r["entry_type"] == "menu"]
+    respect = "--respect-dispositions" in sys.argv
+    exempt_ids = {
+        r["id"]
+        for r in all_rows
+        if respect and (r.get("migration_status") == "no-entry" or r.get("path_exempt"))
+    }
     for r in rows:
         parts = [p.strip() for p in r["path"].split(">")]
         for seg in parts:
@@ -225,12 +231,16 @@ def main():
         return p_ok and l_ok
 
     print("\n== CSV path 与源码挂载比对（仅 menu 行）==")
-    problems, checked, ok = [], 0, 0
+    problems, exempt_rows, checked, ok, exempt = [], [], 0, 0, 0
     for row in rows:
         parts = [p.strip() for p in row["path"].split(">")]
         if len(parts) < 2:
             continue
         checked += 1
+        if row["id"] in exempt_ids:
+            exempt += 1
+            exempt_rows.append(row)
+            continue
         bad = None
         for i in range(len(parts) - 1):
             hit = False
@@ -249,7 +259,8 @@ def main():
                                if match(cl, leaf, strict=True) or match(cl, row["label"], strict=True)})
         problems.append((row["id"], row["path"], bad, real_parents))
 
-    print(f"  校验 {checked} 条多级 path, 通过 {ok}, 异常 {len(problems)}")
+    print(f"  校验 {checked} 条多级 path, 通过 {ok}, 豁免 {exempt}, 异常 {len(problems)}")
+    print(f"  判据: {checked - exempt} 条需通过, 当前 {ok}/{checked - exempt}")
     for pid, path, bad, real_parents in problems:
         if real_parents:
             print(f"    {pid}: CSV=[{path}]  断于[{bad[0]}>{bad[1]}]  源码真实父级={real_parents}")
@@ -262,6 +273,13 @@ def main():
         for pid, path, bad, real_parents in problems:
             w.writerow([pid, path, " > ".join(bad), " / ".join(real_parents)])
     print("\n清单已写入 docs/ui2/path-mismatch.csv")
+    if respect:
+        with open("docs/ui2/path-exemptions.csv", "w", encoding="utf-8-sig", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["id", "csv_path", "reason"])
+            for r in exempt_rows:
+                w.writerow([r["id"], r["path"], r.get("path_exempt") or r.get("migration_status")])
+        print(f"豁免 {len(exempt_rows)} 条已写入 docs/ui2/path-exemptions.csv")
 
     print(f"\n== 未解析边（{len(unresolved)} 条，前 40）==")
     for p, c, ln, pl, cl in unresolved[:40]:
