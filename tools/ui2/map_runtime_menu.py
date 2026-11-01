@@ -100,7 +100,12 @@ def main() -> None:
             # Controlled prefix fallback for Chinese annotations such as
             # "经典配色（原版 lizzieyzy）". Never match a bare prefix without a parenthetical.
             for key, ids in by_label.items():
-                if key and text.startswith(key) and text[len(key) :].startswith(("(", "（")):
+                suffix = text[len(key) :] if key else ""
+                if key and text.startswith(key) and (
+                    suffix.startswith(("(", "（"))
+                    or re.fullmatch(r":\d+", suffix)
+                    or (key.endswith(":") and suffix.isdigit())
+                ):
                     candidates.extend(ids.values())
             if candidates:
                 evidence = "parenthetical annotation prefix match"

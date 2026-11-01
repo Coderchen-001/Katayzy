@@ -33,3 +33,5 @@ M-ANA-015,分析 > 闪电分析(全局),no-entry
 M-SYNC-008,同步 > 棋盘同步工具(简易版),no-entry
 M-SET-009,设置 > 语言 > English,pure-ASCII literal not captured by parser
 M-VIEW-092,显示 > 落子评价标记 > 判定依据,helper-method subtree (addRankMarkMenu L8472)
+M-VIEW-102,显示 > 工具栏 > 顶部工具栏 > 自定义内容 > 不显示,runtime-only custom-content row; static parent path is ambiguous
+M-VIEW-103,显示 > 工具栏 > 底部工具栏 > 自定义内容 > 不显示,runtime-only custom-content row; static parent path is ambiguous

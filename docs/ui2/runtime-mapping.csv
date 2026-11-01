@@ -97,7 +97,7 @@ ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#9,JFontM
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#10,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示分支面板上的手数,true,true,matched,M-VIEW-059,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,不显示,true,true,matched,M-VIEW-060,conflict: multiple inventory candidates
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示最后一手,true,true,matched,M-VIEW-061,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示最后多手:3,true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示最后多手:3,true,true,matched,M-VIEW-063,parenthetical annotation prefix match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#3,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示所有,true,true,matched,M-VIEW-062,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#4,JFontMenu#1,显示,JFontCheckBoxMenuItem,原棋盘不显示评价标记(棋盘同步时),true,true,matched,M-VIEW-068,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontMenu/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,智能平衡（推荐）,true,true,matched,M-VIEW-064,normalized label match
@@ -117,10 +117,10 @@ ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#8,JFontM
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#9,JFontMenu#1,显示,JFontCheckBoxMenuItem,鼠标悬停显示变化图,true,true,matched,M-VIEW-069,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#10,JFontMenu#1,显示,JFontCheckBoxMenuItem,"鼠标悬停显示变化图时,变化图不刷新",true,true,matched,M-VIEW-070,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontMenuItem#1,JFontMenu#1,显示,JFontMenuItem,设置选点变化图回放间隔,true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,无,true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,仅显示圈,true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,圈+胜率/目数(此手非选点或选点计算量低时),true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,设置低计算量阈值(当前:30),true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,无,true,true,matched,M-VIEW-098,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,仅显示圈,true,true,matched,M-VIEW-099,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,圈+胜率/目数(此手非选点或选点计算量低时),true,true,matched,M-VIEW-100,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,设置低计算量阈值(当前:30),true,true,matched,M-VIEW-101,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,自动播放(Ctrl+A),true,true,matched,M-VIEW-020,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#1,JFontMenu#1,显示,JFontMenuItem,重置界面位置,true,true,matched,M-VIEW-035,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#7/popup/JFontMenu/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,日式九星,true,true,matched,M-VIEW-007,normalized label match

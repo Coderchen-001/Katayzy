@@ -4,11 +4,11 @@ Structural rows: **437 = 340 leaves + 47 separators + 50 popups**
 
 | Bucket | Count |
 |---|---:|
-| matched | 198 |
+| matched | 203 |
 | toolbar-mirror | 0 |
 | engine-dynamic | 48 |
 | config-hidden | 0 |
-| unmatched | 94 |
+| unmatched | 89 |
 | separator | 47 |
 | popup-glue | 50 |
 
@@ -27,9 +27,10 @@ reviewed for runtime coverage.
 
 - `M-ENG-004`
 - `M-ENG-007`
-- `M-VIEW-063`
 - `M-ENG-009`
 - `M-ENG-010`
+- `M-VIEW-102`
+- `M-VIEW-103`
 
 ## Unmatched runtime rows
 
@@ -66,16 +67,11 @@ reviewed for runtime coverage.
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#11`  text='继续分析'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#16`  text='删除'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#17`  text='落子评价'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#4/popup/JFontCheckBoxMenuItem#2`  text='显示最后多手:3'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#4`  text='延迟显示'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#5`  text='显示选点右上方角标'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#6`  text='候选点最高值红色高亮'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#7`  text='轮白下字体显示为白色'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontMenuItem#1`  text='设置选点变化图回放间隔'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem`  text='无'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem#1`  text='仅显示圈'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem#2`  text='圈+胜率/目数(此手非选点或选点计算量低时)'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontMenuItem`  text='设置低计算量阈值(当前:30)'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#2`  text='记录选点信息到评论中'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#3`  text='棋盘下方显示黑白名字'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#4`  text='显示评论/问题手面板顶部控制条'
