@@ -18,8 +18,10 @@
 - [ ] no missing top-level entry point;
 - [ ] `children-check.md` structural cleanup completed (hand-number/rank rows);
 - [ ] runtime mapping is closed: `437 = 340 leaves + 47 separators + 50 popups`, the five feature
-      buckets sum to 340, and every `unmatched` row has a disposition; `toolbar-mirror` entries
-      carry an Action variable or `topPanel.add` line as evidence.
+      buckets sum to 340, every `unmatched` row has a disposition, the gap list is empty, and the
+      path gate remains 0 anomalies; `toolbar-mirror` entries carry an Action variable or
+      `topPanel.add` line as evidence. `M-VIEW-102/103` are recorded runtime-only custom-content
+      exceptions; they do not block the gate once documented.
 - [ ] every existing dialog and toolbar action has a row;
 - [ ] every entry-bearing audit record has a disposition (mapped, duplicate, non-entry copy/config
   key); zero unexplained differences in the filtered audit;
