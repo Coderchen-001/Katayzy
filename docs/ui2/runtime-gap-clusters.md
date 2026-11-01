@@ -1,12 +1,10 @@
 # Runtime Gap Clusters (generated)
 
-Unmatched rows: **85**; clusters: **82**.
+Unmatched rows: **81**; clusters: **80**.
 
 | Count | Top | Text | Example path |
 |---:|---|---|---|
 | 2 | JFontMenu#1 | 不显示 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2` |
-| 2 | JFontMenu#1 | 自定义布局1 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2` |
-| 2 | JFontMenu#1 | 自定义布局2 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3` |
 | 1 | JFontMenu#1 | Kata评估 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#1` |
 | 1 | JFontMenu#1 | 不显示热点图 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2` |
 | 1 | JFontMenu#1 | 仅棋盘棋子 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontCheckBoxMenuItem#1` |

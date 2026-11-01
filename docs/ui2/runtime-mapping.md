@@ -4,11 +4,11 @@ Structural rows: **437 = 340 leaves + 47 separators + 50 popups**
 
 | Bucket | Count |
 |---|---:|
-| matched | 207 |
+| matched | 211 |
 | toolbar-mirror | 0 |
 | engine-dynamic | 48 |
 | config-hidden | 0 |
-| unmatched | 85 |
+| unmatched | 81 |
 | separator | 47 |
 | popup-glue | 50 |
 
@@ -85,10 +85,6 @@ likely omission; a candidate-unassigned row is a path/alias problem.
 - [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#12`  text='使用快捷键(大键盘点)'
 - [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#12/popup/JFontMenuItem`  text='默认模式(Alt+1)'
 - [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#13/popup/JFontMenuItem#3`  text='额外浮动棋盘'
-- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2`  text='自定义布局1(Alt+8)'
-- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2/JFontLabel`  text='自定义布局1(Alt+8)'
-- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3`  text='自定义布局2(Alt+9)'
-- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3/JFontLabel`  text='自定义布局2(Alt+9)'
 - [no inventory candidate] `ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#6`  text='折叠已落棋子(不能撤销)'
 - [no inventory candidate] `ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#7`  text='自动补完征子'
 - [no inventory candidate] `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#3`  text='抓取死活题(Shift+T)'
@@ -173,10 +169,6 @@ likely omission; a candidate-unassigned row is a path/alias problem.
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#12`  text='使用快捷键(大键盘点)'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#12/popup/JFontMenuItem`  text='默认模式(Alt+1)'
 - `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#13/popup/JFontMenuItem#3`  text='额外浮动棋盘'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2`  text='自定义布局1(Alt+8)'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2/JFontLabel`  text='自定义布局1(Alt+8)'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3`  text='自定义布局2(Alt+9)'
-- `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3/JFontLabel`  text='自定义布局2(Alt+9)'
 - `ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#6`  text='折叠已落棋子(不能撤销)'
 - `ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#7`  text='自动补完征子'
 - `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#3`  text='抓取死活题(Shift+T)'

@@ -268,3 +268,5 @@ M-SET-017,menu,设置 > 初始化设置,初始化设置,,openFirstUseSettings,Me
 M-SET-018,menu,设置 > 主题,主题,,openThemeSettings,Menu.java,enabled:always,,no,—,Windows/通用,未接,运行时设置菜单补册,,both,,
 M-SET-019,menu,设置 > 播放落子声,播放落子声,,togglePlaySound,Menu.java,enabled:always,,no,—,Windows/通用,未接,运行时设置菜单补册,,both,,
 M-SET-020,menu,设置 > 界面字体大小 > 其他,其他,,setFrameFontSizeOther,Menu.java,enabled:always,,no,—,Windows/通用,未接,运行时设置菜单补册,,both,,
+M-VIEW-104,menu,显示 > 布局模式 > 自定义布局1,自定义布局1(Alt+8),,setLayoutCustom1,Menu.java,enabled:always,,no,—,Windows/通用,未接,composite runtime layout item; label from child JFontLabel,,both,,composite layout row; static tree does not expose the child label
+M-VIEW-105,menu,显示 > 布局模式 > 自定义布局2,自定义布局2(Alt+9),,setLayoutCustom2,Menu.java,enabled:always,,no,—,Windows/通用,未接,composite runtime layout item; label from child JFontLabel,,both,,composite layout row; static tree does not expose the child label

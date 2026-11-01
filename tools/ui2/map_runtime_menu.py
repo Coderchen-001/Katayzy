@@ -157,7 +157,7 @@ def main() -> None:
             children = [
                 r
                 for r in runtime
-                if r["path"].startswith(row["path"] + "/")
+                if r["path"].rsplit("/", 1)[0] == row["path"]
                 and r["class"] in {"JFontLabel", "JFontButton"}
                 and r["text"].strip()
             ]

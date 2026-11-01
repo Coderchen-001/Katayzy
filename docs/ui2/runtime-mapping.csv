@@ -183,11 +183,11 @@ ModelJMenuBar/JFontMenu#1/popup/JFontMenu#13/popup/JFontMenuItem,JFontMenu#1,显
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#13/popup/JFontMenuItem#1,JFontMenu#1,显示,JFontMenuItem,浮动主棋盘,true,true,matched,M-VIEW-043,normalized label match; mirror/duplicate claim x3
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#13/popup/JFontMenuItem#2,JFontMenu#1,显示,JFontMenuItem,浮动小棋盘,true,true,matched,M-VIEW-044,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#13/popup/JFontMenuItem#3,JFontMenu#1,显示,JFontMenuItem,额外浮动棋盘,true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2,JFontMenu#1,显示,JFontMenuItem,自定义布局1(Alt+8),true,true,unmatched,,composite child JFontLabel; normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2/JFontLabel,JFontMenu#1,显示,JFontLabel,自定义布局1(Alt+8),true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2,JFontMenu#1,显示,JFontMenuItem,自定义布局1(Alt+8),true,true,matched,M-VIEW-104,composite child JFontLabel; normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2/JFontLabel,JFontMenu#1,显示,JFontLabel,自定义布局1(Alt+8),true,true,matched,M-VIEW-104,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2/JFontButton,JFontMenu#1,显示,JFontButton,设置,true,true,matched,M-TOP-007,normalized label match; mirror/duplicate claim x2
-ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3,JFontMenu#1,显示,JFontMenuItem,自定义布局2(Alt+9),true,true,unmatched,,composite child JFontLabel; normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3/JFontLabel,JFontMenu#1,显示,JFontLabel,自定义布局2(Alt+9),true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3,JFontMenu#1,显示,JFontMenuItem,自定义布局2(Alt+9),true,true,matched,M-VIEW-105,composite child JFontLabel; normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3/JFontLabel,JFontMenu#1,显示,JFontLabel,自定义布局2(Alt+9),true,true,matched,M-VIEW-105,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3/JFontButton,JFontMenu#1,显示,JFontButton,设置,true,true,matched,M-TOP-007,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#2/popup/JFontMenu/popup/JFontMenuItem,JFontMenu#2,棋局,JFontMenuItem,人机对局(Genmove模式 N),true,true,matched,M-GAME-013,parenthetical annotation prefix match
 ModelJMenuBar/JFontMenu#2/popup/JFontMenu/popup/InfoMenuItem,JFontMenu#2,棋局,InfoMenuItem,人机对局(分析模式 Alt+N),true,true,matched,M-GAME-019,normalized label match
