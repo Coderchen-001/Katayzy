@@ -4,11 +4,11 @@ Structural rows: **437 = 340 leaves + 47 separators + 50 popups**
 
 | Bucket | Count |
 |---|---:|
-| matched | 203 |
+| matched | 207 |
 | toolbar-mirror | 0 |
 | engine-dynamic | 48 |
 | config-hidden | 0 |
-| unmatched | 89 |
+| unmatched | 85 |
 | separator | 47 |
 | popup-glue | 50 |
 
@@ -24,6 +24,97 @@ reviewed for runtime coverage.
 
 - `M-VIEW-102`
 - `M-VIEW-103`
+
+## Gap candidates (unmatched runtime rows)
+
+Split by whether the inventory has any label candidate at all. A no-candidate row is a
+likely omission; a candidate-unassigned row is a path/alias problem.
+
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='超过宽度依然使用滚动条(超过部分将不显示)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#8`  text='独立棋局控制面板'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontMenuItem`  text='可视化面板设置'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#13`  text='独立选点列表(U)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='独立显示'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='合并在菜单栏上'
+- [candidate unassigned] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2`  text='不显示'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#3`  text='自动换行(仅独立显示时)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='独立/合并工具栏按钮'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='基本按钮(仅独立显示时)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2`  text='落子工具'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#3`  text='强制计算工具'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#4`  text='对局控制'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#5`  text='单步分析限制(时间)(秒)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#6`  text='单步分析限制(计算量)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#7`  text='选点分析控制'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#8`  text='选点显示控制'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#9`  text='选点信息控制'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#10`  text='规则'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#11`  text='死活'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#12`  text='参数'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#13`  text='棋盘'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#14`  text='存档'
+- [candidate unassigned] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#1`  text='不显示'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='使用详细工具栏'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='显示拓展/隐藏详细工具栏按钮'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenuItem`  text='设置模块顺序'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#1`  text='Kata评估'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#9`  text='选点列表'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#10`  text='刷新'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#11`  text='继续分析'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#16`  text='删除'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#17`  text='落子评价'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#4`  text='延迟显示'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#5`  text='显示选点右上方角标'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#6`  text='候选点最高值红色高亮'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#7`  text='轮白下字体显示为白色'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontMenuItem#1`  text='设置选点变化图回放间隔'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#2`  text='记录选点信息到评论中'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#3`  text='棋盘下方显示黑白名字'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#4`  text='显示评论/问题手面板顶部控制条'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#6`  text='显示清空棋盘提示对话框'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#7`  text='显示覆盖文件提示对话框'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#9/popup/JFontMenuItem`  text='设置初始目数差最大值'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='第一感热点图'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='计算后热点图'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2`  text='不显示热点图'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontCheckBoxMenuItem`  text='变化图'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontCheckBoxMenuItem#1`  text='仅棋盘棋子'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu/popup/JFontCheckBoxMenuItem`  text='计算贴目后目数差'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1`  text='盘面目数差'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#11`  text='按选点显示评估(最低版本1.11.0)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#12`  text='使用快捷键(大键盘点)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#12/popup/JFontMenuItem`  text='默认模式(Alt+1)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#13/popup/JFontMenuItem#3`  text='额外浮动棋盘'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2`  text=''
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2/JFontLabel`  text='自定义布局1(Alt+8)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3`  text=''
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3/JFontLabel`  text='自定义布局2(Alt+9)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#6`  text='折叠已落棋子(不能撤销)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#7`  text='自动补完征子'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#3`  text='抓取死活题(Shift+T)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#5`  text='整盘精析（推荐）'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#10`  text='整盘速览（闪电）'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#11`  text='局部精析'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#12`  text='全部分支精析'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#13`  text='精析设置'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#19`  text='清除分析信息(全局)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#20`  text='清除分析信息(此手)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#4/popup/JFontCheckBoxMenuItem#2`  text='启用点击棋子回看'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#12`  text='撤销删除(可在右键菜单中操作)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#13`  text='恢复删除(可在右键菜单中操作)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#5/popup/JFontMenuItem#1`  text='打开弈客网页版'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#5/popup/JFontMenu/popup/JFontMenuItem#1`  text='复制访问地址'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#5/popup/JFontCheckBoxMenuItem`  text='允许弈客直播/大厅进入对局室'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#5/popup/JFontCheckBoxMenuItem#1`  text='有新的一手时总是跳转到最新一手'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#5/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem`  text='总是保持棋盘一致(回退时可能破坏历史手顺)'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#5/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#1`  text='滚轮控制变化图时自动获取焦点'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#8/popup/JFontMenu#2/popup/JFontCheckBoxMenuItem`  text='系统默认'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#8/popup/JFontMenu#2/popup/JFontCheckBoxMenuItem#1`  text='Java默认'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#8/popup/JFontCheckBoxMenuItem#1`  text='同步时不播放落子声'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#8/popup/JFontCheckBoxMenuItem#2`  text='显示跑谱贡献菜单'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#9/popup/JFontMenuItem`  text='可视化KataGo分布式训练'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#9/popup/JFontMenuItem#1`  text='KataGo训练设置'
+- [no inventory candidate] `ModelJMenuBar/JFontMenu#9/popup/JFontMenuItem#2`  text='KataGo官方网站'
 
 ## Unmatched runtime rows
 
@@ -105,12 +196,8 @@ reviewed for runtime coverage.
 - `ModelJMenuBar/JFontMenu#5/popup/JFontCheckBoxMenuItem#1`  text='有新的一手时总是跳转到最新一手'
 - `ModelJMenuBar/JFontMenu#5/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem`  text='总是保持棋盘一致(回退时可能破坏历史手顺)'
 - `ModelJMenuBar/JFontMenu#5/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#1`  text='滚轮控制变化图时自动获取焦点'
-- `ModelJMenuBar/JFontMenu#8/popup/JFontMenuItem#3`  text='初始化设置'
-- `ModelJMenuBar/JFontMenu#8/popup/JFontMenuItem#5`  text='主题'
-- `ModelJMenuBar/JFontMenu#8/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#3`  text='其他'
 - `ModelJMenuBar/JFontMenu#8/popup/JFontMenu#2/popup/JFontCheckBoxMenuItem`  text='系统默认'
 - `ModelJMenuBar/JFontMenu#8/popup/JFontMenu#2/popup/JFontCheckBoxMenuItem#1`  text='Java默认'
-- `ModelJMenuBar/JFontMenu#8/popup/JFontCheckBoxMenuItem`  text='播放落子声'
 - `ModelJMenuBar/JFontMenu#8/popup/JFontCheckBoxMenuItem#1`  text='同步时不播放落子声'
 - `ModelJMenuBar/JFontMenu#8/popup/JFontCheckBoxMenuItem#2`  text='显示跑谱贡献菜单'
 - `ModelJMenuBar/JFontMenu#9/popup/JFontMenuItem`  text='可视化KataGo分布式训练'

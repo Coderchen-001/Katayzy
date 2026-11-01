@@ -269,9 +269,9 @@ ModelJMenuBar/JFontMenu#6/popup/JFontMenuItem,JFontMenu#6,帮助,JFontMenuItem,�
 ModelJMenuBar/JFontMenu#8/popup/JFontMenuItem,JFontMenu#8,设置,JFontMenuItem,引擎(Alt+X),true,true,matched,M-ENG-001,normalized label match
 ModelJMenuBar/JFontMenu#8/popup/JFontMenuItem#1,JFontMenu#8,设置,JFontMenuItem,引擎规则(KataGo)(Shift+D),true,true,matched,M-ENG-006,normalized label match
 ModelJMenuBar/JFontMenu#8/popup/JFontMenuItem#2,JFontMenu#8,设置,JFontMenuItem,引擎参数(Alt+D),true,true,matched,M-ENG-005,normalized label match
-ModelJMenuBar/JFontMenu#8/popup/JFontMenuItem#3,JFontMenu#8,设置,JFontMenuItem,初始化设置,true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#8/popup/JFontMenuItem#3,JFontMenu#8,设置,JFontMenuItem,初始化设置,true,true,matched,M-SET-017,normalized label match
 ModelJMenuBar/JFontMenu#8/popup/JFontMenuItem#4,JFontMenu#8,设置,JFontMenuItem,综合设置(Shift+X),true,true,matched,M-SET-001,normalized label match
-ModelJMenuBar/JFontMenu#8/popup/JFontMenuItem#5,JFontMenu#8,设置,JFontMenuItem,主题,true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#8/popup/JFontMenuItem#5,JFontMenu#8,设置,JFontMenuItem,主题,true,true,matched,M-SET-018,normalized label match
 ModelJMenuBar/JFontMenu#8/popup/JFontMenu/popup/JFontCheckBoxMenuItem,JFontMenu#8,设置,JFontCheckBoxMenuItem,跟随系统,true,true,matched,M-SET-006,normalized label match
 ModelJMenuBar/JFontMenu#8/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1,JFontMenu#8,设置,JFontCheckBoxMenuItem,简体中文,true,true,matched,M-SET-007,normalized label match
 ModelJMenuBar/JFontMenu#8/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2,JFontMenu#8,设置,JFontCheckBoxMenuItem,繁體中文,true,true,matched,M-SET-008,normalized label match
@@ -282,10 +282,10 @@ ModelJMenuBar/JFontMenu#8/popup/JFontMenu/popup/JFontCheckBoxMenuItem#6,JFontMen
 ModelJMenuBar/JFontMenu#8/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem,JFontMenu#8,设置,JFontCheckBoxMenuItem,小,true,true,matched,M-SET-014,normalized label match
 ModelJMenuBar/JFontMenu#8/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#1,JFontMenu#8,设置,JFontCheckBoxMenuItem,中,true,true,matched,M-SET-015,normalized label match
 ModelJMenuBar/JFontMenu#8/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#2,JFontMenu#8,设置,JFontCheckBoxMenuItem,大,true,true,matched,M-SET-016,normalized label match
-ModelJMenuBar/JFontMenu#8/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#3,JFontMenu#8,设置,JFontCheckBoxMenuItem,其他,true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#8/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#3,JFontMenu#8,设置,JFontCheckBoxMenuItem,其他,true,true,matched,M-SET-020,normalized label match
 ModelJMenuBar/JFontMenu#8/popup/JFontMenu#2/popup/JFontCheckBoxMenuItem,JFontMenu#8,设置,JFontCheckBoxMenuItem,系统默认,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#8/popup/JFontMenu#2/popup/JFontCheckBoxMenuItem#1,JFontMenu#8,设置,JFontCheckBoxMenuItem,Java默认,true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#8/popup/JFontCheckBoxMenuItem,JFontMenu#8,设置,JFontCheckBoxMenuItem,播放落子声,true,true,unmatched,,normalized label match
+ModelJMenuBar/JFontMenu#8/popup/JFontCheckBoxMenuItem,JFontMenu#8,设置,JFontCheckBoxMenuItem,播放落子声,true,true,matched,M-SET-019,normalized label match
 ModelJMenuBar/JFontMenu#8/popup/JFontCheckBoxMenuItem#1,JFontMenu#8,设置,JFontCheckBoxMenuItem,同步时不播放落子声,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#8/popup/JFontCheckBoxMenuItem#2,JFontMenu#8,设置,JFontCheckBoxMenuItem,显示跑谱贡献菜单,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#9/popup/JFontMenuItem,JFontMenu#9,跑谱贡献,JFontMenuItem,可视化KataGo分布式训练,true,true,unmatched,,normalized label match

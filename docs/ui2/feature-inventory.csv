@@ -264,3 +264,7 @@ M-VIEW-102,menu,显示 > 工具栏 > 顶部工具栏 > 自定义内容 > 不显�
 M-VIEW-103,menu,显示 > 工具栏 > 底部工具栏 > 自定义内容 > 不显示,不显示,,customBottomToolbarNone,Menu.java,enabled:always,,no,—,Windows/通用,未接,runtime dump补册,,both,,runtime-only custom-content row; static parent path is ambiguous
 M-GAME-018,menu,棋局 > 人机续弈 > 续弈[AI执白](分析模式),续弈[AI执白](分析模式)(Alt+回车),,continueAnalyzeGameAsWhite,Menu.java,enabled:engineLoaded,,yes,—,Windows/通用,未接,运行时补册,,both,,runtime-only analyze-continuation row; helper-built
 M-GAME-019,menu,棋局 > 新对局 > 人机对局(分析模式),人机对局(分析模式 Alt+N),,startAnalyzeGame,Menu.java,enabled:always,,no,—,Windows/通用,未接,运行时补册,,both,,runtime-only analysis-game InfoMenuItem; helper-built
+M-SET-017,menu,设置 > 初始化设置,初始化设置,,openFirstUseSettings,Menu.java,enabled:always,,no,—,Windows/通用,未接,运行时设置菜单补册,,both,,
+M-SET-018,menu,设置 > 主题,主题,,openThemeSettings,Menu.java,enabled:always,,no,—,Windows/通用,未接,运行时设置菜单补册,,both,,
+M-SET-019,menu,设置 > 播放落子声,播放落子声,,togglePlaySound,Menu.java,enabled:always,,no,—,Windows/通用,未接,运行时设置菜单补册,,both,,
+M-SET-020,menu,设置 > 界面字体大小 > 其他,其他,,setFrameFontSizeOther,Menu.java,enabled:always,,no,—,Windows/通用,未接,运行时设置菜单补册,,both,,

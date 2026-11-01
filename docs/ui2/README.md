@@ -45,8 +45,8 @@ need manual mapping in `surface-coverage.md`.
 ## Status
 
 `feature-inventory.csv` is a **draft** generated from the current `Menu.java`,
-`BottomToolbar.java` and right-click menus. Current draft: **265 semantic rows**
-(227 menu, 15 toolbar, 17 context, 2 status, 4 dialog). It is not yet complete.
+`BottomToolbar.java` and right-click menus. Current draft: **269 semantic rows**
+(231 menu, 15 toolbar, 17 context, 2 status, 4 dialog). It is not yet complete.
 
 Before the vertical slice is accepted:
 

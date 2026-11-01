@@ -242,6 +242,15 @@ def main() -> None:
         f.write("reviewed for runtime coverage.\n\n")
         for pid in exempt_missing:
             f.write(f"- `{pid}`\n")
+        f.write("\n## Gap candidates (unmatched runtime rows)\n\n")
+        f.write("Split by whether the inventory has any label candidate at all. A no-candidate row is a\n")
+        f.write("likely omission; a candidate-unassigned row is a path/alias problem.\n\n")
+        for row in out:
+            if row["bucket"] != "unmatched":
+                continue
+            candidates = by_label.get(norm_text(row["text"]), {})
+            group = "candidate unassigned" if candidates else "no inventory candidate"
+            f.write(f"- [{group}] `{row['path']}`  text={row['text']!r}\n")
         f.write("\n## Unmatched runtime rows\n\n")
         for row in out:
             if row["bucket"] == "unmatched":
