@@ -152,7 +152,23 @@ def main() -> None:
             seen_inventory.add(chosen["id"])
 
     for row in leaves:
+        composite = ""
+        if not row["text"].strip():
+            children = [
+                r
+                for r in runtime
+                if r["path"].startswith(row["path"] + "/")
+                and r["class"] in {"JFontLabel", "JFontButton"}
+                and r["text"].strip()
+            ]
+            children.sort(key=lambda r: 0 if r["class"] == "JFontLabel" else 1)
+            if children:
+                row = dict(row)
+                row["text"] = children[0]["text"]
+                composite = f"composite child {children[0]['class']}"
         chosen, conflict, evidence = choose_inventory(row)
+        if composite:
+            evidence = composite + ("; " + evidence if evidence else "")
         top_segment = row["path"].split("/")[1] if "/" in row["path"] else ""
         if chosen is None and row["class"] == "JFontMenu" and top_segment in {"JFontMenu#10", "JFontMenu#11"}:
             chosen = by_id.get("M-ENG-001" if top_segment == "JFontMenu#10" else "M-ENG-011")
