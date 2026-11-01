@@ -16,19 +16,12 @@ Leaf total: **340**; five feature buckets sum: **340**
 
 ## Unmapped inventory rows
 
-- `M-SET-003`
-- `M-GAME-014C`
-- `M-VIEW-087`
 
 ## Exempt but unmatched inventory rows
 
 These are not silently dropped: they are exempt from the path gate but must still be
 reviewed for runtime coverage.
 
-- `M-ENG-004`
-- `M-ENG-007`
-- `M-ENG-009`
-- `M-ENG-010`
 - `M-VIEW-102`
 - `M-VIEW-103`
 

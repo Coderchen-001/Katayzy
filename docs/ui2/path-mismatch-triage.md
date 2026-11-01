@@ -2,7 +2,7 @@
 
 日期：2026-10-31
 方法：`tools/ui2/verify_paths.py` 从 Menu.java 解析真实挂载边（变量名 → l10n key / 硬编码字面量 → 中文标签），与 feature-inventory.csv 的 path 逐边比对。
-结果：初次校验 203 条多级 path，通过 120，异常 83；A/C 类与运行时补册修正后，215 条中 179 通过、36 豁免（14 no-entry + 8 D + 1 toolbar + 1 pure-ASCII + 10 helper-method subtree + 2 runtime-only custom-content）、0 异常。Gate 1 判据为 **179/179 通过**，当前已达成。
+结果：初次校验 203 条多级 path，通过 120，异常 83；A/C 类与运行时补册修正后，215 条中 177 通过、38 豁免（14 no-entry + 8 D + 1 toolbar + 1 pure-ASCII + 10 helper-method subtree + 2 runtime-only custom-content + 2 runtime-only analyze-continuation）、0 异常。Gate 1 判据为 **177/177 通过**，当前已达成。
 顶级菜单最终为 **12 个**：文件/显示/棋局/分析/编辑/同步/帮助/快速启动/设置/跑谱贡献/引擎/引擎2。`live`(同步) 与 `quickLinks`(快速启动) 之前漏记，现已补 `M-TOP-009/010`。
 
 **权威产物**

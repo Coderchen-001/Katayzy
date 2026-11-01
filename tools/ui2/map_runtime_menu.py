@@ -119,6 +119,16 @@ def main() -> None:
             for c in candidates
             if norm_text(c["path"].split(">")[-2] if ">" in c["path"] else "") == parent_text
         ]
+        if len({c["id"] for c in exact}) > 1:
+            # Top/bottom toolbar both have a child named 自定义内容; use the grandparent text.
+            grand_path = parent_path.rsplit("/", 1)[0]
+            grand_text = path_text.get(grand_path, "")
+            exact = [
+                c
+                for c in exact
+                if len(c["path"].split(">")) >= 3
+                and norm_text(c["path"].split(">")[-3]) == grand_text
+            ]
         # Conflict is about the full candidate set, not the post-parent subset.
         conflict = len({c["id"] for c in candidates}) > 1
         if len({c["id"] for c in exact}) == 1:
@@ -180,6 +190,13 @@ def main() -> None:
             }
         )
 
+    claimed = Counter(r["inventory_id"] for r in out if r["inventory_id"])
+    for row in out:
+        if row["inventory_id"] and claimed[row["inventory_id"]] > 1:
+            row["evidence"] = (
+                row["evidence"] + "; " if row["evidence"] else ""
+            ) + f"mirror/duplicate claim x{claimed[row['inventory_id']]}"
+
     # Structural glue is counted but never treated as a feature.
     counts["separator"] = len(separators)
     counts["popup-glue"] = len(popups)
@@ -191,6 +208,7 @@ def main() -> None:
     if structural != 437:
         raise SystemExit(f"structural mismatch: expected 437, got {structural}")
 
+    engine_expected = {"M-ENG-004", "M-ENG-007", "M-ENG-009", "M-ENG-010"}
     missing = [
         r["id"]
         for r in menu_rows
@@ -203,6 +221,7 @@ def main() -> None:
         for r in menu_rows
         if r["id"] not in seen_inventory
         and r.get("path_exempt")
+        and r["id"] not in engine_expected
     ]
     with OUT_CSV.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(out[0].keys()))

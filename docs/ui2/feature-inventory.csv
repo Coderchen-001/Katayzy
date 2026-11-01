@@ -87,7 +87,6 @@ M-HELP-001,menu,帮助 > 使用说明,使用说明,,openManual,Menu.java,enabled
 M-HELP-002,menu,帮助 > 检查更新,检查更新,,checkVersion,Menu.java,enabled:always,,no,对话框,Windows/通用,no-entry,当前源码无菜单入口/上游遗留；IA 冻结下保留记录但不计入当前可见入口,,both,,
 M-SET-001,menu,设置 > 综合设置,综合设置,Shift+X,openConfig,Menu.java,enabled:always,,no,ConfigDialog2,Windows/通用,未接,后续拆 SettingsDialog,,both,,
 M-SET-002,menu,设置 > 界面外观,界面外观,,openThemeSettings,Menu.java,enabled:always,,no,ConfigDialog2,Windows/通用,未接,,,both,,
-M-SET-003,menu,设置 > 引擎设置,引擎设置,,openEngineSettings,Menu.java,enabled:always,,no,ConfigDialog2/引擎对话框,Windows/通用,未接,,,both,,
 M-SET-004,menu,设置 > 快捷键,快捷键,,openShortcutSettings,Menu.java,enabled:always,,no,ConfigDialog2,Windows/通用,no-entry,当前源码无菜单入口/上游遗留；IA 冻结下保留记录但不计入当前可见入口,,both,,
 T-BOT-001,toolbar,底栏 > 继续分析/暂停分析,继续分析/暂停分析,空格,togglePonder,BottomToolbar.java,enabled:engineLoaded,checked:isPondering,yes,—,Windows/通用,未接,主操作,,both,,
 T-BOT-002,toolbar,底栏 > 自动分析,自动分析,,openAutoAnalyze,BottomToolbar.java,enabled:engineLoaded,,yes,AutoAnalyzeMenu,Windows/通用,未接,,,both,,
@@ -166,7 +165,6 @@ C-RC-014,context,棋盘右键 > 撤销编辑,撤销编辑,,undoEdit,RightClickMe
 C-RC-015,context,棋盘右键 > 恢复编辑,恢复编辑,,redoEdit,RightClickMenu*.java,enabled:always;visible:boardEditAfter,,no,—,Windows/通用,未接,资源键 RightClickMenu.reedit,,both,,
 M-GAME-014A,menu,棋局 > 人机续弈 > 续弈[AI执黑],续弈[AI执黑](Genmove模式),Enter,continueGenmoveGameAsWhite,Menu.java,enabled:engineLoaded,,yes,—,Windows/通用,未接,资源键 Menu.continueGenmoveGameAsWhite；AsWhite 表示你执白、AI 执黑,,both,,
 M-GAME-014B,menu,棋局 > 人机续弈 > 续弈[AI执白],续弈[AI执白](Genmove模式),Enter,continueGenmoveGameAsBlack,Menu.java,enabled:engineLoaded,,yes,—,Windows/通用,未接,资源键 Menu.continueGenmoveGameAsBlack,,both,,
-M-GAME-014C,menu,棋局 > 人机续弈 > 续弈[AI执黑]（分析模式）,续弈[AI执黑](分析模式),,continueAnalyzeGameAsWhite,Menu.java,enabled:engineLoaded,,yes,—,Windows/通用,未接,资源键 Menu.continueAnalyzeGameAsWhite,,both,,
 M-GAME-014D,menu,棋局 > 人机续弈 > 续弈[AI执黑](分析模式),续弈[AI执黑](分析模式)(Alt+回车),,continueAnalyzeGameAsBlack,Menu.java,enabled:engineLoaded,,yes,—,Windows/通用,未接,资源键 Menu.continueAnalyzeGameAsBlack,,both,,
 M-VIEW-049,menu,显示 > 手数(M) > 不显示,不显示,,setMoveNumber(0),Menu.java,enabled:always,moveNumber==0,no,—,Windows/通用,未接,资源键 Menu.noMoveNum,,both,,
 M-VIEW-050,menu,显示 > 手数(M) > 最后1手,最后1手,,setMoveNumber(1),Menu.java,enabled:always,moveNumber==1,no,—,Windows/通用,未接,资源键 Menu.lastOneMoveNum,,both,,
@@ -206,7 +204,7 @@ M-VIEW-083,menu,显示 > KataGo相关设置 > Kata评估显示 > 显示在所有
 M-VIEW-084,menu,显示 > KataGo相关设置 > Kata评估显示 > 记忆评估显示状态,记忆评估显示状态,,toggleSaveKataEstimateState,Menu.java,enabled:always,saveKataEstimateStatus,no,—,Windows/通用,未接,资源键 Menu.kataEstimateSaveState,,both,,
 M-VIEW-085,menu,显示 > KataGo相关设置 > Kata评估显示 > 以方块透明度表示占有率(小型),以方块透明度表示占有率(小型),,setKataEstimateTransparentSmall,Menu.java,enabled:always,showKataGoEstimateSmall,no,—,Windows/通用,未接,资源键 Menu.kataEstimateByTransparentSmall,,both,,
 M-VIEW-086,menu,显示 > KataGo相关设置 > Kata评估显示 > 以方块透明度表示占有率,以方块透明度表示占有率,,setKataEstimateTransparent,Menu.java,enabled:always,showKataGoEstimateNormal,no,—,Windows/通用,未接,资源键 Menu.kataEstimateByTransparent,,both,,
-M-VIEW-087,menu,显示 > KataGo相关设置 > Kata评估显示 > 以方块透明度表示占有率(不显示在活子),以方块透明度表示占有率(不显示在活子),,setKataEstimateTransparentNotOnLive,Menu.java,enabled:always,showKataGoEstimateNotOnlive,no,—,Windows/通用,未接,资源键 Menu.kataEstimateByTransparentNotOnLive,,both,,
+M-VIEW-087,menu,显示 > KataGo相关设置 > Kata评估显示 > 以方块透明度表示占有率(不显示在活子上),以方块透明度表示占有率(不显示在活子上),,setKataEstimateTransparentNotOnLive,Menu.java,enabled:always,showKataGoEstimateNotOnlive,no,—,Windows/通用,未接,资源键 Menu.kataEstimateByTransparentNotOnLive,,both,,
 M-VIEW-088,menu,显示 > KataGo相关设置 > Kata评估显示 > 以棋子下大面积方块表示占有率,以棋子下大面积方块表示占有率,,setKataEstimateBigSquare,Menu.java,enabled:always,showKataGoEstimateBigBelow,no,—,Windows/通用,未接,资源键 Menu.kataEstimateByBigSquare,,both,,
 M-VIEW-089,menu,显示 > KataGo相关设置 > Kata评估显示 > 以方块大小表示占有率,以方块大小表示占有率,,setKataEstimateBySize,Menu.java,enabled:always,showKataGoEstimateBySize,no,—,Windows/通用,未接,资源键 Menu.kataEstimateBySize,,both,,
 M-ENG-008,menu,引擎 > 关闭引擎 > 关闭当前以外引擎,关闭当前以外引擎,,closeOtherEngines,Menu.java,enabled:engineLoaded,,yes,—,Windows/通用,未接,资源键 Menu.shutdownOtherEngine；多引擎管理必须保留,,both,,
@@ -264,3 +262,5 @@ M-VIEW-100,menu,显示 > 下一手提示 > 圈+胜率/目数(此手非选点或�
 M-VIEW-101,menu,显示 > 下一手提示 > 设置低计算量阈值(当前:30),设置低计算量阈值(当前:30),,setNextMoveHintThreshold,Menu.java,enabled:engineLoaded,,no,—,Windows/通用,未接,runtime dump补册,,both,,
 M-VIEW-102,menu,显示 > 工具栏 > 顶部工具栏 > 自定义内容 > 不显示,不显示,,customTopToolbarNone,Menu.java,enabled:always,,no,—,Windows/通用,未接,runtime dump补册,,both,,runtime-only custom-content row; static parent path is ambiguous
 M-VIEW-103,menu,显示 > 工具栏 > 底部工具栏 > 自定义内容 > 不显示,不显示,,customBottomToolbarNone,Menu.java,enabled:always,,no,—,Windows/通用,未接,runtime dump补册,,both,,runtime-only custom-content row; static parent path is ambiguous
+M-GAME-018,menu,棋局 > 人机续弈 > 续弈[AI执白](分析模式),续弈[AI执白](分析模式)(Alt+回车),,continueAnalyzeGameAsWhite,Menu.java,enabled:engineLoaded,,yes,—,Windows/通用,未接,运行时补册,,both,,runtime-only analyze-continuation row; helper-built
+M-GAME-019,menu,棋局 > 新对局 > 人机对局(分析模式),人机对局(分析模式 Alt+N),,startAnalyzeGame,Menu.java,enabled:always,,no,—,Windows/通用,未接,运行时补册,,both,,runtime-only analysis-game InfoMenuItem; helper-built

@@ -1,8 +1,8 @@
 ﻿path,top_pos,top_menu,class,text,visible,enabled,bucket,inventory_id,evidence
 ModelJMenuBar/JFontMenu/popup/JFontMenuItem,JFontMenu,文件,JFontMenuItem,新建,true,true,matched,M-FILE-001,normalized label match
-ModelJMenuBar/JFontMenu/popup/JFontMenuItem#1,JFontMenu,文件,JFontMenuItem,打开棋谱(O),true,true,matched,M-FILE-002,normalized label match
+ModelJMenuBar/JFontMenu/popup/JFontMenuItem#1,JFontMenu,文件,JFontMenuItem,打开棋谱(O),true,true,matched,M-FILE-002,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu/popup/JFontMenuItem#2,JFontMenu,文件,JFontMenuItem,打开在线链接(Q),true,true,matched,M-FILE-004,normalized label match
-ModelJMenuBar/JFontMenu/popup/JFontMenuItem#3,JFontMenu,文件,JFontMenuItem,保存(Ctrl+S),true,true,matched,M-FILE-005,normalized label match
+ModelJMenuBar/JFontMenu/popup/JFontMenuItem#3,JFontMenu,文件,JFontMenuItem,保存(Ctrl+S),true,true,matched,M-FILE-005,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu/popup/JFontMenuItem#4,JFontMenu,文件,JFontMenuItem,另存为(S),true,true,matched,M-FILE-006,normalized label match
 ModelJMenuBar/JFontMenu/popup/JFontMenu#1/popup/JFontMenuItem,JFontMenu,文件,JFontMenuItem,保存纯净棋谱(Ctrl+Shift+S),true,true,matched,M-FILE-013,normalized label match
 ModelJMenuBar/JFontMenu/popup/JFontMenu#1/popup/JFontMenuItem#1,JFontMenu,文件,JFontMenuItem,保存纯净棋谱(带评论),true,true,matched,M-FILE-019,normalized label match
@@ -31,10 +31,10 @@ ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#6,JFontMen
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#7,JFontMenu#1,显示,JFontCheckBoxMenuItem,Gtp控制台(E),true,true,matched,M-VIEW-028,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#8,JFontMenu#1,显示,JFontCheckBoxMenuItem,独立棋局控制面板,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,可视化面板设置,true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#9,JFontMenu#1,显示,JFontCheckBoxMenuItem,浮动主棋盘(Alt+Q),true,true,matched,M-VIEW-043,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#10,JFontMenu#1,显示,JFontCheckBoxMenuItem,浮动主棋盘(保留原棋盘),true,true,matched,M-VIEW-043,parenthetical annotation prefix match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#11,JFontMenu#1,显示,JFontCheckBoxMenuItem,浮动小棋盘(Alt+W),true,true,matched,M-VIEW-044,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#12,JFontMenu#1,显示,JFontCheckBoxMenuItem,超级鹰眼(Y),true,true,matched,M-ANA-002,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#9,JFontMenu#1,显示,JFontCheckBoxMenuItem,浮动主棋盘(Alt+Q),true,true,matched,M-VIEW-043,normalized label match; mirror/duplicate claim x3
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#10,JFontMenu#1,显示,JFontCheckBoxMenuItem,浮动主棋盘(保留原棋盘),true,true,matched,M-VIEW-043,parenthetical annotation prefix match; mirror/duplicate claim x3
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#11,JFontMenu#1,显示,JFontCheckBoxMenuItem,浮动小棋盘(Alt+W),true,true,matched,M-VIEW-044,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#12,JFontMenu#1,显示,JFontCheckBoxMenuItem,超级鹰眼(Y),true,true,matched,M-ANA-002,normalized label match; mirror/duplicate claim x3
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#13,JFontMenu#1,显示,JFontCheckBoxMenuItem,独立选点列表(U),true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,独立显示,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,合并在菜单栏上,true,true,unmatched,,normalized label match
@@ -62,28 +62,28 @@ ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/po
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,设置模块顺序,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,同步,true,true,matched,M-TOP-009,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,Kata评估,true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,自动分析,true,true,matched,M-ANA-004,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#3,JFontMenu#1,显示,JFontCheckBoxMenuItem,打开,true,true,matched,M-FILE-002,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#4,JFontMenu#1,显示,JFontCheckBoxMenuItem,保存,true,true,matched,M-FILE-005,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#5,JFontMenu#1,显示,JFontCheckBoxMenuItem,形势判断,true,true,matched,M-ANA-012,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#6,JFontMenu#1,显示,JFontCheckBoxMenuItem,终局点目,true,true,matched,M-GAME-004,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#7,JFontMenu#1,显示,JFontCheckBoxMenuItem,纯网络,true,true,matched,M-ANA-010,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#8,JFontMenu#1,显示,JFontCheckBoxMenuItem,超级鹰眼,true,true,matched,M-ANA-002,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,自动分析,true,true,matched,M-ANA-004,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#3,JFontMenu#1,显示,JFontCheckBoxMenuItem,打开,true,true,matched,M-FILE-002,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#4,JFontMenu#1,显示,JFontCheckBoxMenuItem,保存,true,true,matched,M-FILE-005,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#5,JFontMenu#1,显示,JFontCheckBoxMenuItem,形势判断,true,true,matched,M-ANA-012,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#6,JFontMenu#1,显示,JFontCheckBoxMenuItem,终局点目,true,true,matched,M-GAME-004,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#7,JFontMenu#1,显示,JFontCheckBoxMenuItem,纯网络,true,true,matched,M-ANA-010,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#8,JFontMenu#1,显示,JFontCheckBoxMenuItem,超级鹰眼,true,true,matched,M-ANA-002,normalized label match; mirror/duplicate claim x3
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#9,JFontMenu#1,显示,JFontCheckBoxMenuItem,选点列表,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#10,JFontMenu#1,显示,JFontCheckBoxMenuItem,刷新,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#11,JFontMenu#1,显示,JFontCheckBoxMenuItem,继续分析,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#12,JFontMenu#1,显示,JFontCheckBoxMenuItem,试下,true,true,matched,M-GAME-011,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#13,JFontMenu#1,显示,JFontCheckBoxMenuItem,设为主分支,true,true,matched,M-EDIT-013,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#14,JFontMenu#1,显示,JFontCheckBoxMenuItem,返回主分支,true,true,matched,M-EDIT-012,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#15,JFontMenu#1,显示,JFontCheckBoxMenuItem,清空棋盘,true,true,matched,M-EDIT-008,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#13,JFontMenu#1,显示,JFontCheckBoxMenuItem,设为主分支,true,true,matched,M-EDIT-013,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#14,JFontMenu#1,显示,JFontCheckBoxMenuItem,返回主分支,true,true,matched,M-EDIT-012,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#15,JFontMenu#1,显示,JFontCheckBoxMenuItem,清空棋盘,true,true,matched,M-EDIT-008,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#16,JFontMenu#1,显示,JFontCheckBoxMenuItem,删除,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#17,JFontMenu#1,显示,JFontCheckBoxMenuItem,落子评价,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#18,JFontMenu#1,显示,JFontCheckBoxMenuItem,手数,true,true,matched,M-VIEW-016,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#19,JFontMenu#1,显示,JFontCheckBoxMenuItem,坐标,true,true,matched,M-VIEW-005,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#20,JFontMenu#1,显示,JFontCheckBoxMenuItem,自动播放,true,true,matched,M-VIEW-020,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#19,JFontMenu#1,显示,JFontCheckBoxMenuItem,坐标,true,true,matched,M-VIEW-005,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#20,JFontMenu#1,显示,JFontCheckBoxMenuItem,自动播放,true,true,matched,M-VIEW-020,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#2/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,左移 ([),true,true,matched,M-VIEW-003,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#2/popup/JFontMenuItem#1,JFontMenu#1,显示,JFontMenuItem,右移 (]),true,true,matched,M-VIEW-004,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,坐标(C),true,true,matched,M-VIEW-005,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,坐标(C),true,true,matched,M-VIEW-005,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,不显示,true,true,matched,M-VIEW-049,conflict: multiple inventory candidates
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,最后1手,true,true,matched,M-VIEW-050,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#3/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,最后5手,true,true,matched,M-VIEW-051,normalized label match
@@ -121,7 +121,7 @@ ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem,JFontMen
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,仅显示圈,true,true,matched,M-VIEW-099,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,圈+胜率/目数(此手非选点或选点计算量低时),true,true,matched,M-VIEW-100,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#6/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,设置低计算量阈值(当前:30),true,true,matched,M-VIEW-101,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,自动播放(Ctrl+A),true,true,matched,M-VIEW-020,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,自动播放(Ctrl+A),true,true,matched,M-VIEW-020,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#1,JFontMenu#1,显示,JFontMenuItem,重置界面位置,true,true,matched,M-VIEW-035,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#7/popup/JFontMenu/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,日式九星,true,true,matched,M-VIEW-007,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#7/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,中式古棋盘（角标/中文坐标）,true,true,matched,M-VIEW-008,normalized label match
@@ -161,16 +161,16 @@ ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckB
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#3,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示在小棋盘上,true,true,matched,M-VIEW-082,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#4,JFontMenu#1,显示,JFontCheckBoxMenuItem,显示在所有棋盘上,true,true,matched,M-VIEW-083,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#5,JFontMenu#1,显示,JFontCheckBoxMenuItem,记忆评估显示状态,true,true,matched,M-VIEW-084,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#6,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块透明度表示占有率(小型),true,true,matched,M-VIEW-085,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#7,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块透明度表示占有率,true,true,matched,M-VIEW-086,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#8,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块透明度表示占有率(不显示在活子上),true,true,matched,M-VIEW-086,parenthetical annotation prefix match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#9,JFontMenu#1,显示,JFontCheckBoxMenuItem,以棋子下大面积方块表示占有率,true,true,matched,M-VIEW-088,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#10,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块大小表示占有率,true,true,matched,M-VIEW-089,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块透明度表示占有率(小型),true,true,matched,M-VIEW-085,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块透明度表示占有率,true,true,matched,M-VIEW-086,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块透明度表示占有率(不显示在活子上),true,true,matched,M-VIEW-086,parenthetical annotation prefix match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#3,JFontMenu#1,显示,JFontCheckBoxMenuItem,以棋子下大面积方块表示占有率,true,true,matched,M-VIEW-088,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#4,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块大小表示占有率,true,true,matched,M-VIEW-089,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#6,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块透明度表示占有率(小型),true,true,matched,M-VIEW-085,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#7,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块透明度表示占有率,true,true,matched,M-VIEW-086,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#8,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块透明度表示占有率(不显示在活子上),true,true,matched,M-VIEW-087,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#9,JFontMenu#1,显示,JFontCheckBoxMenuItem,以棋子下大面积方块表示占有率,true,true,matched,M-VIEW-088,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#10,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块大小表示占有率,true,true,matched,M-VIEW-089,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块透明度表示占有率(小型),true,true,matched,M-VIEW-085,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块透明度表示占有率,true,true,matched,M-VIEW-086,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块透明度表示占有率(不显示在活子上),true,true,matched,M-VIEW-087,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#3,JFontMenu#1,显示,JFontCheckBoxMenuItem,以棋子下大面积方块表示占有率,true,true,matched,M-VIEW-088,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#4,JFontMenu#1,显示,JFontCheckBoxMenuItem,以方块大小表示占有率,true,true,matched,M-VIEW-089,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#11,JFontMenu#1,显示,JFontCheckBoxMenuItem,按选点显示评估(最低版本1.11.0),true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#12,JFontMenu#1,显示,JFontCheckBoxMenuItem,使用快捷键(大键盘点),true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#12/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,默认模式(Alt+1),true,true,unmatched,,normalized label match
@@ -180,23 +180,23 @@ ModelJMenuBar/JFontMenu#1/popup/JFontMenu#12/popup/JFontCheckBoxMenuItem,JFontMe
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#12/popup/JFontCheckBoxMenuItem#1,JFontMenu#1,显示,JFontCheckBoxMenuItem,四方图模式(Alt+5),true,true,matched,M-VIEW-032,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#12/popup/JFontCheckBoxMenuItem#2,JFontMenu#1,显示,JFontCheckBoxMenuItem,双引擎模式(Alt+6),true,true,matched,M-VIEW-033,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#13/popup/JFontMenuItem,JFontMenu#1,显示,JFontMenuItem,浮动双棋盘(Alt+7),true,true,matched,M-VIEW-034,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#13/popup/JFontMenuItem#1,JFontMenu#1,显示,JFontMenuItem,浮动主棋盘,true,true,matched,M-VIEW-043,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenu#13/popup/JFontMenuItem#2,JFontMenu#1,显示,JFontMenuItem,浮动小棋盘,true,true,matched,M-VIEW-044,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#13/popup/JFontMenuItem#1,JFontMenu#1,显示,JFontMenuItem,浮动主棋盘,true,true,matched,M-VIEW-043,normalized label match; mirror/duplicate claim x3
+ModelJMenuBar/JFontMenu#1/popup/JFontMenu#13/popup/JFontMenuItem#2,JFontMenu#1,显示,JFontMenuItem,浮动小棋盘,true,true,matched,M-VIEW-044,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#1/popup/JFontMenu#13/popup/JFontMenuItem#3,JFontMenu#1,显示,JFontMenuItem,额外浮动棋盘,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2,JFontMenu#1,显示,JFontMenuItem,,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2/JFontLabel,JFontMenu#1,显示,JFontLabel,自定义布局1(Alt+8),true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2/JFontButton,JFontMenu#1,显示,JFontButton,设置,true,true,matched,M-TOP-007,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#2/JFontButton,JFontMenu#1,显示,JFontButton,设置,true,true,matched,M-TOP-007,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3,JFontMenu#1,显示,JFontMenuItem,,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3/JFontLabel,JFontMenu#1,显示,JFontLabel,自定义布局2(Alt+9),true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3/JFontButton,JFontMenu#1,显示,JFontButton,设置,true,true,matched,M-TOP-007,normalized label match
+ModelJMenuBar/JFontMenu#1/popup/JFontMenuItem#3/JFontButton,JFontMenu#1,显示,JFontButton,设置,true,true,matched,M-TOP-007,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#2/popup/JFontMenu/popup/JFontMenuItem,JFontMenu#2,棋局,JFontMenuItem,人机对局(Genmove模式 N),true,true,matched,M-GAME-013,parenthetical annotation prefix match
-ModelJMenuBar/JFontMenu#2/popup/JFontMenu/popup/InfoMenuItem,JFontMenu#2,棋局,InfoMenuItem,人机对局(分析模式 Alt+N),true,true,matched,M-GAME-013,parenthetical annotation prefix match
+ModelJMenuBar/JFontMenu#2/popup/JFontMenu/popup/InfoMenuItem,JFontMenu#2,棋局,InfoMenuItem,人机对局(分析模式 Alt+N),true,true,matched,M-GAME-019,normalized label match
 ModelJMenuBar/JFontMenu#2/popup/JFontMenu/popup/JFontMenuItem#1,JFontMenu#2,棋局,JFontMenuItem,引擎对局(Alt+E),true,true,matched,M-GAME-003,normalized label match
 ModelJMenuBar/JFontMenu#2/popup/JFontMenu#1/popup/JFontMenuItem,JFontMenu#2,棋局,JFontMenuItem,续弈[AI执黑](Genmove模式)(回车),true,true,matched,M-GAME-014A,parenthetical annotation prefix match
 ModelJMenuBar/JFontMenu#2/popup/JFontMenu#1/popup/JFontMenuItem#1,JFontMenu#2,棋局,JFontMenuItem,续弈[AI执白](Genmove模式)(回车),true,true,matched,M-GAME-014B,parenthetical annotation prefix match
 ModelJMenuBar/JFontMenu#2/popup/JFontMenu#1/popup/JFontMenuItem#2,JFontMenu#2,棋局,JFontMenuItem,续弈[AI执黑](分析模式)(Alt+回车),true,true,matched,M-GAME-014D,normalized label match
-ModelJMenuBar/JFontMenu#2/popup/JFontMenu#1/popup/JFontMenuItem#3,JFontMenu#2,棋局,JFontMenuItem,续弈[AI执白](分析模式)(Alt+回车),true,true,matched,M-GAME-014B,parenthetical annotation prefix match
-ModelJMenuBar/JFontMenu#2/popup/JFontCheckBoxMenuItem,JFontMenu#2,棋局,JFontCheckBoxMenuItem,终局点目(Ctrl+Q),true,true,matched,M-GAME-004,normalized label match
+ModelJMenuBar/JFontMenu#2/popup/JFontMenu#1/popup/JFontMenuItem#3,JFontMenu#2,棋局,JFontMenuItem,续弈[AI执白](分析模式)(Alt+回车),true,true,matched,M-GAME-018,normalized label match
+ModelJMenuBar/JFontMenu#2/popup/JFontCheckBoxMenuItem,JFontMenu#2,棋局,JFontCheckBoxMenuItem,终局点目(Ctrl+Q),true,true,matched,M-GAME-004,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem,JFontMenu#2,棋局,JFontMenuItem,修改AI用时,true,true,matched,M-GAME-005,normalized label match
 ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#1,JFontMenu#2,棋局,JFontMenuItem,终止人机对局(空格),true,true,matched,M-GAME-006,parenthetical annotation prefix match
 ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#2,JFontMenu#2,棋局,JFontMenuItem,终止引擎对局(ALT+R),true,true,matched,M-GAME-007,normalized label match
@@ -206,10 +206,10 @@ ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#5,JFontMenu#2,棋局,JFontMenuItem
 ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#6,JFontMenu#2,棋局,JFontMenuItem,折叠已落棋子(不能撤销),true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#2/popup/JFontMenuItem#7,JFontMenu#2,棋局,JFontMenuItem,自动补完征子,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem,JFontMenu#3,分析,JFontMenuItem,开始/停止 分析(空格),true,true,matched,M-ANA-001,parenthetical annotation prefix match
-ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#1,JFontMenu#3,分析,JFontMenuItem,超级鹰眼(Y),true,true,matched,M-ANA-002,normalized label match
+ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#1,JFontMenu#3,分析,JFontMenuItem,超级鹰眼(Y),true,true,matched,M-ANA-002,normalized label match; mirror/duplicate claim x3
 ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#2,JFontMenu#3,分析,JFontMenuItem,死活题(Shift+E),true,true,matched,M-ANA-003,normalized label match
 ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#3,JFontMenu#3,分析,JFontMenuItem,抓取死活题(Shift+T),true,true,unmatched,,normalized label match
-ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#4,JFontMenu#3,分析,JFontMenuItem,自动分析(A),true,true,matched,M-ANA-004,normalized label match
+ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#4,JFontMenu#3,分析,JFontMenuItem,自动分析(A),true,true,matched,M-ANA-004,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#5,JFontMenu#3,分析,JFontMenuItem,整盘精析（推荐）,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#6,JFontMenu#3,分析,JFontMenuItem,批量分析(Ctrl+O),true,true,matched,M-ANA-005,normalized label match
 ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#7,JFontMenu#3,分析,JFontMenuItem,批量精析,true,true,matched,M-ANA-006,normalized label match
@@ -220,9 +220,9 @@ ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#11,JFontMenu#3,分析,JFontMenuIte
 ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#12,JFontMenu#3,分析,JFontMenuItem,全部分支精析,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#13,JFontMenu#3,分析,JFontMenuItem,精析设置,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#14,JFontMenu#3,分析,JFontMenuItem,棋力水平评估,true,true,matched,M-ANA-009,normalized label match
-ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#15,JFontMenu#3,分析,JFontMenuItem,纯网络(H),true,true,matched,M-ANA-010,normalized label match
+ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#15,JFontMenu#3,分析,JFontMenuItem,纯网络(H),true,true,matched,M-ANA-010,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#3/popup/JFontCheckBoxMenuItem,JFontMenu#3,分析,JFontCheckBoxMenuItem,策略网络(T),true,true,matched,M-ANA-011,normalized label match
-ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#16,JFontMenu#3,分析,JFontMenuItem,形势判断( / 或小键盘点),true,true,matched,M-ANA-012,parenthetical annotation prefix match
+ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#16,JFontMenu#3,分析,JFontMenuItem,形势判断( / 或小键盘点),true,true,matched,M-ANA-012,parenthetical annotation prefix match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#17,JFontMenu#3,分析,JFontMenuItem,清除Lizzie缓存(全局)(Shift+A),true,true,matched,M-ANA-014,normalized label match
 ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#18,JFontMenu#3,分析,JFontMenuItem,清除Lizzie缓存(此手),true,true,matched,M-ANA-013,normalized label match
 ModelJMenuBar/JFontMenu#3/popup/JFontMenuItem#19,JFontMenu#3,分析,JFontMenuItem,清除分析信息(全局),true,true,unmatched,,normalized label match
@@ -235,9 +235,9 @@ ModelJMenuBar/JFontMenu#4/popup/JFontCheckBoxMenuItem#1,JFontMenu#4,编辑,JFont
 ModelJMenuBar/JFontMenu#4/popup/JFontCheckBoxMenuItem#2,JFontMenu#4,编辑,JFontCheckBoxMenuItem,启用点击棋子回看,true,true,unmatched,,normalized label match
 ModelJMenuBar/JFontMenu#4/popup/JFontCheckBoxMenuItem#3,JFontMenu#4,编辑,JFontCheckBoxMenuItem,插入黑子,true,true,matched,M-EDIT-006,normalized label match
 ModelJMenuBar/JFontMenu#4/popup/JFontCheckBoxMenuItem#4,JFontMenu#4,编辑,JFontCheckBoxMenuItem,插入白子,true,true,matched,M-EDIT-007,normalized label match
-ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#3,JFontMenu#4,编辑,JFontMenuItem,清空棋盘(Ctrl+Home),true,true,matched,M-EDIT-008,normalized label match
-ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#4,JFontMenu#4,编辑,JFontMenuItem,返回主分支(B),true,true,matched,M-EDIT-012,normalized label match
-ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#5,JFontMenu#4,编辑,JFontMenuItem,设为主分支(L),true,true,matched,M-EDIT-013,normalized label match
+ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#3,JFontMenu#4,编辑,JFontMenuItem,清空棋盘(Ctrl+Home),true,true,matched,M-EDIT-008,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#4,JFontMenu#4,编辑,JFontMenuItem,返回主分支(B),true,true,matched,M-EDIT-012,normalized label match; mirror/duplicate claim x2
+ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#5,JFontMenu#4,编辑,JFontMenuItem,设为主分支(L),true,true,matched,M-EDIT-013,normalized label match; mirror/duplicate claim x2
 ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#6,JFontMenu#4,编辑,JFontMenuItem,跳转到最前(Home),true,true,matched,M-NAV-003,normalized label match
 ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#7,JFontMenu#4,编辑,JFontMenuItem,跳转到最后(End),true,true,matched,M-NAV-004,normalized label match
 ModelJMenuBar/JFontMenu#4/popup/JFontMenuItem#8,JFontMenu#4,编辑,JFontMenuItem,跳转到左分支(←),true,true,matched,M-NAV-001,normalized label match
