@@ -37,5 +37,5 @@ M-VIEW-102,显示 > 工具栏 > 顶部工具栏 > 自定义内容 > 不显示,ru
 M-VIEW-103,显示 > 工具栏 > 底部工具栏 > 自定义内容 > 不显示,runtime-only custom-content row; static parent path is ambiguous
 M-GAME-018,棋局 > 人机续弈 > 续弈[AI执白](分析模式),runtime-only analyze-continuation row; helper-built
 M-GAME-019,棋局 > 新对局 > 人机对局(分析模式),runtime-only analysis-game InfoMenuItem; helper-built
-M-VIEW-104,显示 > 布局模式 > 自定义布局1,composite layout row; static tree does not expose the child label
-M-VIEW-105,显示 > 布局模式 > 自定义布局2,composite layout row; static tree does not expose the child label
+M-VIEW-104,显示 > 自定义布局1,composite layout row; static tree does not expose the child label
+M-VIEW-105,显示 > 自定义布局2,composite layout row; static tree does not expose the child label

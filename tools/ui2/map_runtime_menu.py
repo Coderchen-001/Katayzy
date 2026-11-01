@@ -95,6 +95,10 @@ def main() -> None:
     def choose_inventory(row: dict[str, str]) -> tuple[dict[str, str] | None, bool, str]:
         text = norm_text(row["text"])
         candidates = list(by_label.get(text, {}).values())
+        if row["class"] != "JFontMenu":
+            # M-TOP rows are top-level containers/buttons; they must not be claimed by
+            # embedded leaf buttons such as the composite-layout "设置" button.
+            candidates = [c for c in candidates if not c["id"].startswith("M-TOP")]
         evidence = "normalized label match"
         if not candidates:
             # Controlled prefix fallback for Chinese annotations such as
@@ -166,7 +170,30 @@ def main() -> None:
                 row = dict(row)
                 row["text"] = children[0]["text"]
                 composite = f"composite child {children[0]['class']}"
-        chosen, conflict, evidence = choose_inventory(row)
+        parent_path = row["path"].rsplit("/", 1)[0]
+        parent_text = path_text.get(parent_path, "")
+        if row["class"] in {"JFontLabel", "JFontButton"} and not parent_text:
+            # The JFontLabel/JFontButton are parts of the parent JFontMenuItem composite.
+            # Resolve them through the sibling label, not through the button caption.
+            sibling = next(
+                (
+                    r
+                    for r in runtime
+                    if r["path"].rsplit("/", 1)[0] == parent_path
+                    and r["class"] == "JFontLabel"
+                    and r["text"].strip()
+                ),
+                None,
+            )
+            if sibling is not None:
+                composite_row = dict(row)
+                composite_row["text"] = sibling["text"]
+                chosen, conflict, evidence = choose_inventory(composite_row)
+                composite = "part-of composite parent"
+            else:
+                chosen, conflict, evidence = choose_inventory(row)
+        else:
+            chosen, conflict, evidence = choose_inventory(row)
         if composite:
             evidence = composite + ("; " + evidence if evidence else "")
         top_segment = row["path"].split("/")[1] if "/" in row["path"] else ""

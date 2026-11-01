@@ -1,6 +1,6 @@
 # Runtime Gap Clusters (generated)
 
-Unmatched rows: **81**; clusters: **80**.
+Unmatched rows: **83**; clusters: **82**.
 
 | Count | Top | Text | Example path |
 |---:|---|---|---|
@@ -19,12 +19,14 @@ Unmatched rows: **81**; clusters: **80**.
 | 1 | JFontMenu#1 | 变化图 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#10/popup/JFontCheckBoxMenuItem` |
 | 1 | JFontMenu#1 | 可视化面板设置 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu/popup/JFontMenuItem` |
 | 1 | JFontMenu#1 | 合并在菜单栏上 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1` |
+| 1 | JFontMenu#1 | 同步 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem` |
 | 1 | JFontMenu#1 | 基本按钮(仅独立显示时) | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1` |
 | 1 | JFontMenu#1 | 存档 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#14` |
 | 1 | JFontMenu#1 | 对局控制 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#4` |
 | 1 | JFontMenu#1 | 延迟显示 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#5/popup/JFontCheckBoxMenuItem#4` |
 | 1 | JFontMenu#1 | 强制计算工具 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontMenu/popup/JFontCheckBoxMenuItem#3` |
 | 1 | JFontMenu#1 | 按选点显示评估(最低版本1.11.0) | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#11/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem#11` |
+| 1 | JFontMenu#1 | 显示 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontCheckBoxMenuItem` |
 | 1 | JFontMenu#1 | 显示拓展隐藏详细工具栏按钮 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu#1/popup/JFontMenu/popup/JFontCheckBoxMenuItem#1` |
 | 1 | JFontMenu#1 | 显示清空棋盘提示对话框 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#6` |
 | 1 | JFontMenu#1 | 显示覆盖文件提示对话框 | `ModelJMenuBar/JFontMenu#1/popup/JFontMenu#8/popup/JFontCheckBoxMenuItem#7` |
